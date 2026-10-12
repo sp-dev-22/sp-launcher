@@ -3,6 +3,7 @@ package com.example.focus
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -14,6 +15,7 @@ class FocusManager(private val context: Context) {
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     private val preferences = LauncherPreferences(context)
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
     fun canDrawOverlays(): Boolean {
         return Settings.canDrawOverlays(context)
@@ -48,14 +50,8 @@ class FocusManager(private val context: Context) {
     }
 
     fun startFocusMode() {
-        // 1. Silent notifications & hide notification banners (Do Not Disturb)
-        if (isNotificationPolicyAccessGranted()) {
-            val currentFilter = notificationManager.currentInterruptionFilter
-            preferences.setSavedInterruptionFilter(currentFilter)
-            try {
-                notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
-            } catch (_: Exception) {}
-        }
+        // 1. Remember the phone's sound state, then silence it for the study block
+        silenceForStudy()
 
         // 2. Start FocusOverlayService
         val serviceIntent = Intent(context, FocusOverlayService::class.java).apply {
@@ -71,23 +67,8 @@ class FocusManager(private val context: Context) {
     }
 
     fun stopFocusMode() {
-        // 1. Restore normal notifications (everything back to normal)
-        if (isNotificationPolicyAccessGranted()) {
-            val savedFilter = preferences.getSavedInterruptionFilter()
-            try {
-                notificationManager.setInterruptionFilter(
-                    if (savedFilter == NotificationManager.INTERRUPTION_FILTER_NONE) {
-                        NotificationManager.INTERRUPTION_FILTER_ALL
-                    } else {
-                        savedFilter
-                    }
-                )
-            } catch (_: Exception) {
-                try {
-                    notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
-                } catch (_: Exception) {}
-            }
-        }
+        // 1. Put the phone's sound state back exactly as it was before the study block
+        restoreAudio()
 
         // 2. Stop FocusOverlayService
         val serviceIntent = Intent(context, FocusOverlayService::class.java).apply {
@@ -97,6 +78,61 @@ class FocusManager(private val context: Context) {
 
         preferences.setFocusModeActive(false)
         preferences.setFocusBreakPhase(false)
+    }
+
+    /**
+     * Saves the phone's current sound state once, then silences it (Do Not Disturb + silent
+     * ringer) for a study block. Both Focus Mode and the overlay service go through here, so
+     * they can no longer disagree about what to restore.
+     */
+    fun silenceForStudy() {
+        if (!preferences.isAudioStateSaved()) {
+            preferences.setSavedInterruptionFilter(
+                try {
+                    notificationManager.currentInterruptionFilter
+                } catch (_: Exception) {
+                    NotificationManager.INTERRUPTION_FILTER_ALL
+                }
+            )
+            preferences.setSavedRingerMode(
+                try {
+                    audioManager?.ringerMode ?: AudioManager.RINGER_MODE_NORMAL
+                } catch (_: Exception) {
+                    AudioManager.RINGER_MODE_NORMAL
+                }
+            )
+            preferences.setAudioStateSaved(true)
+        }
+
+        try {
+            if (notificationManager.isNotificationPolicyAccessGranted) {
+                notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
+            }
+        } catch (_: Exception) {}
+        try {
+            audioManager?.ringerMode = AudioManager.RINGER_MODE_SILENT
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * Restores exactly the sound state saved by [silenceForStudy] - so a phone that was
+     * already on vibrate or already in Do Not Disturb ends up back the way it was.
+     */
+    fun restoreAudio() {
+        if (!preferences.isAudioStateSaved()) return
+
+        try {
+            if (notificationManager.isNotificationPolicyAccessGranted) {
+                notificationManager.setInterruptionFilter(preferences.getSavedInterruptionFilter())
+            }
+        } catch (_: Exception) {}
+
+        try {
+            val savedMode = preferences.getSavedRingerMode()
+            if (savedMode >= 0) audioManager?.ringerMode = savedMode
+        } catch (_: Exception) {}
+
+        preferences.setAudioStateSaved(false)
     }
 
     fun updateLimitMonitoring() {
