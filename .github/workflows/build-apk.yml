@@ -1,0 +1,59 @@
+name: Build APK
+
+# Tap "Run workflow" in the Actions tab to build on demand, or let it run
+# automatically whenever code lands on main.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+# Required so the workflow can attach the APK to a GitHub Release.
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Gradle 9.3.1
+        run: |
+          curl -sSL https://services.gradle.org/distributions/gradle-9.3.1-bin.zip -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /opt
+          echo "/opt/gradle-9.3.1/bin" >> "$GITHUB_PATH"
+
+      - name: Create a debug signing keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore debug.keystore \
+            -storepass android -keypass android \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sp-launcher-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Attach APK to a Release (direct download link)
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: SP Launcher - latest APK
+          body: "Auto-built debug APK. Download app-debug.apk and install it on your phone."
+          files: app/build/outputs/apk/debug/*.apk
