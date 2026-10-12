@@ -12,6 +12,10 @@ import java.util.Calendar
 
 class UsageTracker(private val context: Context) {
 
+    // The limit monitor runs every ~1.5s; caching avoids rescanning the whole day each tick.
+    private var cachedAt = 0L
+    private var cachedUsage: Map<String, Int> = emptyMap()
+
     fun hasUsageStatsPermission(): Boolean {
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -40,104 +44,133 @@ class UsageTracker(private val context: Context) {
         } catch (_: Exception) {}
     }
 
-    /**
-     * Accurately calculates total screen time for each app today, including any
-     * currently running foreground activity in real-time.
-     */
-    fun getTodayAppUsageMinutes(): Map<String, Int> {
-        if (!hasUsageStatsPermission()) return emptyMap()
-
-        val usageStatsManager =
-            context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
-                ?: return emptyMap()
-
+    private fun startOfToday(): Long {
         val calendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }
-        val startOfDay = calendar.timeInMillis
-        val now = System.currentTimeMillis()
-
-        val usageMapMillis = mutableMapOf<String, Long>()
-
-        // 1. Query batched stats
-        val stats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
-            startOfDay,
-            now
-        )
-        if (stats != null) {
-            for (usage in stats) {
-                if (usage.totalTimeInForeground > 0) {
-                    usageMapMillis[usage.packageName] = usage.totalTimeInForeground
-                }
-            }
-        }
-
-        // 2. Query recent usage events (last 1 hour) to account for currently active sessions
-        try {
-            val recentEvents = usageStatsManager.queryEvents(now - 3600_000L, now)
-            if (recentEvents != null) {
-                var lastResumedPkg: String? = null
-                var lastResumedTime = 0L
-
-                val event = UsageEvents.Event()
-                while (recentEvents.hasNextEvent()) {
-                    recentEvents.getNextEvent(event)
-                    if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                        lastResumedPkg = event.packageName
-                        lastResumedTime = event.timeStamp
-                    } else if (event.eventType == UsageEvents.Event.ACTIVITY_PAUSED ||
-                        event.eventType == UsageEvents.Event.ACTIVITY_STOPPED
-                    ) {
-                        if (event.packageName == lastResumedPkg) {
-                            lastResumedPkg = null
-                        }
-                    }
-                }
-
-                // If an app is still in foreground right now, add active elapsed duration
-                if (lastResumedPkg != null && lastResumedTime > 0) {
-                    val activeRunningMillis = (now - lastResumedTime).coerceAtLeast(0L)
-                    val current = usageMapMillis[lastResumedPkg] ?: 0L
-                    usageMapMillis[lastResumedPkg] = current + activeRunningMillis
-                }
-            }
-        } catch (_: Exception) {}
-
-        // Convert millis to minutes
-        val resultMap = mutableMapOf<String, Int>()
-        for ((pkg, millis) in usageMapMillis) {
-            val minutes = (millis / (1000 * 60)).toInt()
-            if (minutes > 0) {
-                resultMap[pkg] = minutes
-            }
-        }
-        return resultMap
+        return calendar.timeInMillis
     }
 
     /**
-     * Returns the currently resumed foreground package name if any.
+     * Total foreground minutes per app for today.
+     *
+     * Computed from usage *events* rather than queryUsageStats(INTERVAL_DAILY). The daily
+     * buckets are not aligned to midnight, so they could credit an app with time from before
+     * today; and the old code then added the running session on top, so an app could be
+     * counted twice. Both made daily limits fire early or late.
+     */
+    fun getTodayAppUsageMinutes(): Map<String, Int> {
+        if (!hasUsageStatsPermission()) return emptyMap()
+
+        val now = System.currentTimeMillis()
+        if (now - cachedAt < CACHE_TTL_MS) return cachedUsage
+
+        val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return emptyMap()
+
+        val millis = foregroundMillis(manager, startOfToday(), now)
+        val result = HashMap<String, Int>()
+        for ((pkg, ms) in millis) {
+            val minutes = (ms / 60_000L).toInt()
+            if (minutes > 0) result[pkg] = minutes
+        }
+
+        cachedAt = now
+        cachedUsage = result
+        return result
+    }
+
+    /** Foreground milliseconds per package within [from, to], session by session. */
+    private fun foregroundMillis(
+        manager: UsageStatsManager,
+        from: Long,
+        to: Long
+    ): Map<String, Long> {
+        val totals = HashMap<String, Long>()
+        val events = try {
+            manager.queryEvents(from, to)
+        } catch (_: Exception) {
+            null
+        } ?: return totals
+
+        val event = UsageEvents.Event()
+        var currentPkg: String? = null
+        var currentStart = 0L
+
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            when (event.eventType) {
+                UsageEvents.Event.ACTIVITY_RESUMED -> {
+                    val previous = currentPkg
+                    if (previous != null && previous != event.packageName &&
+                        event.timeStamp > currentStart
+                    ) {
+                        totals[previous] = (totals[previous] ?: 0L) + (event.timeStamp - currentStart)
+                    }
+                    currentPkg = event.packageName
+                    currentStart = event.timeStamp
+                }
+                UsageEvents.Event.ACTIVITY_PAUSED,
+                UsageEvents.Event.ACTIVITY_STOPPED -> {
+                    val current = currentPkg
+                    if (current != null && event.packageName == current) {
+                        if (event.timeStamp > currentStart) {
+                            totals[current] = (totals[current] ?: 0L) + (event.timeStamp - currentStart)
+                        }
+                        currentPkg = null
+                    }
+                }
+            }
+        }
+
+        // Whatever is still in the foreground right now.
+        val stillOpen = currentPkg
+        if (stillOpen != null && to > currentStart) {
+            totals[stillOpen] = (totals[stillOpen] ?: 0L) + (to - currentStart)
+        }
+        return totals
+    }
+
+    /**
+     * The package currently in the foreground, if any.
+     *
+     * Looks back several minutes and returns the app whose last "resumed" has no matching
+     * "paused" - far more reliable than the previous 10-second window, which often missed
+     * the transition and let a blocked app through.
      */
     fun getForegroundPackage(): String? {
         if (!hasUsageStatsPermission()) return null
-        val usageStatsManager =
-            context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
-                ?: return null
+
+        val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return null
 
         val now = System.currentTimeMillis()
-        val events = usageStatsManager.queryEvents(now - 10_000L, now) ?: return null
+        val events = try {
+            manager.queryEvents(now - LOOKBACK_MS, now)
+        } catch (_: Exception) {
+            null
+        } ?: return null
 
-        var topPackage: String? = null
         val event = UsageEvents.Event()
+        var currentPkg: String? = null
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
-            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                topPackage = event.packageName
+            when (event.eventType) {
+                UsageEvents.Event.ACTIVITY_RESUMED ->
+                    currentPkg = event.packageName
+                UsageEvents.Event.ACTIVITY_PAUSED,
+                UsageEvents.Event.ACTIVITY_STOPPED ->
+                    if (event.packageName == currentPkg) currentPkg = null
             }
         }
-        return topPackage
+        return currentPkg
+    }
+
+    companion object {
+        private const val CACHE_TTL_MS = 10_000L
+        private const val LOOKBACK_MS = 10 * 60_000L
     }
 }
