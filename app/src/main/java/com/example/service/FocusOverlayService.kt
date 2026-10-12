@@ -125,21 +125,47 @@ class FocusOverlayService : Service() {
                 longBreakMinutes = preferences.longBreakDurationMinutes.value
                 targetSessions = preferences.targetSessions.value
 
-                isStudying = true
-                currentSession = 1
-                isPaused = false
-                secondsRemaining = studyMinutes * 60
+                // A null intent means the system restarted us (START_STICKY), not a user start.
+                val isSystemRestart = intent == null
+
+                if (isSystemRestart && !preferences.isFocusModeActive.value) {
+                    // We were only running to enforce app limits. Don't start a focus session.
+                    removeOverlayView()
+                    startForeground(NOTIFICATION_ID, buildMonitorNotification("SP Launcher: App Limits Active"))
+                    startAppMonitor()
+                    return START_STICKY
+                }
+
+                val canResume = isSystemRestart &&
+                        preferences.isFocusModeActive.value &&
+                        preferences.getFocusSecondsRemaining() >= 0
+
+                if (canResume) {
+                    // Resume the in-progress session instead of resetting the timer.
+                    isStudying = preferences.getFocusIsStudying()
+                    currentSession = preferences.getFocusCurrentSession()
+                    secondsRemaining = preferences.getFocusSecondsRemaining()
+                    isPaused = false
+                } else {
+                    isStudying = true
+                    currentSession = 1
+                    isPaused = false
+                    secondsRemaining = studyMinutes * 60
+                }
 
                 preferences.setFocusModeActive(true)
-                preferences.setFocusBreakPhase(false)
+                preferences.setFocusBreakPhase(!isStudying)
 
-                // Silence notifications & ringer for Study phase
-                silencePhone()
+                // Silence notifications & ringer only while studying
+                if (isStudying) {
+                    silencePhone()
+                }
 
                 startForeground(NOTIFICATION_ID, buildNotification("Focus Mode: ${formatTime(secondsRemaining)}"))
                 showOverlayView()
                 startTimer()
                 startAppMonitor()
+                persistTimerState()
                 return START_STICKY
             }
             else -> return START_STICKY
@@ -155,6 +181,8 @@ class FocusOverlayService : Service() {
                     if (secondsRemaining > 0) {
                         secondsRemaining--
                         updateOverlayText()
+                        // Persist periodically so a restart can resume close to where we were.
+                        if (secondsRemaining % 5 == 0) persistTimerState()
                     } else {
                         onPhaseCompleted()
                     }
@@ -193,6 +221,7 @@ class FocusOverlayService : Service() {
             secondsRemaining = studyMinutes * 60
         }
         updateOverlayText()
+        persistTimerState()
     }
 
     private fun silencePhone() {
@@ -487,6 +516,7 @@ class FocusOverlayService : Service() {
                     if (!isLongPressTriggered && duration < 400 && diffX < 15 && diffY < 15) {
                         isPaused = !isPaused
                         updateOverlayText()
+                        persistTimerState()
                     }
                     true
                 }
@@ -636,6 +666,13 @@ class FocusOverlayService : Service() {
         return String.format("%02d:%02d", m, s)
     }
 
+    /** Saves the current timer position so a service restart can resume it. */
+    private fun persistTimerState() {
+        preferences.setFocusSecondsRemaining(secondsRemaining)
+        preferences.setFocusIsStudying(isStudying)
+        preferences.setFocusCurrentSession(currentSession)
+    }
+
     private fun removeOverlayView() {
         overlayView?.let {
             try {
@@ -654,6 +691,8 @@ class FocusOverlayService : Service() {
 
         preferences.setFocusModeActive(false)
         preferences.setFocusBreakPhase(false)
+        // Clear the saved timer so the next start begins a fresh session.
+        preferences.setFocusSecondsRemaining(-1)
 
         // Restore normal notifications & ringer
         unSilencePhone()
@@ -661,8 +700,16 @@ class FocusOverlayService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        stopFocusSession()
+        timerJob?.cancel()
+        longPressCheckJob?.cancel()
         appMonitorJob?.cancel()
+        dismissConfirmCloseDialog()
+        dismissLiveAppBlockOverlay()
+        removeOverlayView()
+        // Restore sound so a destroyed service never leaves the phone silent, but keep the
+        // saved timer state so a START_STICKY restart can resume the session. A user-initiated
+        // stop goes through ACTION_STOP -> stopFocusSession(), which clears that state.
+        unSilencePhone()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -696,7 +743,7 @@ class FocusOverlayService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("SP Launcher Focus Mode")
             .setContentText(contentText)
-            .setSmallIcon(R.drawable.focus_launcher_icon_1791705130527)
+            .setSmallIcon(R.drawable.ic_stat_focus)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -717,7 +764,7 @@ class FocusOverlayService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("SP Launcher")
             .setContentText(contentText)
-            .setSmallIcon(R.drawable.focus_launcher_icon_1791705130527)
+            .setSmallIcon(R.drawable.ic_stat_focus)
             .setContentIntent(pendingIntent)
             .setOngoing(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
