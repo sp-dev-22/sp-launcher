@@ -30,14 +30,24 @@ jobs:
           unzip -q /tmp/gradle.zip -d /opt
           echo "/opt/gradle-9.3.1/bin" >> "$GITHUB_PATH"
 
-      - name: Create a debug signing keystore
+      # A stable signing key means every APK installs as an *update* over the last
+      # one instead of failing with "package conflicts with an existing package".
+      - name: Restore the signing keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
-          keytool -genkeypair -v \
-            -keystore debug.keystore \
-            -storepass android -keypass android \
-            -alias androiddebugkey \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 -d > debug.keystore
+            echo "Using the repository's stable signing keystore."
+          else
+            echo "No DEBUG_KEYSTORE_BASE64 secret set - generating a throwaway key."
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -storepass android -keypass android \
+              -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
 
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
