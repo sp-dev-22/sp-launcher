@@ -13,7 +13,6 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
 import android.os.VibrationEffect
@@ -31,6 +30,7 @@ import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.R
 import com.example.data.repository.LauncherPreferences
+import com.example.focus.FocusManager
 import com.example.focus.UsageTracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,8 +43,6 @@ import kotlinx.coroutines.withContext
 class FocusOverlayService : Service() {
 
     private var windowManager: WindowManager? = null
-    private var notificationManager: NotificationManager? = null
-    private var audioManager: AudioManager? = null
     private var vibrator: Vibrator? = null
 
     private var overlayView: View? = null
@@ -58,6 +56,7 @@ class FocusOverlayService : Service() {
 
     private lateinit var preferences: LauncherPreferences
     private lateinit var usageTracker: UsageTracker
+    private lateinit var focusManager: FocusManager
 
     private var isStudying = true
     private var currentSession = 1
@@ -80,9 +79,8 @@ class FocusOverlayService : Service() {
         super.onCreate()
         preferences = LauncherPreferences(this)
         usageTracker = UsageTracker(this)
+        focusManager = FocusManager(this)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
         vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
@@ -225,21 +223,11 @@ class FocusOverlayService : Service() {
     }
 
     private fun silencePhone() {
-        try {
-            if (notificationManager?.isNotificationPolicyAccessGranted == true) {
-                notificationManager?.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
-            }
-            audioManager?.ringerMode = AudioManager.RINGER_MODE_SILENT
-        } catch (_: Exception) {}
+        focusManager.silenceForStudy()
     }
 
     private fun unSilencePhone() {
-        try {
-            if (notificationManager?.isNotificationPolicyAccessGranted == true) {
-                notificationManager?.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
-            }
-            audioManager?.ringerMode = AudioManager.RINGER_MODE_NORMAL
-        } catch (_: Exception) {}
+        focusManager.restoreAudio()
     }
 
     /**
