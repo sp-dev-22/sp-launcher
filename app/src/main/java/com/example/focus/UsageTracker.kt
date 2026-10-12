@@ -93,10 +93,6 @@ class UsageTracker(private val context: Context) {
                         event.eventType == UsageEvents.Event.ACTIVITY_STOPPED
                     ) {
                         if (event.packageName == lastResumedPkg) {
-                            val elapsed = event.timeStamp - lastResumedTime
-                            if (elapsed > 0 && lastResumedPkg != null) {
-                                // Event captured
-                            }
                             lastResumedPkg = null
                         }
                     }

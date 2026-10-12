@@ -1,12 +1,17 @@
 package com.example
 
 import android.Manifest
+import android.app.role.RoleManager
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -18,6 +23,11 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: LauncherViewModel by viewModels()
 
+    // Registered before the activity is created, as the Activity Result API requires.
+    private val homeRoleLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { /* The system switches the home app itself when the role is granted. */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -28,7 +38,10 @@ class MainActivity : ComponentActivity() {
             val isDarkTheme by viewModel.isNightMode.collectAsState()
 
             FocusLauncherTheme(darkTheme = isDarkTheme) {
-                MainScreen(viewModel = viewModel)
+                MainScreen(
+                    viewModel = viewModel,
+                    onSetDefaultLauncher = { requestDefaultLauncher() }
+                )
             }
         }
     }
@@ -37,6 +50,52 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         viewModel.loadApps()
         viewModel.refreshUsageStats()
+    }
+
+    /**
+     * Asks the system to make SP Launcher the default home app.
+     *
+     * On Android 10+ the role request must be launched from an Activity (the system returns
+     * the outcome through the Activity result). Starting it from an application context does
+     * not work, which is why the option used to do nothing.
+     */
+    private fun requestDefaultLauncher() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = getSystemService(RoleManager::class.java)
+            if (roleManager != null &&
+                roleManager.isRoleAvailable(RoleManager.ROLE_HOME) &&
+                !roleManager.isRoleHeld(RoleManager.ROLE_HOME)
+            ) {
+                try {
+                    homeRoleLauncher.launch(
+                        roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME)
+                    )
+                    return
+                } catch (e: Exception) {
+                    Log.w(TAG, "Role request failed; falling back to system settings", e)
+                }
+            }
+        }
+        // Older Android, or the role is unavailable: open the system screen instead.
+        openHomeSettings()
+    }
+
+    private fun openHomeSettings() {
+        val candidates = listOf(
+            Intent(Settings.ACTION_HOME_SETTINGS),
+            Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)
+        )
+        for (intent in candidates) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (intent.resolveActivity(packageManager) == null) continue
+            try {
+                startActivity(intent)
+                return
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not open ${intent.action}", e)
+            }
+        }
+        Log.w(TAG, "No system screen available to change the default home app")
     }
 
     /**
@@ -59,5 +118,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         private const val REQUEST_POST_NOTIFICATIONS = 1001
+        private const val TAG = "MainActivity"
     }
 }

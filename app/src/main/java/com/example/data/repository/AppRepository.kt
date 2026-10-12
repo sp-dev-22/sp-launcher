@@ -1,10 +1,8 @@
 package com.example.data.repository
 
-import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.provider.Settings
 import com.example.data.model.AppInfo
 import kotlinx.coroutines.Dispatchers
@@ -88,32 +86,4 @@ class AppRepository(private val context: Context) {
         } catch (_: Exception) {}
     }
 
-    fun openDefaultLauncherSettings() {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val roleManager = context.getSystemService(RoleManager::class.java)
-                if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
-                    if (!roleManager.isRoleHeld(RoleManager.ROLE_HOME)) {
-                        val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        context.startActivity(intent)
-                        return
-                    }
-                }
-            }
-
-            val intent = Intent(Settings.ACTION_HOME_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-        } catch (_: Exception) {
-            try {
-                val fallbackIntent = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(fallbackIntent)
-            } catch (_: Exception) {}
-        }
-    }
 }

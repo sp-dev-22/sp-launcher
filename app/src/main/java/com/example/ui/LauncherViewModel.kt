@@ -433,7 +433,4 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         appRepository.uninstallApp(packageName)
     }
 
-    fun openDefaultLauncherSettings() {
-        appRepository.openDefaultLauncherSettings()
-    }
 }
