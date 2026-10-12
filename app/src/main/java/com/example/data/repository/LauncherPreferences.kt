@@ -149,6 +149,26 @@ class LauncherPreferences(context: Context) {
         _isFocusBreakPhase.value = isBreak
     }
 
+    // Persisted Pomodoro timer state, so a foreground-service restart can resume the
+    // in-progress session instead of resetting the timer to a brand-new study block.
+    fun getFocusSecondsRemaining(): Int = prefs.getInt(KEY_FOCUS_SECONDS_REMAINING, -1)
+
+    fun setFocusSecondsRemaining(seconds: Int) {
+        prefs.edit().putInt(KEY_FOCUS_SECONDS_REMAINING, seconds).apply()
+    }
+
+    fun getFocusIsStudying(): Boolean = prefs.getBoolean(KEY_FOCUS_IS_STUDYING, true)
+
+    fun setFocusIsStudying(isStudying: Boolean) {
+        prefs.edit().putBoolean(KEY_FOCUS_IS_STUDYING, isStudying).apply()
+    }
+
+    fun getFocusCurrentSession(): Int = prefs.getInt(KEY_FOCUS_CURRENT_SESSION, 1)
+
+    fun setFocusCurrentSession(session: Int) {
+        prefs.edit().putInt(KEY_FOCUS_CURRENT_SESSION, session).apply()
+    }
+
     fun setStudyDurationMinutes(minutes: Int) {
         val clamped = minutes.coerceIn(1, 120)
         prefs.edit().putInt(KEY_STUDY_DURATION, clamped).apply()
@@ -695,6 +715,9 @@ class LauncherPreferences(context: Context) {
         private const val KEY_ALLOWED_FOCUS_APPS = "allowed_focus_apps"
         private const val KEY_HIDE_BLOCKED_APPS = "hide_blocked_apps"
         private const val KEY_PREVIOUS_INTERRUPTION_FILTER = "prev_interruption_filter"
+        private const val KEY_FOCUS_SECONDS_REMAINING = "focus_seconds_remaining"
+        private const val KEY_FOCUS_IS_STUDYING = "focus_is_studying"
+        private const val KEY_FOCUS_CURRENT_SESSION = "focus_current_session"
 
         // App Limits & Badges
         private const val KEY_APP_LIMITS = "app_limits_data"
