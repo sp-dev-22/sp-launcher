@@ -23,6 +23,9 @@
     <!-- Notifications (Android 13+): required for the focus timer / app-limits notification -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Re-arm Study Manager reminders after a reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -58,6 +61,21 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Pomodoro focus timer overlay" />
         </service>
+
+        <!-- Fires Study Manager alert / missed-deadline notifications -->
+        <receiver
+            android:name=".service.StudyReminderReceiver"
+            android:exported="false" />
+
+        <!-- Re-schedules Study Manager reminders after boot / app update -->
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

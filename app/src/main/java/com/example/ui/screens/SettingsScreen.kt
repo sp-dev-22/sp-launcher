@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Brightness7
 import androidx.compose.material.icons.filled.Checklist
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockClock
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Card
@@ -54,6 +56,8 @@ fun SettingsScreen(
     onOpenEditFavorites: () -> Unit,
     onOpenArrangeFavorites: () -> Unit,
     onOpenWidgetsManagement: () -> Unit,
+    onOpenStudyManager: () -> Unit,
+    onOpenBackupRestore: () -> Unit,
     onSetDefaultLauncher: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -236,6 +240,42 @@ fun SettingsScreen(
             },
             onClick = onOpenWidgetsManagement,
             testTag = "settings_widgets"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 7b. Study Manager
+        SettingsItemRow(
+            title = "Study Manager",
+            subtitle = "Courses > Subjects > Topics > Classes, deadlines & reminders",
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.School,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            onClick = onOpenStudyManager,
+            testTag = "settings_study_manager"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 7c. Backup & Restore
+        SettingsItemRow(
+            title = "Backup & Restore",
+            subtitle = "Save or restore all settings, todos and study data",
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Backup,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            onClick = onOpenBackupRestore,
+            testTag = "settings_backup_restore"
         )
 
         Spacer(modifier = Modifier.height(16.dp))

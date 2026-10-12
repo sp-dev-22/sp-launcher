@@ -34,9 +34,11 @@ import com.example.ui.components.FavoritesReorderBottomSheet
 import com.example.ui.components.FocusHistorySheet
 import com.example.ui.components.FocusModeSheet
 import com.example.ui.components.WidgetsManagementSheet
+import com.example.ui.screens.BackupRestoreScreen
 import com.example.ui.screens.DrawerScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.StudyManagerScreen
 import kotlinx.coroutines.launch
 
 @Composable
@@ -95,15 +97,18 @@ fun MainScreen(
     val showBadgesSheet by viewModel.showBadgesSheet.collectAsState()
     val showEndFocusConfirmDialog by viewModel.showEndFocusConfirmDialog.collectAsState()
     val blockedAppDetails by viewModel.blockedAppDetails.collectAsState()
+    val showStudyManager by viewModel.showStudyManager.collectAsState()
+    val showBackupRestore by viewModel.showBackupRestore.collectAsState()
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
-    BackHandler(enabled = pagerState.currentPage != 1 || showAddFavoritesScreen) {
-        if (showAddFavoritesScreen) {
-            viewModel.setShowAddFavoritesScreen(false)
-        } else if (pagerState.currentPage != 1) {
-            coroutineScope.launch {
-                pagerState.animateScrollToPage(1)
-            }
+    BackHandler(
+        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore
+    ) {
+        when {
+            showStudyManager -> viewModel.setShowStudyManager(false)
+            showBackupRestore -> viewModel.setShowBackupRestore(false)
+            showAddFavoritesScreen -> viewModel.setShowAddFavoritesScreen(false)
+            pagerState.currentPage != 1 -> coroutineScope.launch { pagerState.animateScrollToPage(1) }
         }
     }
 
@@ -139,6 +144,8 @@ fun MainScreen(
                             onOpenEditFavorites = { viewModel.setShowAddFavoritesScreen(true) },
                             onOpenArrangeFavorites = { viewModel.setShowArrangeSheet(true) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
+                            onOpenStudyManager = { viewModel.setShowStudyManager(true) },
+                            onOpenBackupRestore = { viewModel.setShowBackupRestore(true) },
                             onSetDefaultLauncher = onSetDefaultLauncher,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -196,6 +203,23 @@ fun MainScreen(
                         viewModel.setShowAddFavoritesScreen(false)
                     },
                     onBack = { viewModel.setShowAddFavoritesScreen(false) }
+                )
+            }
+
+            // Fullscreen Study Manager
+            if (showStudyManager) {
+                StudyManagerScreen(
+                    viewModel = viewModel,
+                    isDarkTheme = isDarkTheme,
+                    onBack = { viewModel.setShowStudyManager(false) }
+                )
+            }
+
+            // Fullscreen Backup & Restore
+            if (showBackupRestore) {
+                BackupRestoreScreen(
+                    viewModel = viewModel,
+                    onBack = { viewModel.setShowBackupRestore(false) }
                 )
             }
         }

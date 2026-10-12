@@ -7,11 +7,13 @@ import com.example.data.model.AppInfo
 import com.example.data.model.Badge
 import com.example.data.model.BannerItem
 import com.example.data.model.FocusSessionRecord
+import com.example.data.model.StudyCourse
 import com.example.data.model.TaskItem
 import com.example.data.repository.AppRepository
 import com.example.data.repository.LauncherPreferences
 import com.example.focus.FocusManager
 import com.example.focus.UsageTracker
+import com.example.service.StudyReminderScheduler
 import com.example.ui.components.BlockReason
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -90,6 +92,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     // Focus History
     val focusHistory: StateFlow<List<FocusSessionRecord>> = preferences.focusHistory
 
+    // Study Manager tree
+    val studyCourses: StateFlow<List<StudyCourse>> = preferences.studyCourses
+
     // Dialog & Sheet States
     private val _selectedAppForActions = MutableStateFlow<AppInfo?>(null)
     val selectedAppForActions: StateFlow<AppInfo?> = _selectedAppForActions.asStateFlow()
@@ -120,6 +125,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _showEndFocusConfirmDialog = MutableStateFlow(false)
     val showEndFocusConfirmDialog: StateFlow<Boolean> = _showEndFocusConfirmDialog.asStateFlow()
+
+    private val _showStudyManager = MutableStateFlow(false)
+    val showStudyManager: StateFlow<Boolean> = _showStudyManager.asStateFlow()
+
+    private val _showBackupRestore = MutableStateFlow(false)
+    val showBackupRestore: StateFlow<Boolean> = _showBackupRestore.asStateFlow()
 
     private val _blockedAppDetails = MutableStateFlow<Pair<AppInfo, BlockReason>?>(null)
     val blockedAppDetails: StateFlow<Pair<AppInfo, BlockReason>?> = _blockedAppDetails.asStateFlow()
@@ -174,6 +185,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         if (preferences.appLimits.value.isNotEmpty() || preferences.isFocusModeActive.value) {
             focusManager.updateLimitMonitoring()
         }
+        // Re-arm any pending Study Manager reminders on launch.
+        rescheduleStudyReminders()
     }
 
     fun loadApps() {
@@ -323,6 +336,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _showEndFocusConfirmDialog.value = show
     }
 
+    fun setShowStudyManager(show: Boolean) {
+        _showStudyManager.value = show
+    }
+
+    fun setShowBackupRestore(show: Boolean) {
+        _showBackupRestore.value = show
+    }
+
     fun dismissBlockedAppDialog() {
         _blockedAppDetails.value = null
     }
@@ -432,6 +453,87 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun uninstallApp(packageName: String) {
         appRepository.uninstallApp(packageName)
+    }
+
+    // ---------------------------------------------------------------------
+    // Study Manager
+    // ---------------------------------------------------------------------
+
+    fun addStudyCourse(name: String) {
+        preferences.addStudyCourse(name)
+        rescheduleStudyReminders()
+    }
+
+    fun addStudySubject(courseId: String, name: String) {
+        preferences.addStudySubject(courseId, name)
+        rescheduleStudyReminders()
+    }
+
+    fun addStudyTopic(courseId: String, subjectId: String, name: String) {
+        preferences.addStudyTopic(courseId, subjectId, name)
+        rescheduleStudyReminders()
+    }
+
+    fun addStudyClass(courseId: String, subjectId: String, topicId: String, name: String) {
+        preferences.addStudyClass(courseId, subjectId, topicId, name)
+        rescheduleStudyReminders()
+    }
+
+    fun toggleStudyClass(courseId: String, subjectId: String, topicId: String, classId: String) {
+        preferences.toggleStudyClass(courseId, subjectId, topicId, classId)
+        rescheduleStudyReminders()
+    }
+
+    fun deleteStudyCourse(courseId: String) {
+        preferences.deleteStudyCourse(courseId)
+        rescheduleStudyReminders()
+    }
+
+    fun deleteStudySubject(courseId: String, subjectId: String) {
+        preferences.deleteStudySubject(courseId, subjectId)
+        rescheduleStudyReminders()
+    }
+
+    fun deleteStudyTopic(courseId: String, subjectId: String, topicId: String) {
+        preferences.deleteStudyTopic(courseId, subjectId, topicId)
+        rescheduleStudyReminders()
+    }
+
+    fun deleteStudyClass(courseId: String, subjectId: String, topicId: String, classId: String) {
+        preferences.deleteStudyClass(courseId, subjectId, topicId, classId)
+        rescheduleStudyReminders()
+    }
+
+    fun setStudyTopicSchedule(
+        courseId: String, subjectId: String, topicId: String,
+        deadlineMillis: Long?, alertMillis: Long?
+    ) {
+        preferences.setStudyTopicSchedule(courseId, subjectId, topicId, deadlineMillis, alertMillis)
+        rescheduleStudyReminders()
+    }
+
+    fun setStudyClassSchedule(
+        courseId: String, subjectId: String, topicId: String, classId: String,
+        deadlineMillis: Long?, alertMillis: Long?
+    ) {
+        preferences.setStudyClassSchedule(courseId, subjectId, topicId, classId, deadlineMillis, alertMillis)
+        rescheduleStudyReminders()
+    }
+
+    private fun rescheduleStudyReminders() {
+        StudyReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.studyCourses.value)
+    }
+
+    // ---------------------------------------------------------------------
+    // Backup & Restore
+    // ---------------------------------------------------------------------
+
+    fun exportAllData(): String = preferences.exportAllData()
+
+    fun importAllData(json: String): Boolean {
+        val ok = preferences.importAllData(json)
+        if (ok) rescheduleStudyReminders()
+        return ok
     }
 
 }

@@ -3,8 +3,10 @@ package com.example.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +15,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -32,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +47,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.TaskItem
 
+/**
+ * Home-screen checklist. Tasks are now left/right swipeable (one card per task, with page dots)
+ * and completed tasks are pushed to the end automatically.
+ */
 @Composable
 fun TasksWidget(
     tasks: List<TaskItem>,
@@ -53,15 +63,19 @@ fun TasksWidget(
     var showQuickAdd by remember { mutableStateOf(false) }
     var newTaskText by remember { mutableStateOf("") }
 
+    // Auto-move completed tasks to the end. sortedBy is stable, so open tasks keep their order.
+    val sortedTasks = remember(tasks) { tasks.sortedBy { it.isCompleted } }
+    val pendingCount = tasks.count { !it.isCompleted }
+
+    val containerColor = if (isDarkTheme) Color(0xFF1E1E24) else Color(0xFFF6EFEA)
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 4.dp)
             .testTag("tasks_widget_card"),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDarkTheme) Color(0xFF1E1E24) else Color(0xFFF6EFEA)
-        ),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -75,7 +89,7 @@ fun TasksWidget(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "TASKS",
+                    text = if (tasks.isEmpty()) "TASKS" else "TASKS  ($pendingCount open)",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
@@ -83,26 +97,20 @@ fun TasksWidget(
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = { showQuickAdd = !showQuickAdd },
-                        modifier = Modifier.size(28.dp).testTag("quick_add_task_btn")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add Task",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                IconButton(
+                    onClick = { showQuickAdd = !showQuickAdd },
+                    modifier = Modifier.size(28.dp).testTag("quick_add_task_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Task",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 
-            AnimatedVisibility(
-                visible = showQuickAdd,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
+            AnimatedVisibility(visible = showQuickAdd, enter = fadeIn(), exit = fadeOut()) {
                 Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -140,7 +148,7 @@ fun TasksWidget(
                 }
             }
 
-            if (tasks.isEmpty()) {
+            if (sortedTasks.isEmpty()) {
                 Text(
                     text = "No pending tasks. Tap + to add one.",
                     style = MaterialTheme.typography.bodySmall,
@@ -148,14 +156,22 @@ fun TasksWidget(
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             } else {
-                // Show up to 4 tasks in widget
-                val displayTasks = tasks.take(4)
-                displayTasks.forEach { task ->
+                val pagerState = rememberPagerState(pageCount = { sortedTasks.size })
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("tasks_pager")
+                ) { page ->
+                    val task = sortedTasks[page]
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (isDarkTheme) Color(0xFF26262C) else Color(0xFFFFF9F5))
                             .clickable { onToggleTask(task.id) }
-                            .padding(vertical = 4.dp)
+                            .padding(horizontal = 14.dp, vertical = 12.dp)
                             .testTag("task_item_${task.id}"),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -167,39 +183,61 @@ fun TasksWidget(
                             } else {
                                 MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                             },
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
 
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
 
                         Text(
                             text = task.text,
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
-                                fontSize = 13.sp
+                                fontSize = 14.sp
                             ),
                             color = if (task.isCompleted) {
                                 MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
                             } else {
                                 MaterialTheme.colorScheme.onBackground
                             },
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
                     }
                 }
 
-                if (tasks.size > 4) {
-                    Text(
-                        text = "+ ${tasks.size - 4} more tasks",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .padding(top = 4.dp)
-                            .clickable { onManageTasks() }
-                    )
+                if (sortedTasks.size > 1) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        repeat(sortedTasks.size) { index ->
+                            val selected = pagerState.currentPage == index
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 3.dp)
+                                    .size(if (selected) 6.dp else 4.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f)
+                                    )
+                            )
+                        }
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Swipe left / right  •  tap to complete",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    modifier = Modifier
+                        .clickable { onManageTasks() }
+                        .testTag("tasks_hint")
+                )
             }
         }
     }
