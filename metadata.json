@@ -1,6 +1,0 @@
-{
-  "name": "SP Launcher",
-  "description": "Minimal Android launcher tailored for Android 12 with text-only colorful icons, Pomodoro focus mode overlay, and custom widgets.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
