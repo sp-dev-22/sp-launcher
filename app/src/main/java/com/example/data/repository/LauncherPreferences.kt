@@ -169,6 +169,19 @@ class LauncherPreferences(context: Context) {
         prefs.edit().putInt(KEY_FOCUS_CURRENT_SESSION, session).apply()
     }
 
+    // The phone's sound state, saved when a study block starts and restored when it ends.
+    fun getSavedRingerMode(): Int = prefs.getInt(KEY_SAVED_RINGER_MODE, -1)
+
+    fun setSavedRingerMode(mode: Int) {
+        prefs.edit().putInt(KEY_SAVED_RINGER_MODE, mode).apply()
+    }
+
+    fun isAudioStateSaved(): Boolean = prefs.getBoolean(KEY_AUDIO_STATE_SAVED, false)
+
+    fun setAudioStateSaved(saved: Boolean) {
+        prefs.edit().putBoolean(KEY_AUDIO_STATE_SAVED, saved).apply()
+    }
+
     fun setStudyDurationMinutes(minutes: Int) {
         val clamped = minutes.coerceIn(1, 120)
         prefs.edit().putInt(KEY_STUDY_DURATION, clamped).apply()
@@ -718,6 +731,8 @@ class LauncherPreferences(context: Context) {
         private const val KEY_FOCUS_SECONDS_REMAINING = "focus_seconds_remaining"
         private const val KEY_FOCUS_IS_STUDYING = "focus_is_studying"
         private const val KEY_FOCUS_CURRENT_SESSION = "focus_current_session"
+        private const val KEY_SAVED_RINGER_MODE = "saved_ringer_mode"
+        private const val KEY_AUDIO_STATE_SAVED = "audio_state_saved"
 
         // App Limits & Badges
         private const val KEY_APP_LIMITS = "app_limits_data"

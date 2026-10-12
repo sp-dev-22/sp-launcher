@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -53,17 +54,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val tasks = preferences.tasks
 
     // Categorized lists for separate Notes, Reminders, and Goals widgets
-    val notesList: StateFlow<List<BannerItem>> = banners.combine(banners) { list, _ ->
-        list.filter { it.category.equals("Note", ignoreCase = true) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val notesList: StateFlow<List<BannerItem>> = banners
+        .map { list -> list.filter { it.category.equals("Note", ignoreCase = true) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val remindersList: StateFlow<List<BannerItem>> = banners.combine(banners) { list, _ ->
-        list.filter { it.category.equals("Reminder", ignoreCase = true) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val remindersList: StateFlow<List<BannerItem>> = banners
+        .map { list -> list.filter { it.category.equals("Reminder", ignoreCase = true) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val goalsList: StateFlow<List<BannerItem>> = banners.combine(banners) { list, _ ->
-        list.filter { it.category.equals("Goal", ignoreCase = true) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val goalsList: StateFlow<List<BannerItem>> = banners
+        .map { list -> list.filter { it.category.equals("Goal", ignoreCase = true) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Focus Mode states
     val isFocusModeActive = preferences.isFocusModeActive
