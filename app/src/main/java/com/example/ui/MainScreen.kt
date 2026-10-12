@@ -40,7 +40,10 @@ import com.example.ui.screens.SettingsScreen
 import kotlinx.coroutines.launch
 
 @Composable
-fun MainScreen(viewModel: LauncherViewModel) {
+fun MainScreen(
+    viewModel: LauncherViewModel,
+    onSetDefaultLauncher: () -> Unit
+) {
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
 
@@ -136,7 +139,7 @@ fun MainScreen(viewModel: LauncherViewModel) {
                             onOpenEditFavorites = { viewModel.setShowAddFavoritesScreen(true) },
                             onOpenArrangeFavorites = { viewModel.setShowArrangeSheet(true) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
-                            onSetDefaultLauncher = { viewModel.openDefaultLauncherSettings() },
+                            onSetDefaultLauncher = onSetDefaultLauncher,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
