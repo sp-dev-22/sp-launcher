@@ -35,14 +35,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.AppInfo
-import com.example.data.model.Badge
 import com.example.data.model.BannerItem
 import com.example.data.model.TaskItem
 import com.example.ui.components.AppFavoriteChip
 import com.example.ui.components.CategorySwipeWidget
 import com.example.ui.components.ClockWidget
-import com.example.ui.components.LatestBadgeBanner
 import com.example.ui.components.TasksWidget
+import com.example.ui.components.TimeStatWidget
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -59,8 +58,10 @@ fun HomeScreen(
     reminders: List<BannerItem>,
     goals: List<BannerItem>,
     tasks: List<TaskItem>,
-    latestBadge: Badge?,
-    completedSessions: Int,
+    showScreenTime: Boolean,
+    showFocusTime: Boolean,
+    totalScreenTimeMinutes: Int,
+    totalFocusedTimeMinutes: Int,
     isDarkTheme: Boolean,
     onAppClick: (AppInfo) -> Unit,
     onAppLongClick: (AppInfo) -> Unit,
@@ -68,7 +69,6 @@ fun HomeScreen(
     onAddTask: (String) -> Unit,
     onOpenWidgetsManagement: () -> Unit,
     onPromptEndFocus: () -> Unit,
-    onOpenBadgesSheet: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -88,14 +88,7 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 1. Latest Badge shown at top of Home Screen
-            LatestBadgeBanner(
-                badge = latestBadge,
-                completedSessions = completedSessions,
-                onClick = onOpenBadgesSheet
-            )
-
-            // 2. Digital Clock & Date Widget
+            // Digital Clock & Date Widget
             ClockWidget(
                 showTime = showTime,
                 showDate = showDate,
@@ -137,8 +130,8 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 3. Separate Swipeable Widget for Notes
-            if (showNotes) {
+            // 3. Separate Swipeable Widget for Notes (hidden when empty)
+            if (showNotes && notes.isNotEmpty()) {
                 CategorySwipeWidget(
                     category = "Note",
                     items = notes,
@@ -149,8 +142,8 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // 4. Separate Swipeable Widget for Reminders
-            if (showReminders) {
+            // 4. Separate Swipeable Widget for Reminders (hidden when empty)
+            if (showReminders && reminders.isNotEmpty()) {
                 CategorySwipeWidget(
                     category = "Reminder",
                     items = reminders,
@@ -161,8 +154,8 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // 5. Separate Swipeable Widget for Goals
-            if (showGoals) {
+            // 5. Separate Swipeable Widget for Goals (hidden when empty)
+            if (showGoals && goals.isNotEmpty()) {
                 CategorySwipeWidget(
                     category = "Goal",
                     items = goals,
@@ -173,8 +166,8 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // 6. Interactive Tasks Widget
-            if (showTasks) {
+            // 6. Interactive Tasks Widget (hidden when there are no tasks)
+            if (showTasks && tasks.isNotEmpty()) {
                 TasksWidget(
                     tasks = tasks,
                     isDarkTheme = isDarkTheme,
@@ -184,6 +177,30 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(14.dp))
+            }
+
+            // 7. Total Screen Time (Today)
+            if (showScreenTime) {
+                TimeStatWidget(
+                    title = "SCREEN TIME TODAY",
+                    minutes = totalScreenTimeMinutes,
+                    accent = Color(0xFF2196F3),
+                    isDarkTheme = isDarkTheme,
+                    testTag = "screen_time_widget"
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // 8. Total Focused Time (Today)
+            if (showFocusTime) {
+                TimeStatWidget(
+                    title = "FOCUSED TIME TODAY",
+                    minutes = totalFocusedTimeMinutes,
+                    accent = Color(0xFF4CAF50),
+                    isDarkTheme = isDarkTheme,
+                    testTag = "focus_time_widget"
+                )
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
 

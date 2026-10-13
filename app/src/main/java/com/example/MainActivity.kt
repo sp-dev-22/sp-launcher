@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import com.example.ui.LauncherViewModel
 import com.example.ui.MainScreen
 import com.example.ui.theme.FocusLauncherTheme
+import com.example.ui.theme.LauncherTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -36,8 +37,9 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val isDarkTheme by viewModel.isNightMode.collectAsState()
+            val themeKey by viewModel.themeKey.collectAsState()
 
-            FocusLauncherTheme(darkTheme = isDarkTheme) {
+            FocusLauncherTheme(darkTheme = isDarkTheme, theme = LauncherTheme.fromKey(themeKey)) {
                 MainScreen(
                     viewModel = viewModel,
                     onSetDefaultLauncher = { requestDefaultLauncher() }

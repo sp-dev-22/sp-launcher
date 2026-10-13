@@ -20,7 +20,7 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Brightness7
 import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.HourglassTop
@@ -52,7 +52,7 @@ fun SettingsScreen(
     onOpenFocusModeSettings: () -> Unit,
     onOpenFocusHistory: () -> Unit,
     onOpenAppLimits: () -> Unit,
-    onOpenBadges: () -> Unit,
+    onOpenThemes: () -> Unit,
     onOpenEditFavorites: () -> Unit,
     onOpenArrangeFavorites: () -> Unit,
     onOpenWidgetsManagement: () -> Unit,
@@ -154,24 +154,6 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 3. Focus Badges & Milestones (35+ badges)
-        SettingsItemRow(
-            title = "Focus Badges & Streaks",
-            subtitle = "View 35+ unlocked badges & streak milestones",
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.EmojiEvents,
-                    contentDescription = null,
-                    tint = Color(0xFFFFB300),
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            onClick = onOpenBadges,
-            testTag = "settings_badges"
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         // 4. Change Theme
         SettingsItemRow(
             title = "Change Theme",
@@ -186,6 +168,24 @@ fun SettingsScreen(
             },
             onClick = onToggleTheme,
             testTag = "settings_change_theme"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 4b. Themes (Pink, Green, Saffron, Seattle) + Night Mode
+        SettingsItemRow(
+            title = "Themes",
+            subtitle = "Pink, Green, Saffron, Seattle & Night Mode",
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Palette,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            onClick = onOpenThemes,
+            testTag = "settings_themes"
         )
 
         Spacer(modifier = Modifier.height(16.dp))

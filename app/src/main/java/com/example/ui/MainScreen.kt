@@ -27,18 +27,19 @@ import com.example.ui.components.AllowedAppsPickerSheet
 import com.example.ui.components.AppActionBottomSheet
 import com.example.ui.components.AppBlockedDialog
 import com.example.ui.components.AppLimitsSheet
-import com.example.ui.components.BadgesSheet
 import com.example.ui.components.BlockReason
 import com.example.ui.components.EditFavoritesScreen
 import com.example.ui.components.FavoritesReorderBottomSheet
 import com.example.ui.components.FocusHistorySheet
 import com.example.ui.components.FocusModeSheet
+import com.example.ui.components.ThemesSheet
 import com.example.ui.components.WidgetsManagementSheet
 import com.example.ui.screens.BackupRestoreScreen
 import com.example.ui.screens.DrawerScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StudyManagerScreen
+import com.example.ui.theme.LauncherTheme
 import kotlinx.coroutines.launch
 
 @Composable
@@ -78,13 +79,19 @@ fun MainScreen(
     val allowedFocusApps by viewModel.allowedFocusApps.collectAsState()
     val hideBlockedApps by viewModel.hideBlockedApps.collectAsState()
 
-    // Usage tracking, Limits, Badges & History
+    // Usage tracking, Limits & History
     val usageMap by viewModel.usageMap.collectAsState()
     val appLimits by viewModel.appLimits.collectAsState()
-    val latestBadge by viewModel.latestBadge.collectAsState()
     val completedSessions by viewModel.completedSessionsCount.collectAsState()
     val totalFocusMinutes by viewModel.totalFocusMinutes.collectAsState()
     val focusHistory by viewModel.focusHistory.collectAsState()
+
+    // Themes & Today-time widgets
+    val themeKey by viewModel.themeKey.collectAsState()
+    val showScreenTime by viewModel.showScreenTime.collectAsState()
+    val showFocusTime by viewModel.showFocusTime.collectAsState()
+    val totalScreenTimeToday by viewModel.totalScreenTimeToday.collectAsState()
+    val totalFocusedTimeToday by viewModel.totalFocusedTimeToday.collectAsState()
 
     val selectedAppForActions by viewModel.selectedAppForActions.collectAsState()
     val showArrangeSheet by viewModel.showArrangeSheet.collectAsState()
@@ -94,7 +101,7 @@ fun MainScreen(
     val showFocusHistorySheet by viewModel.showFocusHistorySheet.collectAsState()
     val showAllowedAppsSheet by viewModel.showAllowedAppsSheet.collectAsState()
     val showAppLimitsSheet by viewModel.showAppLimitsSheet.collectAsState()
-    val showBadgesSheet by viewModel.showBadgesSheet.collectAsState()
+    val showThemesSheet by viewModel.showThemesSheet.collectAsState()
     val showEndFocusConfirmDialog by viewModel.showEndFocusConfirmDialog.collectAsState()
     val blockedAppDetails by viewModel.blockedAppDetails.collectAsState()
     val showStudyManager by viewModel.showStudyManager.collectAsState()
@@ -140,7 +147,7 @@ fun MainScreen(
                                 viewModel.refreshUsageStats()
                                 viewModel.setShowAppLimitsSheet(true)
                             },
-                            onOpenBadges = { viewModel.setShowBadgesSheet(true) },
+                            onOpenThemes = { viewModel.setShowThemesSheet(true) },
                             onOpenEditFavorites = { viewModel.setShowAddFavoritesScreen(true) },
                             onOpenArrangeFavorites = { viewModel.setShowArrangeSheet(true) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
@@ -165,8 +172,10 @@ fun MainScreen(
                             reminders = remindersList,
                             goals = goalsList,
                             tasks = tasks,
-                            latestBadge = latestBadge,
-                            completedSessions = completedSessions,
+                            showScreenTime = showScreenTime,
+                            showFocusTime = showFocusTime,
+                            totalScreenTimeMinutes = totalScreenTimeToday,
+                            totalFocusedTimeMinutes = totalFocusedTimeToday,
                             isDarkTheme = isDarkTheme,
                             onAppClick = { app -> viewModel.tryLaunchApp(app) },
                             onAppLongClick = { app -> viewModel.setShowArrangeSheet(true) },
@@ -174,7 +183,6 @@ fun MainScreen(
                             onAddTask = { text -> viewModel.addTask(text) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onPromptEndFocus = { viewModel.setShowEndFocusConfirmDialog(true) },
-                            onOpenBadgesSheet = { viewModel.setShowBadgesSheet(true) },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -258,6 +266,8 @@ fun MainScreen(
             showReminders = showReminders,
             showGoals = showGoals,
             showTasks = showTasks,
+            showScreenTime = showScreenTime,
+            showFocusTime = showFocusTime,
             banners = banners,
             tasks = tasks,
             onToggleShowTime = { viewModel.setShowTime(it) },
@@ -266,6 +276,8 @@ fun MainScreen(
             onToggleShowReminders = { viewModel.setShowReminders(it) },
             onToggleShowGoals = { viewModel.setShowGoals(it) },
             onToggleShowTasks = { viewModel.setShowTasks(it) },
+            onToggleShowScreenTime = { viewModel.setShowScreenTime(it) },
+            onToggleShowFocusTime = { viewModel.setShowFocusTime(it) },
             onAddBanner = { viewModel.addBanner(it) },
             onRemoveBanner = { viewModel.removeBanner(it) },
             onAddTask = { viewModel.addTask(it) },
@@ -336,13 +348,14 @@ fun MainScreen(
         )
     }
 
-    // Badges Sheet (35+ badges with filters)
-    if (showBadgesSheet) {
-        BadgesSheet(
-            badges = viewModel.getAllBadges(),
-            completedSessions = completedSessions,
-            totalFocusMinutes = totalFocusMinutes,
-            onDismiss = { viewModel.setShowBadgesSheet(false) }
+    // Themes Sheet (colour palettes + night mode)
+    if (showThemesSheet) {
+        ThemesSheet(
+            currentTheme = LauncherTheme.fromKey(themeKey),
+            isDarkTheme = isDarkTheme,
+            onSelectTheme = { viewModel.setTheme(it.key) },
+            onToggleNightMode = { viewModel.setNightMode(it) },
+            onDismiss = { viewModel.setShowThemesSheet(false) }
         )
     }
 

@@ -125,6 +125,7 @@ fun StudyManagerScreen(
     var expanded by remember { mutableStateOf(setOf<String>()) }
     var addTarget by remember { mutableStateOf<AddTarget?>(null) }
     var scheduleTarget by remember { mutableStateOf<ScheduleTarget?>(null) }
+    var renameRow by remember { mutableStateOf<StudyRow?>(null) }
     var exportMenu by remember { mutableStateOf(false) }
 
     val jsonExport = rememberLauncherForActivityResult(
@@ -242,6 +243,7 @@ fun StudyManagerScreen(
                                 alertMillis = row.alertMillis
                             )
                         },
+                        onEditName = { renameRow = row },
                         onDelete = {
                             when (row.type) {
                                 NodeType.COURSE -> viewModel.deleteStudyCourse(row.courseId)
@@ -307,6 +309,27 @@ fun StudyManagerScreen(
             onDismiss = { scheduleTarget = null }
         )
     }
+
+    renameRow?.let { row ->
+        AddNameDialog(
+            title = "Rename ${row.type.name.lowercase()}",
+            initialValue = row.name,
+            confirmLabel = "Save",
+            onConfirm = { name ->
+                val s = row.subjectId
+                val t = row.topicId
+                val c = row.classId
+                when (row.type) {
+                    NodeType.COURSE -> viewModel.renameStudyCourse(row.courseId, name)
+                    NodeType.SUBJECT -> if (s != null) viewModel.renameStudySubject(row.courseId, s, name)
+                    NodeType.TOPIC -> if (s != null && t != null) viewModel.renameStudyTopic(row.courseId, s, t, name)
+                    NodeType.CLASS -> if (s != null && t != null && c != null) viewModel.renameStudyClass(row.courseId, s, t, c, name)
+                }
+                renameRow = null
+            },
+            onDismiss = { renameRow = null }
+        )
+    }
 }
 
 @Composable
@@ -317,6 +340,7 @@ private fun StudyTreeRow(
     onToggleClass: () -> Unit,
     onAddChild: () -> Unit,
     onSetSchedule: () -> Unit,
+    onEditName: () -> Unit,
     onDelete: () -> Unit
 ) {
     val accent = statusColor(row.status)
@@ -405,6 +429,10 @@ private fun StudyTreeRow(
                 Icon(Icons.Default.MoreVert, contentDescription = "Options", modifier = Modifier.size(18.dp))
             }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text("Edit name") },
+                    onClick = { menuOpen = false; onEditName() }
+                )
                 if (row.type != NodeType.CLASS) {
                     DropdownMenuItem(
                         text = { Text("Add ${childLabel(row.type)}") },
@@ -509,10 +537,12 @@ private fun GraphBar(label: String, count: Int, total: Int, color: Color) {
 @Composable
 private fun AddNameDialog(
     title: String,
+    initialValue: String = "",
+    confirmLabel: String = "Add",
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var text by remember { mutableStateOf("") }
+    var text by remember { mutableStateOf(initialValue) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title, fontWeight = FontWeight.Bold) },
@@ -525,7 +555,7 @@ private fun AddNameDialog(
             )
         },
         confirmButton = {
-            TextButton(onClick = { if (text.isNotBlank()) onConfirm(text) }) { Text("Add") }
+            TextButton(onClick = { if (text.isNotBlank()) onConfirm(text) }) { Text(confirmLabel) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )

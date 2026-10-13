@@ -59,6 +59,8 @@ fun WidgetsManagementSheet(
     showReminders: Boolean,
     showGoals: Boolean,
     showTasks: Boolean,
+    showScreenTime: Boolean,
+    showFocusTime: Boolean,
     banners: List<BannerItem>,
     tasks: List<TaskItem>,
     onToggleShowTime: (Boolean) -> Unit,
@@ -67,6 +69,8 @@ fun WidgetsManagementSheet(
     onToggleShowReminders: (Boolean) -> Unit,
     onToggleShowGoals: (Boolean) -> Unit,
     onToggleShowTasks: (Boolean) -> Unit,
+    onToggleShowScreenTime: (Boolean) -> Unit,
+    onToggleShowFocusTime: (Boolean) -> Unit,
     onAddBanner: (BannerItem) -> Unit,
     onRemoveBanner: (String) -> Unit,
     onAddTask: (String) -> Unit,
@@ -193,6 +197,30 @@ fun WidgetsManagementSheet(
                 ) {
                     Text("Show Tasks Checklist", style = MaterialTheme.typography.bodyLarge)
                     Switch(checked = showTasks, onCheckedChange = onToggleShowTasks)
+                }
+
+                // Toggle Screen Time (Today)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Show Screen Time (Today)", style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = showScreenTime, onCheckedChange = onToggleShowScreenTime)
+                }
+
+                // Toggle Focused Time (Today)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Show Focused Time (Today)", style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = showFocusTime, onCheckedChange = onToggleShowFocusTime)
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))

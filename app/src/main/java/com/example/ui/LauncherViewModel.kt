@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.AppInfo
-import com.example.data.model.Badge
 import com.example.data.model.BannerItem
 import com.example.data.model.FocusSessionRecord
 import com.example.data.model.StudyCourse
@@ -52,6 +51,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val showReminders = preferences.showReminders
     val showGoals = preferences.showGoals
     val showTasks = preferences.showTasks
+    val showScreenTime = preferences.showScreenTime
+    val showFocusTime = preferences.showFocusTime
+    val themeKey = preferences.themeKey
     val banners = preferences.banners
     val tasks = preferences.tasks
 
@@ -83,14 +85,31 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _usageMap = MutableStateFlow<Map<String, Int>>(emptyMap())
     val usageMap: StateFlow<Map<String, Int>> = _usageMap.asStateFlow()
 
-    // Badges & Milestones
+    // Focus session totals
     val completedSessionsCount = preferences.completedSessionsCount
     val totalFocusMinutes = preferences.totalFocusMinutes
-    val latestBadge = preferences.latestBadge
-    val unlockedBadges = preferences.unlockedBadges
 
     // Focus History
     val focusHistory: StateFlow<List<FocusSessionRecord>> = preferences.focusHistory
+
+    // Today's totals for the Home widgets
+    val totalScreenTimeToday: StateFlow<Int> = usageMap
+        .map { usage -> usage.values.sum() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val totalFocusedTimeToday: StateFlow<Int> = focusHistory
+        .map { list ->
+            val now = System.currentTimeMillis()
+            list.filter { isSameDay(it.timestamp, now) }.sumOf { it.durationMinutes }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    private fun isSameDay(a: Long, b: Long): Boolean {
+        val calA = java.util.Calendar.getInstance().apply { timeInMillis = a }
+        val calB = java.util.Calendar.getInstance().apply { timeInMillis = b }
+        return calA.get(java.util.Calendar.YEAR) == calB.get(java.util.Calendar.YEAR) &&
+            calA.get(java.util.Calendar.DAY_OF_YEAR) == calB.get(java.util.Calendar.DAY_OF_YEAR)
+    }
 
     // Study Manager tree
     val studyCourses: StateFlow<List<StudyCourse>> = preferences.studyCourses
@@ -120,9 +139,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showAppLimitsSheet = MutableStateFlow(false)
     val showAppLimitsSheet: StateFlow<Boolean> = _showAppLimitsSheet.asStateFlow()
 
-    private val _showBadgesSheet = MutableStateFlow(false)
-    val showBadgesSheet: StateFlow<Boolean> = _showBadgesSheet.asStateFlow()
-
     private val _showEndFocusConfirmDialog = MutableStateFlow(false)
     val showEndFocusConfirmDialog: StateFlow<Boolean> = _showEndFocusConfirmDialog.asStateFlow()
 
@@ -131,6 +147,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _showBackupRestore = MutableStateFlow(false)
     val showBackupRestore: StateFlow<Boolean> = _showBackupRestore.asStateFlow()
+
+    private val _showThemesSheet = MutableStateFlow(false)
+    val showThemesSheet: StateFlow<Boolean> = _showThemesSheet.asStateFlow()
 
     private val _blockedAppDetails = MutableStateFlow<Pair<AppInfo, BlockReason>?>(null)
     val blockedAppDetails: StateFlow<Pair<AppInfo, BlockReason>?> = _blockedAppDetails.asStateFlow()
@@ -260,6 +279,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         preferences.setShowTasks(enabled)
     }
 
+    fun setShowScreenTime(enabled: Boolean) {
+        preferences.setShowScreenTime(enabled)
+    }
+
+    fun setShowFocusTime(enabled: Boolean) {
+        preferences.setShowFocusTime(enabled)
+    }
+
+    fun setTheme(key: String) {
+        preferences.setTheme(key)
+    }
+
     fun addFavorite(packageName: String) {
         preferences.addFavorite(packageName)
     }
@@ -328,10 +359,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _showAppLimitsSheet.value = show
     }
 
-    fun setShowBadgesSheet(show: Boolean) {
-        _showBadgesSheet.value = show
-    }
-
     fun setShowEndFocusConfirmDialog(show: Boolean) {
         _showEndFocusConfirmDialog.value = show
     }
@@ -342,6 +369,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowBackupRestore(show: Boolean) {
         _showBackupRestore.value = show
+    }
+
+    fun setShowThemesSheet(show: Boolean) {
+        _showThemesSheet.value = show
     }
 
     fun dismissBlockedAppDialog() {
@@ -413,8 +444,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         // Ensure background monitor is actively running to enforce limits live
         focusManager.updateLimitMonitoring()
     }
-
-    fun getAllBadges(): List<Badge> = preferences.getAllBadges()
 
     fun clearAllFocusHistory() {
         preferences.clearAllFocusHistory()
@@ -519,6 +548,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         preferences.setStudyClassSchedule(courseId, subjectId, topicId, classId, deadlineMillis, alertMillis)
         rescheduleStudyReminders()
     }
+
+    fun renameStudyCourse(courseId: String, name: String) = preferences.renameStudyCourse(courseId, name)
+
+    fun renameStudySubject(courseId: String, subjectId: String, name: String) =
+        preferences.renameStudySubject(courseId, subjectId, name)
+
+    fun renameStudyTopic(courseId: String, subjectId: String, topicId: String, name: String) =
+        preferences.renameStudyTopic(courseId, subjectId, topicId, name)
+
+    fun renameStudyClass(courseId: String, subjectId: String, topicId: String, classId: String, name: String) =
+        preferences.renameStudyClass(courseId, subjectId, topicId, classId, name)
 
     private fun rescheduleStudyReminders() {
         StudyReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.studyCourses.value)

@@ -44,12 +44,19 @@ class UsageTracker(private val context: Context) {
         } catch (_: Exception) {}
     }
 
+    /**
+     * Start of the current "usage day". The daily counter resets every night at 23:59
+     * (not at midnight), so this returns the most recent 23:59 that has already passed.
+     */
     private fun startOfToday(): Long {
         val calendar = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
+        }
+        if (calendar.timeInMillis > System.currentTimeMillis()) {
+            calendar.add(Calendar.DAY_OF_YEAR, -1)
         }
         return calendar.timeInMillis
     }

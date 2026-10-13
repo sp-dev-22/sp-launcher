@@ -3,7 +3,6 @@ package com.example.data.repository
 import android.app.NotificationManager
 import android.content.Context
 import android.content.SharedPreferences
-import com.example.data.model.Badge
 import com.example.data.model.BannerItem
 import com.example.data.model.FocusSessionRecord
 import com.example.data.model.StudyClass
@@ -28,6 +27,10 @@ class LauncherPreferences(context: Context) {
     private val _isNightMode = MutableStateFlow(prefs.getBoolean(KEY_NIGHT_MODE, false))
     val isNightMode: StateFlow<Boolean> = _isNightMode.asStateFlow()
 
+    // Selected colour theme key (see LauncherTheme): default / pink / green / saffron / seattle
+    private val _themeKey = MutableStateFlow(prefs.getString(KEY_THEME, "default") ?: "default")
+    val themeKey: StateFlow<String> = _themeKey.asStateFlow()
+
     private val _favorites = MutableStateFlow(loadFavorites())
     val favorites: StateFlow<List<String>> = _favorites.asStateFlow()
 
@@ -49,6 +52,12 @@ class LauncherPreferences(context: Context) {
 
     private val _showTasks = MutableStateFlow(prefs.getBoolean(KEY_SHOW_TASKS, true))
     val showTasks: StateFlow<Boolean> = _showTasks.asStateFlow()
+
+    private val _showScreenTime = MutableStateFlow(prefs.getBoolean(KEY_SHOW_SCREEN_TIME, true))
+    val showScreenTime: StateFlow<Boolean> = _showScreenTime.asStateFlow()
+
+    private val _showFocusTime = MutableStateFlow(prefs.getBoolean(KEY_SHOW_FOCUS_TIME, true))
+    val showFocusTime: StateFlow<Boolean> = _showFocusTime.asStateFlow()
 
     private val _banners = MutableStateFlow(loadBanners())
     val banners: StateFlow<List<BannerItem>> = _banners.asStateFlow()
@@ -87,18 +96,12 @@ class LauncherPreferences(context: Context) {
     private val _appLimits = MutableStateFlow(loadAppLimits())
     val appLimits: StateFlow<Map<String, Int>> = _appLimits.asStateFlow()
 
-    // Badges & Gamification State (35+ badges)
+    // Focus session totals (used by Focus History)
     private val _completedSessionsCount = MutableStateFlow(prefs.getInt(KEY_COMPLETED_SESSIONS, 0))
     val completedSessionsCount: StateFlow<Int> = _completedSessionsCount.asStateFlow()
 
     private val _totalFocusMinutes = MutableStateFlow(prefs.getInt(KEY_TOTAL_FOCUS_MINUTES, 0))
     val totalFocusMinutes: StateFlow<Int> = _totalFocusMinutes.asStateFlow()
-
-    private val _unlockedBadges = MutableStateFlow(loadUnlockedBadgeIds())
-    val unlockedBadges: StateFlow<List<String>> = _unlockedBadges.asStateFlow()
-
-    private val _latestBadge = MutableStateFlow(loadLatestBadge())
-    val latestBadge: StateFlow<Badge?> = _latestBadge.asStateFlow()
 
     // Focus History
     private val _focusHistory = MutableStateFlow(loadFocusHistory())
@@ -111,7 +114,6 @@ class LauncherPreferences(context: Context) {
     fun setNightMode(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_NIGHT_MODE, enabled).apply()
         _isNightMode.value = enabled
-        checkAndUnlockBadges()
     }
 
     fun setShowTime(enabled: Boolean) {
@@ -142,6 +144,21 @@ class LauncherPreferences(context: Context) {
     fun setShowTasks(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_TASKS, enabled).apply()
         _showTasks.value = enabled
+    }
+
+    fun setShowScreenTime(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_SCREEN_TIME, enabled).apply()
+        _showScreenTime.value = enabled
+    }
+
+    fun setShowFocusTime(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_FOCUS_TIME, enabled).apply()
+        _showFocusTime.value = enabled
+    }
+
+    fun setTheme(key: String) {
+        prefs.edit().putString(KEY_THEME, key).apply()
+        _themeKey.value = key
     }
 
     fun setFocusModeActive(active: Boolean) {
@@ -247,7 +264,6 @@ class LauncherPreferences(context: Context) {
         current.forEach { (pkg, limit) -> obj.put(pkg, limit) }
         prefs.edit().putString(KEY_APP_LIMITS, obj.toString()).apply()
         _appLimits.value = current
-        checkAndUnlockBadges()
     }
 
     fun recordCompletedFocusSession(minutes: Int, sessionType: String = "Focus Session") {
@@ -272,9 +288,6 @@ class LauncherPreferences(context: Context) {
             timeFormatted = timeFormat.format(Date(now))
         )
         addFocusHistoryRecord(record)
-
-        // Check badge unlocks
-        checkAndUnlockBadges(newCount, newMinutes)
     }
 
     private fun addFocusHistoryRecord(record: FocusSessionRecord) {
@@ -336,175 +349,6 @@ class LauncherPreferences(context: Context) {
         }
     }
 
-    fun checkAndUnlockBadges(
-        sessions: Int = _completedSessionsCount.value,
-        focusMins: Int = _totalFocusMinutes.value
-    ) {
-        val unlocked = _unlockedBadges.value.toMutableList()
-        var newBadgeUnlocked: Badge? = null
-
-        fun tryUnlock(badge: Badge, condition: Boolean) {
-            if (condition && !unlocked.contains(badge.id)) {
-                unlocked.add(badge.id)
-                newBadgeUnlocked = badge
-            }
-        }
-
-        val allBadges = getAllBadges()
-        val tasksCompleted = _tasks.value.count { it.isCompleted }
-        val goalsCount = _banners.value.count { it.category.equals("Goal", ignoreCase = true) }
-        val notesCount = _banners.value.count { it.category.equals("Note", ignoreCase = true) }
-        val remindersCount = _banners.value.count { it.category.equals("Reminder", ignoreCase = true) }
-        val limitsCount = _appLimits.value.size
-        val isNight = _isNightMode.value
-
-        for (b in allBadges) {
-            val condition = when (b.id) {
-                // Sessions milestones
-                "b_first_session" -> sessions >= 1
-                "b_session_2" -> sessions >= 2
-                "b_session_3" -> sessions >= 3
-                "b_focus_master" -> sessions >= 5
-                "b_session_7" -> sessions >= 7
-                "b_zen_monk" -> sessions >= 10
-                "b_deep_diver" -> sessions >= 15
-                "b_flow_state" -> sessions >= 20
-                "b_streak_champion" -> sessions >= 25
-                "b_session_35" -> sessions >= 35
-                "b_session_50" -> sessions >= 50
-                "b_session_75" -> sessions >= 75
-                "b_session_100" -> sessions >= 100
-
-                // Total Minutes milestones
-                "b_mins_15" -> focusMins >= 15
-                "b_mins_30" -> focusMins >= 30
-                "b_hour_hero" -> focusMins >= 60
-                "b_mins_120" -> focusMins >= 120
-                "b_mins_180" -> focusMins >= 180
-                "b_mins_300" -> focusMins >= 300
-                "b_mins_600" -> focusMins >= 600
-                "b_mins_1000" -> focusMins >= 1000
-                "b_mins_1440" -> focusMins >= 1440
-
-                // App Limits & Digital Wellbeing
-                "b_digital_minimalist" -> limitsCount >= 1
-                "b_limit_disciplinarian" -> limitsCount >= 3
-                "b_limit_guardian" -> limitsCount >= 5
-
-                // Tasks milestones
-                "b_task_tackler" -> tasksCompleted >= 1
-                "b_task_crusher" -> tasksCompleted >= 5
-                "b_task_champion" -> tasksCompleted >= 10
-
-                // Goals, Notes, Reminders & Mindset
-                "b_goal_setter" -> goalsCount >= 1
-                "b_goal_trio" -> goalsCount >= 3
-                "b_note_taker" -> notesCount >= 1
-                "b_reminder_pro" -> remindersCount >= 1
-                "b_night_scholar" -> isNight && sessions >= 1
-                "b_day_achiever" -> !isNight && sessions >= 1
-                "b_balanced_mind" -> sessions >= 2
-                else -> false
-            }
-            tryUnlock(b.copy(isUnlocked = true, unlockedTimestamp = System.currentTimeMillis()), condition)
-        }
-
-        if (unlocked.size != _unlockedBadges.value.size) {
-            val array = JSONArray()
-            unlocked.forEach { array.put(it) }
-            prefs.edit().putString(KEY_UNLOCKED_BADGES, array.toString()).apply()
-            _unlockedBadges.value = unlocked
-
-            if (newBadgeUnlocked != null) {
-                saveLatestBadge(newBadgeUnlocked!!)
-            }
-        }
-    }
-
-    private fun saveLatestBadge(badge: Badge) {
-        val obj = JSONObject().apply {
-            put("id", badge.id)
-            put("title", badge.title)
-            put("description", badge.description)
-            put("iconEmoji", badge.iconEmoji)
-            put("unlockedTimestamp", badge.unlockedTimestamp)
-        }
-        prefs.edit().putString(KEY_LATEST_BADGE, obj.toString()).apply()
-        _latestBadge.value = badge
-    }
-
-    private fun loadLatestBadge(): Badge? {
-        val raw = prefs.getString(KEY_LATEST_BADGE, null) ?: return null
-        return try {
-            val obj = JSONObject(raw)
-            Badge(
-                id = obj.getString("id"),
-                title = obj.getString("title"),
-                description = obj.getString("description"),
-                iconEmoji = obj.getString("iconEmoji"),
-                isUnlocked = true,
-                unlockedTimestamp = obj.optLong("unlockedTimestamp", 0L)
-            )
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    /**
-     * 35 Distinct Badges across Sessions, Time, Limits, Tasks, and Mindset.
-     */
-    fun getAllBadges(): List<Badge> {
-        val unlockedIds = _unlockedBadges.value.toSet()
-        val all = listOf(
-            // Sessions milestones (13 badges)
-            Badge("b_first_session", "Focus Starter", "Completed your 1st focus session", "🌱"),
-            Badge("b_session_2", "Double Spark", "Completed 2 focus sessions", "✌️"),
-            Badge("b_session_3", "Triple Spark", "Completed 3 focus sessions", "🥉"),
-            Badge("b_focus_master", "Focus Master", "Completed 5 focus sessions", "🔥"),
-            Badge("b_session_7", "Weekly Warrior", "Completed 7 focus sessions", "⚡"),
-            Badge("b_zen_monk", "Zen Monk", "Completed 10 focus sessions", "🧘"),
-            Badge("b_deep_diver", "Deep Diver", "Completed 15 focus sessions", "🌊"),
-            Badge("b_flow_state", "Flow State", "Completed 20 focus sessions", "🌀"),
-            Badge("b_streak_champion", "Mindful Master", "Completed 25 focus sessions", "👑"),
-            Badge("b_session_35", "Iron Will", "Completed 35 focus sessions", "🛡️"),
-            Badge("b_session_50", "Centurion of Focus", "Completed 50 focus sessions", "🏛️"),
-            Badge("b_session_75", "Grand Sage", "Completed 75 focus sessions", "🔮"),
-            Badge("b_session_100", "Focus Legend", "Completed 100 focus sessions", "💎"),
-
-            // Total Minutes milestones (9 badges)
-            Badge("b_mins_15", "Quick Sitter", "Logged 15+ minutes of focus", "⏱️"),
-            Badge("b_mins_30", "Half-Hour Hero", "Logged 30+ minutes of focus", "⏳"),
-            Badge("b_hour_hero", "Hour Hero", "Logged 60+ minutes in deep focus", "⚡"),
-            Badge("b_mins_120", "Double Hour", "Logged 120+ minutes of focus", "🚀"),
-            Badge("b_mins_180", "3-Hour Titan", "Logged 180+ minutes of focus", "🛡️"),
-            Badge("b_mins_300", "5-Hour Marathoner", "Logged 300+ minutes of focus", "🎯"),
-            Badge("b_mins_600", "10-Hour Sage", "Logged 600+ minutes of focus", "🌟"),
-            Badge("b_mins_1000", "Millennium Club", "Logged 1,000+ minutes of focus", "🏆"),
-            Badge("b_mins_1440", "Day of Discipline", "Logged 24 hours of focus time", "☀️"),
-
-            // Digital Wellbeing & Limits (3 badges)
-            Badge("b_digital_minimalist", "Digital Minimalist", "Configured daily app use limits", "🛡️"),
-            Badge("b_limit_disciplinarian", "Strict Boundary", "Configured 3 or more app limits", "🔒"),
-            Badge("b_limit_guardian", "Digital Guardian", "Configured 5 or more app limits", "🔕"),
-
-            // Tasks milestones (3 badges)
-            Badge("b_task_tackler", "Task Tackler", "Checked off your first task", "✅"),
-            Badge("b_task_crusher", "Task Crusher", "Completed 5 tasks in checklist", "📋"),
-            Badge("b_task_champion", "Task Champion", "Completed 10 tasks in checklist", "🥇"),
-
-            // Goals, Notes & Mindset (7 badges)
-            Badge("b_goal_setter", "Visionary", "Created your first personal Goal card", "🚩"),
-            Badge("b_goal_trio", "Goal Hunter", "Created 3 or more Goals", "🎯"),
-            Badge("b_note_taker", "Thinker", "Saved your personal Notes", "📝"),
-            Badge("b_reminder_pro", "On Time", "Created Reminders in widget", "🔔"),
-            Badge("b_night_scholar", "Night Scholar", "Focused during Night theme", "🌙"),
-            Badge("b_day_achiever", "Dawn Achiever", "Focused during Day theme", "🌅"),
-            Badge("b_balanced_mind", "Balanced Mind", "Took a mindful Pomodoro break", "☕")
-        )
-        return all.map { b ->
-            if (unlockedIds.contains(b.id)) b.copy(isUnlocked = true) else b
-        }
-    }
 
     fun getSavedInterruptionFilter(): Int {
         return prefs.getInt(KEY_PREVIOUS_INTERRUPTION_FILTER, NotificationManager.INTERRUPTION_FILTER_ALL)
@@ -558,7 +402,6 @@ class LauncherPreferences(context: Context) {
         }
         prefs.edit().putString(KEY_TASKS, array.toString()).apply()
         _tasks.value = list
-        checkAndUnlockBadges()
     }
 
     fun addTask(text: String) {
@@ -593,7 +436,6 @@ class LauncherPreferences(context: Context) {
         }
         prefs.edit().putString(KEY_BANNERS, array.toString()).apply()
         _banners.value = list
-        checkAndUnlockBadges()
     }
 
     fun addBanner(banner: BannerItem) {
@@ -648,20 +490,6 @@ class LauncherPreferences(context: Context) {
             map
         } catch (_: Exception) {
             emptyMap()
-        }
-    }
-
-    private fun loadUnlockedBadgeIds(): List<String> {
-        val raw = prefs.getString(KEY_UNLOCKED_BADGES, null) ?: return emptyList()
-        return try {
-            val array = JSONArray(raw)
-            val list = mutableListOf<String>()
-            for (i in 0 until array.length()) {
-                list.add(array.getString(i))
-            }
-            list
-        } catch (_: Exception) {
-            emptyList()
         }
     }
 
@@ -930,6 +758,46 @@ class LauncherPreferences(context: Context) {
         completedAtMillis = if (obj.has("completedAtMillis")) obj.optLong("completedAtMillis") else null
     )
 
+    fun renameStudyCourse(courseId: String, name: String) {
+        if (name.isBlank()) return
+        saveStudyCourses(_studyCourses.value.map { course ->
+            if (course.id == courseId) course.copy(name = name.trim()) else course
+        })
+    }
+
+    fun renameStudySubject(courseId: String, subjectId: String, name: String) {
+        if (name.isBlank()) return
+        saveStudyCourses(_studyCourses.value.map { course ->
+            if (course.id != courseId) course else course.copy(subjects = course.subjects.map { subject ->
+                if (subject.id == subjectId) subject.copy(name = name.trim()) else subject
+            })
+        })
+    }
+
+    fun renameStudyTopic(courseId: String, subjectId: String, topicId: String, name: String) {
+        if (name.isBlank()) return
+        saveStudyCourses(_studyCourses.value.map { course ->
+            if (course.id != courseId) course else course.copy(subjects = course.subjects.map { subject ->
+                if (subject.id != subjectId) subject else subject.copy(topics = subject.topics.map { topic ->
+                    if (topic.id == topicId) topic.copy(name = name.trim()) else topic
+                })
+            })
+        })
+    }
+
+    fun renameStudyClass(courseId: String, subjectId: String, topicId: String, classId: String, name: String) {
+        if (name.isBlank()) return
+        saveStudyCourses(_studyCourses.value.map { course ->
+            if (course.id != courseId) course else course.copy(subjects = course.subjects.map { subject ->
+                if (subject.id != subjectId) subject else subject.copy(topics = subject.topics.map { topic ->
+                    if (topic.id != topicId) topic else topic.copy(classes = topic.classes.map { clazz ->
+                        if (clazz.id == classId) clazz.copy(name = name.trim()) else clazz
+                    })
+                })
+            })
+        })
+    }
+
     // ---------------------------------------------------------------------
     // Backup & Restore (whole-app export / import)
     // ---------------------------------------------------------------------
@@ -997,6 +865,9 @@ class LauncherPreferences(context: Context) {
         _showReminders.value = prefs.getBoolean(KEY_SHOW_REMINDERS, true)
         _showGoals.value = prefs.getBoolean(KEY_SHOW_GOALS, true)
         _showTasks.value = prefs.getBoolean(KEY_SHOW_TASKS, true)
+        _showScreenTime.value = prefs.getBoolean(KEY_SHOW_SCREEN_TIME, true)
+        _showFocusTime.value = prefs.getBoolean(KEY_SHOW_FOCUS_TIME, true)
+        _themeKey.value = prefs.getString(KEY_THEME, "default") ?: "default"
         _banners.value = loadBanners()
         _tasks.value = loadTasks()
         _isFocusModeActive.value = prefs.getBoolean(KEY_FOCUS_MODE_ACTIVE, false)
@@ -1010,8 +881,6 @@ class LauncherPreferences(context: Context) {
         _appLimits.value = loadAppLimits()
         _completedSessionsCount.value = prefs.getInt(KEY_COMPLETED_SESSIONS, 0)
         _totalFocusMinutes.value = prefs.getInt(KEY_TOTAL_FOCUS_MINUTES, 0)
-        _unlockedBadges.value = loadUnlockedBadgeIds()
-        _latestBadge.value = loadLatestBadge()
         _focusHistory.value = loadFocusHistory()
         _studyCourses.value = loadStudyCourses()
     }
@@ -1028,6 +897,9 @@ class LauncherPreferences(context: Context) {
         private const val KEY_BANNERS = "banners_data"
         private const val KEY_TASKS = "tasks_data"
         private const val KEY_STUDY_DATA = "study_manager_data"
+        private const val KEY_THEME = "theme_key"
+        private const val KEY_SHOW_SCREEN_TIME = "show_screen_time"
+        private const val KEY_SHOW_FOCUS_TIME = "show_focus_time"
 
         // Focus Mode Keys
         private const val KEY_FOCUS_MODE_ACTIVE = "focus_mode_active"
@@ -1045,12 +917,10 @@ class LauncherPreferences(context: Context) {
         private const val KEY_SAVED_RINGER_MODE = "saved_ringer_mode"
         private const val KEY_AUDIO_STATE_SAVED = "audio_state_saved"
 
-        // App Limits & Badges
+        // App Limits
         private const val KEY_APP_LIMITS = "app_limits_data"
         private const val KEY_COMPLETED_SESSIONS = "completed_sessions"
         private const val KEY_TOTAL_FOCUS_MINUTES = "total_focus_minutes"
-        private const val KEY_UNLOCKED_BADGES = "unlocked_badges"
-        private const val KEY_LATEST_BADGE = "latest_badge"
         private const val KEY_FOCUS_HISTORY = "focus_history_records"
     }
 }
