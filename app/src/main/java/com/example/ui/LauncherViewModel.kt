@@ -7,7 +7,9 @@ import com.example.data.model.AppInfo
 import com.example.data.model.BannerItem
 import com.example.data.model.FocusSessionRecord
 import com.example.data.model.StudyCourse
+import com.example.data.model.StudyDueItem
 import com.example.data.model.StudyFocusTarget
+import com.example.data.model.allClassRefs
 import com.example.data.model.TaskItem
 import com.example.data.repository.AppRepository
 import com.example.data.repository.LauncherPreferences
@@ -52,6 +54,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val showTasks = preferences.showTasks
     val showScreenTime = preferences.showScreenTime
     val showFocusTime = preferences.showFocusTime
+    val showStudyDue = preferences.showStudyDue
+    val showStudySummary = preferences.showStudySummary
+    val studySummaryHour = preferences.studySummaryHour
+    val studySummaryMinute = preferences.studySummaryMinute
     val themeKey = preferences.themeKey
     val banners = preferences.banners
     val tasks = preferences.tasks
@@ -99,6 +105,33 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     // Study Manager tree
     val studyCourses: StateFlow<List<StudyCourse>> = preferences.studyCourses
+
+    // Study classes due today or overdue (Home "Due today" card)
+    val studyDueItems: StateFlow<List<StudyDueItem>> = studyCourses
+        .map { courses -> computeStudyDue(courses) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private fun computeStudyDue(courses: List<StudyCourse>): List<StudyDueItem> {
+        val now = System.currentTimeMillis()
+        val endOfToday = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 23)
+            set(java.util.Calendar.MINUTE, 59)
+            set(java.util.Calendar.SECOND, 59)
+        }.timeInMillis
+        val items = mutableListOf<StudyDueItem>()
+        for (course in courses) {
+            for (ref in course.allClassRefs()) {
+                if (ref.clazz.isCompleted) continue
+                val deadline = ref.clazz.deadlineMillis ?: continue
+                val overdue = deadline < now
+                val dueToday = deadline in now..endOfToday
+                if (overdue || dueToday) {
+                    items.add(StudyDueItem("${ref.topic.name} · ${ref.clazz.name}", deadline, overdue))
+                }
+            }
+        }
+        return items.sortedBy { it.deadlineMillis }
+    }
 
     // Dialog & Sheet States
     private val _selectedAppForActions = MutableStateFlow<AppInfo?>(null)
@@ -192,6 +225,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
         // Re-arm any pending Study Manager reminders on launch.
         rescheduleStudyReminders()
+        StudyReminderScheduler.applyDailySummary(
+            getApplication<Application>(),
+            preferences.showStudySummary.value,
+            preferences.studySummaryHour.value,
+            preferences.studySummaryMinute.value
+        )
     }
 
     fun loadApps() {
@@ -263,6 +302,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowFocusTime(enabled: Boolean) {
         preferences.setShowFocusTime(enabled)
+    }
+
+    fun setShowStudyDue(enabled: Boolean) {
+        preferences.setShowStudyDue(enabled)
+    }
+
+    fun setStudySummary(enabled: Boolean, hour: Int, minute: Int) {
+        preferences.setStudySummary(enabled, hour, minute)
+        StudyReminderScheduler.applyDailySummary(getApplication<Application>(), enabled, hour, minute)
     }
 
     fun setTheme(key: String) {

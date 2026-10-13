@@ -84,3 +84,10 @@ data class StudyFocusTarget(
     val classId: String? = null,
     val name: String
 )
+
+/** A study class that is due today or already overdue (drives the Home "Due today" card). */
+data class StudyDueItem(
+    val label: String,
+    val deadlineMillis: Long,
+    val isOverdue: Boolean
+)

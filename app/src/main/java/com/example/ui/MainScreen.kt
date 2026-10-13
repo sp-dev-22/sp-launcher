@@ -87,6 +87,8 @@ fun MainScreen(
     val showFocusTime by viewModel.showFocusTime.collectAsState()
     val totalScreenTimeToday by viewModel.totalScreenTimeToday.collectAsState()
     val totalFocusedTimeToday by viewModel.totalFocusedTimeToday.collectAsState()
+    val showStudyDue by viewModel.showStudyDue.collectAsState()
+    val studyDueItems by viewModel.studyDueItems.collectAsState()
 
     val selectedAppForActions by viewModel.selectedAppForActions.collectAsState()
     val showArrangeSheet by viewModel.showArrangeSheet.collectAsState()
@@ -166,6 +168,8 @@ fun MainScreen(
                             showFocusTime = showFocusTime,
                             totalScreenTimeMinutes = totalScreenTimeToday,
                             totalFocusedTimeMinutes = totalFocusedTimeToday,
+                            showStudyDue = showStudyDue,
+                            studyDueItems = studyDueItems,
                             isDarkTheme = isDarkTheme,
                             onAppClick = { app -> viewModel.tryLaunchApp(app) },
                             onAppLongClick = { app -> viewModel.setShowArrangeSheet(true) },
@@ -173,6 +177,7 @@ fun MainScreen(
                             onAddTask = { text -> viewModel.addTask(text) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onPromptEndFocus = { viewModel.setShowEndFocusConfirmDialog(true) },
+                            onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -256,6 +261,7 @@ fun MainScreen(
             showTasks = showTasks,
             showScreenTime = showScreenTime,
             showFocusTime = showFocusTime,
+            showStudyDue = showStudyDue,
             banners = banners,
             tasks = tasks,
             onToggleShowTime = { viewModel.setShowTime(it) },
@@ -264,6 +270,7 @@ fun MainScreen(
             onToggleShowTasks = { viewModel.setShowTasks(it) },
             onToggleShowScreenTime = { viewModel.setShowScreenTime(it) },
             onToggleShowFocusTime = { viewModel.setShowFocusTime(it) },
+            onToggleShowStudyDue = { viewModel.setShowStudyDue(it) },
             onAddBanner = { viewModel.addBanner(it) },
             onRemoveBanner = { viewModel.removeBanner(it) },
             onAddTask = { viewModel.addTask(it) },

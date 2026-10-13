@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -38,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -129,6 +131,10 @@ fun StudyManagerScreen(
     var scheduleTarget by remember { mutableStateOf<ScheduleTarget?>(null) }
     var renameRow by remember { mutableStateOf<StudyRow?>(null) }
     var exportMenu by remember { mutableStateOf(false) }
+    var showSummaryDialog by remember { mutableStateOf(false) }
+    val showStudySummary by viewModel.showStudySummary.collectAsState()
+    val summaryHour by viewModel.studySummaryHour.collectAsState()
+    val summaryMinute by viewModel.studySummaryMinute.collectAsState()
 
     val jsonExport = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -164,6 +170,12 @@ fun StudyManagerScreen(
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.weight(1f)
             )
+            IconButton(
+                onClick = { showSummaryDialog = true },
+                modifier = Modifier.testTag("study_summary_btn")
+            ) {
+                Icon(Icons.Default.NotificationsActive, contentDescription = "Daily summary")
+            }
             IconButton(
                 onClick = { addTarget = AddTarget(NodeType.COURSE, label = "Course") },
                 modifier = Modifier.testTag("study_add_course_btn")
@@ -348,6 +360,83 @@ fun StudyManagerScreen(
             onDismiss = { renameRow = null }
         )
     }
+
+    if (showSummaryDialog) {
+        StudySummaryDialog(
+            enabled = showStudySummary,
+            hour = summaryHour,
+            minute = summaryMinute,
+            onSave = { enabled, h, m ->
+                viewModel.setStudySummary(enabled, h, m)
+                showSummaryDialog = false
+            },
+            onDismiss = { showSummaryDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun StudySummaryDialog(
+    enabled: Boolean,
+    hour: Int,
+    minute: Int,
+    onSave: (Boolean, Int, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var isEnabled by remember { mutableStateOf(enabled) }
+    var h by remember { mutableStateOf(hour) }
+    var m by remember { mutableStateOf(minute) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Daily study summary", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Send a daily summary", fontSize = 14.sp)
+                    Switch(checked = isEnabled, onCheckedChange = { isEnabled = it })
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text("Time: ${formatTimeOfDay(h, m)}", fontSize = 13.sp)
+                Row {
+                    TextButton(
+                        onClick = {
+                            TimePickerDialog(
+                                context,
+                                { _, hh, mm -> h = hh; m = mm },
+                                h,
+                                m,
+                                false
+                            ).show()
+                        }
+                    ) { Text("Set time") }
+                }
+
+                Text(
+                    text = "One notification a day: how many classes are due, overdue and how long you studied.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(isEnabled, h, m) }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+private fun formatTimeOfDay(hour: Int, minute: Int): String {
+    val cal = java.util.Calendar.getInstance().apply {
+        set(java.util.Calendar.HOUR_OF_DAY, hour)
+        set(java.util.Calendar.MINUTE, minute)
+    }
+    return SimpleDateFormat("hh:mm a", Locale.getDefault()).format(cal.time)
 }
 
 @Composable

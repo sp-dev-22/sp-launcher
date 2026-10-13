@@ -36,11 +36,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.AppInfo
 import com.example.data.model.BannerItem
+import com.example.data.model.StudyDueItem
 import com.example.data.model.TaskItem
 import com.example.ui.components.AppFavoriteChip
 import com.example.ui.components.NotesWidget
 import com.example.ui.components.ClockWidget
 import com.example.ui.components.TasksWidget
+import com.example.ui.components.StudyDueWidget
 import com.example.ui.components.TimeStatWidget
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
@@ -58,6 +60,8 @@ fun HomeScreen(
     showFocusTime: Boolean,
     totalScreenTimeMinutes: Int,
     totalFocusedTimeMinutes: Int,
+    showStudyDue: Boolean,
+    studyDueItems: List<StudyDueItem>,
     isDarkTheme: Boolean,
     onAppClick: (AppInfo) -> Unit,
     onAppLongClick: (AppInfo) -> Unit,
@@ -65,6 +69,7 @@ fun HomeScreen(
     onAddTask: (String) -> Unit,
     onOpenWidgetsManagement: () -> Unit,
     onPromptEndFocus: () -> Unit,
+    onOpenStudyManager: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -90,6 +95,17 @@ fun HomeScreen(
                 showDate = showDate,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Study classes due today / overdue
+            if (showStudyDue && studyDueItems.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                StudyDueWidget(
+                    items = studyDueItems,
+                    isDarkTheme = isDarkTheme,
+                    onOpenStudyManager = onOpenStudyManager,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             // Focus Mode Active Banner
             // Long press for 3s / click prompts confirmation to close session early

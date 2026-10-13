@@ -13,6 +13,12 @@ class BootReceiver : BroadcastReceiver() {
             Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> {
                 val prefs = LauncherPreferences(context)
                 StudyReminderScheduler.rescheduleAll(context, prefs.studyCourses.value)
+                StudyReminderScheduler.applyDailySummary(
+                    context,
+                    prefs.showStudySummary.value,
+                    prefs.studySummaryHour.value,
+                    prefs.studySummaryMinute.value
+                )
             }
         }
     }

@@ -37,6 +37,9 @@ object StudyReminderScheduler {
     const val LEVEL_TOPIC = "topic"
     const val LEVEL_CLASS = "class"
 
+    const val ACTION_SUMMARY = "com.example.service.ACTION_STUDY_SUMMARY"
+    private const val SUMMARY_REQUEST_CODE = 7100
+
     private const val SCHEME = "spstudy"
 
     fun ensureChannel(context: Context) {
@@ -156,5 +159,42 @@ object StudyReminderScheduler {
                 }
             }
         }
+    }
+
+    // ---- Daily study summary ----
+
+    /** Schedules (or cancels) the once-a-day study summary at [hour]:[minute]. */
+    fun applyDailySummary(context: Context, enabled: Boolean, hour: Int, minute: Int) {
+        ensureChannel(context)
+        val am = alarmManager(context) ?: return
+        val pi = summaryPendingIntent(context)
+        am.cancel(pi)
+        pi.cancel()
+        if (!enabled) return
+
+        val cal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, hour.coerceIn(0, 23))
+            set(java.util.Calendar.MINUTE, minute.coerceIn(0, 59))
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        if (cal.timeInMillis <= System.currentTimeMillis()) {
+            cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+        }
+        // Inexact daily repeat — Doze-friendly and needs no exact-alarm permission.
+        am.setInexactRepeating(
+            AlarmManager.RTC_WAKEUP,
+            cal.timeInMillis,
+            AlarmManager.INTERVAL_DAY,
+            pi
+        )
+    }
+
+    private fun summaryPendingIntent(context: Context): PendingIntent {
+        val intent = Intent(context, StudySummaryReceiver::class.java).apply {
+            action = ACTION_SUMMARY
+        }
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        return PendingIntent.getBroadcast(context, SUMMARY_REQUEST_CODE, intent, flags)
     }
 }

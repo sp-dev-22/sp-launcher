@@ -59,6 +59,7 @@ fun WidgetsManagementSheet(
     showTasks: Boolean,
     showScreenTime: Boolean,
     showFocusTime: Boolean,
+    showStudyDue: Boolean,
     banners: List<BannerItem>,
     tasks: List<TaskItem>,
     onToggleShowTime: (Boolean) -> Unit,
@@ -67,6 +68,7 @@ fun WidgetsManagementSheet(
     onToggleShowTasks: (Boolean) -> Unit,
     onToggleShowScreenTime: (Boolean) -> Unit,
     onToggleShowFocusTime: (Boolean) -> Unit,
+    onToggleShowStudyDue: (Boolean) -> Unit,
     onAddBanner: (BannerItem) -> Unit,
     onRemoveBanner: (String) -> Unit,
     onAddTask: (String) -> Unit,
@@ -192,6 +194,18 @@ fun WidgetsManagementSheet(
                 ) {
                     Text("Show Focused Time (Today)", style = MaterialTheme.typography.bodyLarge)
                     Switch(checked = showFocusTime, onCheckedChange = onToggleShowFocusTime)
+                }
+
+                // Toggle Study Due (today / overdue)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Show Study Due (Today)", style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = showStudyDue, onCheckedChange = onToggleShowStudyDue)
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))

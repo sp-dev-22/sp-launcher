@@ -72,6 +72,11 @@
             android:name=".service.StudyFocusActionReceiver"
             android:exported="false" />
 
+        <!-- Fires the once-a-day study summary notification -->
+        <receiver
+            android:name=".service.StudySummaryReceiver"
+            android:exported="false" />
+
         <!-- Re-schedules Study Manager reminders after boot / app update -->
         <receiver
             android:name=".service.BootReceiver"

@@ -54,6 +54,18 @@ class LauncherPreferences(context: Context) {
     private val _showFocusTime = MutableStateFlow(prefs.getBoolean(KEY_SHOW_FOCUS_TIME, true))
     val showFocusTime: StateFlow<Boolean> = _showFocusTime.asStateFlow()
 
+    private val _showStudyDue = MutableStateFlow(prefs.getBoolean(KEY_SHOW_STUDY_DUE, true))
+    val showStudyDue: StateFlow<Boolean> = _showStudyDue.asStateFlow()
+
+    private val _showStudySummary = MutableStateFlow(prefs.getBoolean(KEY_STUDY_SUMMARY_ENABLED, false))
+    val showStudySummary: StateFlow<Boolean> = _showStudySummary.asStateFlow()
+
+    private val _studySummaryHour = MutableStateFlow(prefs.getInt(KEY_STUDY_SUMMARY_HOUR, 20))
+    val studySummaryHour: StateFlow<Int> = _studySummaryHour.asStateFlow()
+
+    private val _studySummaryMinute = MutableStateFlow(prefs.getInt(KEY_STUDY_SUMMARY_MINUTE, 0))
+    val studySummaryMinute: StateFlow<Int> = _studySummaryMinute.asStateFlow()
+
     private val _banners = MutableStateFlow(loadBanners())
     val banners: StateFlow<List<BannerItem>> = _banners.asStateFlow()
 
@@ -139,6 +151,24 @@ class LauncherPreferences(context: Context) {
     fun setShowFocusTime(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_FOCUS_TIME, enabled).apply()
         _showFocusTime.value = enabled
+    }
+
+    fun setShowStudyDue(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_STUDY_DUE, enabled).apply()
+        _showStudyDue.value = enabled
+    }
+
+    fun setStudySummary(enabled: Boolean, hour: Int, minute: Int) {
+        val h = hour.coerceIn(0, 23)
+        val m = minute.coerceIn(0, 59)
+        prefs.edit()
+            .putBoolean(KEY_STUDY_SUMMARY_ENABLED, enabled)
+            .putInt(KEY_STUDY_SUMMARY_HOUR, h)
+            .putInt(KEY_STUDY_SUMMARY_MINUTE, m)
+            .apply()
+        _showStudySummary.value = enabled
+        _studySummaryHour.value = h
+        _studySummaryMinute.value = m
     }
 
     fun setTheme(key: String) {
@@ -924,6 +954,10 @@ class LauncherPreferences(context: Context) {
         _showTasks.value = prefs.getBoolean(KEY_SHOW_TASKS, true)
         _showScreenTime.value = prefs.getBoolean(KEY_SHOW_SCREEN_TIME, true)
         _showFocusTime.value = prefs.getBoolean(KEY_SHOW_FOCUS_TIME, true)
+        _showStudyDue.value = prefs.getBoolean(KEY_SHOW_STUDY_DUE, true)
+        _showStudySummary.value = prefs.getBoolean(KEY_STUDY_SUMMARY_ENABLED, false)
+        _studySummaryHour.value = prefs.getInt(KEY_STUDY_SUMMARY_HOUR, 20)
+        _studySummaryMinute.value = prefs.getInt(KEY_STUDY_SUMMARY_MINUTE, 0)
         _themeKey.value = prefs.getString(KEY_THEME, "default") ?: "default"
         _banners.value = loadBanners()
         _tasks.value = loadTasks()
@@ -956,6 +990,10 @@ class LauncherPreferences(context: Context) {
         private const val KEY_THEME = "theme_key"
         private const val KEY_SHOW_SCREEN_TIME = "show_screen_time"
         private const val KEY_SHOW_FOCUS_TIME = "show_focus_time"
+        private const val KEY_SHOW_STUDY_DUE = "show_study_due"
+        private const val KEY_STUDY_SUMMARY_ENABLED = "study_summary_enabled"
+        private const val KEY_STUDY_SUMMARY_HOUR = "study_summary_hour"
+        private const val KEY_STUDY_SUMMARY_MINUTE = "study_summary_minute"
 
         // Focus Mode Keys
         private const val KEY_FOCUS_MODE_ACTIVE = "focus_mode_active"
