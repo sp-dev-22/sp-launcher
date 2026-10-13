@@ -27,8 +27,10 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.example.MainActivity
 import com.example.R
+import com.example.data.model.StudyFocusTarget
 import com.example.data.repository.LauncherPreferences
 import com.example.focus.FocusManager
 import com.example.focus.UsageTracker
@@ -193,6 +195,14 @@ class FocusOverlayService : Service() {
         if (isStudying) {
             // Completed a study session -> Transition to BREAK
             preferences.recordCompletedFocusSession(studyMinutes, "Study Session")
+            // Study <-> Focus link: log the minutes to the target node and offer to mark it done.
+            val target = preferences.getFocusTarget()
+            if (target != null) {
+                preferences.addStudiedMinutes(target, studyMinutes)
+                if (target.level == "class" && target.classId != null) {
+                    notifyMarkStudyDone(target)
+                }
+            }
             isStudying = false
             preferences.setFocusBreakPhase(true)
 
@@ -759,11 +769,60 @@ class FocusOverlayService : Service() {
             .build()
     }
 
+    /** Offers to mark the focused class as complete once a study session finishes. */
+    private fun notifyMarkStudyDone(target: StudyFocusTarget) {
+        StudyReminderScheduler.ensureChannel(this)
+        val markIntent = Intent(this, StudyFocusActionReceiver::class.java).apply {
+            action = StudyFocusActionReceiver.ACTION_MARK_STUDY_DONE
+            putExtra(StudyFocusActionReceiver.EXTRA_COURSE_ID, target.courseId)
+            putExtra(StudyFocusActionReceiver.EXTRA_SUBJECT_ID, target.subjectId)
+            putExtra(StudyFocusActionReceiver.EXTRA_TOPIC_ID, target.topicId)
+            putExtra(StudyFocusActionReceiver.EXTRA_CLASS_ID, target.classId)
+        }
+        val markPi = PendingIntent.getBroadcast(
+            this,
+            MARK_DONE_REQUEST_CODE,
+            markIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val openIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val openPi = PendingIntent.getActivity(
+            this,
+            0,
+            openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, StudyReminderScheduler.CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_focus)
+            .setContentTitle("Session complete")
+            .setContentText("Mark \"${target.name}\" as done?")
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText("You studied for ${studyMinutes} min on \"${target.name}\". Mark it complete?")
+            )
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(openPi)
+            .addAction(0, "Mark done", markPi)
+            .build()
+
+        try {
+            NotificationManagerCompat.from(this).notify(MARK_DONE_NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // Notification permission revoked — nothing to do.
+        }
+    }
+
     companion object {
         const val ACTION_START = "com.example.service.ACTION_START"
         const val ACTION_STOP = "com.example.service.ACTION_STOP"
         const val ACTION_UPDATE_LIMITS = "com.example.service.ACTION_UPDATE_LIMITS"
         private const val CHANNEL_ID = "focus_overlay_channel"
         private const val NOTIFICATION_ID = 1001
+        private const val MARK_DONE_NOTIFICATION_ID = 1002
+        private const val MARK_DONE_REQUEST_CODE = 2002
     }
 }

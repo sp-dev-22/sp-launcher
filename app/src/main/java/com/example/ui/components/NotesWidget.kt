@@ -18,9 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.StickyNote2
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -37,79 +34,47 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.BannerItem
+import kotlin.math.absoluteValue
 
+/**
+ * The single merged Notes widget. Shows every note/reminder/goal as one swipeable card,
+ * with a tag chip for its tag (the three defaults, or any custom tag the user added).
+ */
 @Composable
-fun CategorySwipeWidget(
-    category: String, // "Note", "Reminder", "Goal"
+fun NotesWidget(
     items: List<BannerItem>,
     isDarkTheme: Boolean,
-    onManageCategory: () -> Unit,
+    onManage: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val categoryTitle = when (category.lowercase()) {
-        "reminder" -> "REMINDERS"
-        "goal" -> "GOALS"
-        else -> "NOTES"
-    }
-
-    val categoryIcon = when (category.lowercase()) {
-        "reminder" -> Icons.Default.NotificationsActive
-        "goal" -> Icons.Default.Flag
-        else -> Icons.Default.StickyNote2
-    }
-
-    val badgeColor = when (category.lowercase()) {
-        "reminder" -> if (isDarkTheme) Color(0xFF5A3A1A) else Color(0xFFFFE0B2)
-        "goal" -> if (isDarkTheme) Color(0xFF1B3D2B) else Color(0xFFC8E6C9)
-        else -> if (isDarkTheme) Color(0xFF27324B) else Color(0xFFD1E3FF)
-    }
-
-    val badgeTextColor = when (category.lowercase()) {
-        "reminder" -> if (isDarkTheme) Color(0xFFFFCC80) else Color(0xFFE65100)
-        "goal" -> if (isDarkTheme) Color(0xFFA5D6A7) else Color(0xFF1B5E20)
-        else -> if (isDarkTheme) Color(0xFF90CAF9) else Color(0xFF0D47A1)
-    }
-
     if (items.isEmpty()) {
         Card(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 4.dp)
-                .clickable { onManageCategory() }
-                .testTag("empty_${category.lowercase()}_card"),
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .clickable { onManage() }
+                .testTag("empty_notes_card"),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (isDarkTheme) Color(0xFF1E1E24) else Color(0xFFF6EFEA)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                containerColor = if (isDarkTheme) Color(0xFF1E1E22) else Color(0xFFF4ECE6)
+            )
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                modifier = Modifier.fillMaxWidth().padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.Center
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = categoryIcon,
-                        contentDescription = null,
-                        tint = badgeTextColor,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "No $categoryTitle set. Tap + to add.",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
-                    )
-                }
-
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add $category",
+                    contentDescription = "Add note",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Add a note, reminder or goal",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
         }
@@ -121,21 +86,20 @@ fun CategorySwipeWidget(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .testTag("widget_${category.lowercase()}"),
+            .testTag("notes_widget"),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxWidth()
-        ) { page ->
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth()) { page ->
             val item = items[page]
+            val chipBg = tagChipBackground(item.category, isDarkTheme)
+            val chipFg = tagChipForeground(item.category, isDarkTheme)
 
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 4.dp)
-                    .clickable { onManageCategory() }
-                    .testTag("card_${category.lowercase()}_$page"),
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .clickable { onManage() }
+                    .testTag("note_card_$page"),
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = if (isDarkTheme) Color(0xFF1E1E24) else Color(0xFFF6EFEA)
@@ -143,43 +107,35 @@ fun CategorySwipeWidget(
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 12.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = categoryIcon,
-                                contentDescription = null,
-                                tint = badgeTextColor,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = item.title,
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onBackground,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onBackground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(badgeColor)
+                                .background(chipBg)
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(
-                                text = "${page + 1}/${items.size}",
+                                text = item.category,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = badgeTextColor
+                                color = chipFg
                             )
                         }
                     }
@@ -197,7 +153,6 @@ fun CategorySwipeWidget(
             }
         }
 
-        // Pager indicator dots if more than 1 item
         if (items.size > 1) {
             Spacer(modifier = Modifier.height(4.dp))
             Row(
@@ -205,14 +160,14 @@ fun CategorySwipeWidget(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 repeat(items.size) { index ->
-                    val isSelected = pagerState.currentPage == index
+                    val selected = pagerState.currentPage == index
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 3.dp)
-                            .size(if (isSelected) 6.dp else 4.dp)
+                            .size(if (selected) 6.dp else 4.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary
+                                if (selected) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f)
                             )
                     )
@@ -221,3 +176,40 @@ fun CategorySwipeWidget(
         }
     }
 }
+
+private val DEFAULT_TAGS = listOf("Note", "Reminder", "Goal")
+
+private fun tagChipBackground(tag: String, isDark: Boolean): Color = when (tag.lowercase()) {
+    "reminder" -> if (isDark) Color(0xFF5A3A1A) else Color(0xFFFFE0B2)
+    "goal" -> if (isDark) Color(0xFF1B3D2B) else Color(0xFFC8E6C9)
+    "note" -> if (isDark) Color(0xFF27324B) else Color(0xFFD1E3FF)
+    else -> customTagBackground(tag, isDark)
+}
+
+private fun tagChipForeground(tag: String, isDark: Boolean): Color = when (tag.lowercase()) {
+    "reminder" -> if (isDark) Color(0xFFFFCC80) else Color(0xFFE65100)
+    "goal" -> if (isDark) Color(0xFFA5D6A7) else Color(0xFF1B5E20)
+    "note" -> if (isDark) Color(0xFF90CAF9) else Color(0xFF0D47A1)
+    else -> customTagForeground(tag, isDark)
+}
+
+private val CUSTOM_DARK_BG = listOf(0xFF3A2A4A, 0xFF243A3A, 0xFF3A3224, 0xFF2A2A3E, 0xFF3A2430)
+private val CUSTOM_LIGHT_BG = listOf(0xFFE7DDF2, 0xFFD6EFEA, 0xFFF3E7CF, 0xFFDDE3F2, 0xFFF2DDE6)
+private val CUSTOM_DARK_FG = listOf(0xFFD6B8F0, 0xFFA8E6DD, 0xFFEFD8A8, 0xFFB8C4F0, 0xFFF0B8D0)
+private val CUSTOM_LIGHT_FG = listOf(0xFF6A3E96, 0xFF1B6B60, 0xFF8A6A16, 0xFF3A4A96, 0xFF963A66)
+
+private fun customTagBackground(tag: String, isDark: Boolean): Color {
+    val idx = tag.hashCode().absoluteValue % CUSTOM_DARK_BG.size
+    return Color(if (isDark) CUSTOM_DARK_BG[idx] else CUSTOM_LIGHT_BG[idx])
+}
+
+private fun customTagForeground(tag: String, isDark: Boolean): Color {
+    val idx = tag.hashCode().absoluteValue % CUSTOM_DARK_FG.size
+    return Color(if (isDark) CUSTOM_DARK_FG[idx] else CUSTOM_LIGHT_FG[idx])
+}
+
+/** True when the tag is one of the three built-in tags. */
+fun isDefaultTag(tag: String): Boolean = DEFAULT_TAGS.any { it.equals(tag, ignoreCase = true) }
+
+/** The built-in tags offered as quick chips in the editor. */
+fun defaultTags(): List<String> = DEFAULT_TAGS

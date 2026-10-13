@@ -7,6 +7,7 @@ import com.example.data.model.BannerItem
 import com.example.data.model.FocusSessionRecord
 import com.example.data.model.StudyClass
 import com.example.data.model.StudyCourse
+import com.example.data.model.StudyFocusTarget
 import com.example.data.model.StudySubject
 import com.example.data.model.StudyTopic
 import com.example.data.model.TaskItem
@@ -43,12 +44,6 @@ class LauncherPreferences(context: Context) {
     // Separate widget toggles for Notes, Reminders, and Goals
     private val _showNotes = MutableStateFlow(prefs.getBoolean(KEY_SHOW_NOTES, true))
     val showNotes: StateFlow<Boolean> = _showNotes.asStateFlow()
-
-    private val _showReminders = MutableStateFlow(prefs.getBoolean(KEY_SHOW_REMINDERS, true))
-    val showReminders: StateFlow<Boolean> = _showReminders.asStateFlow()
-
-    private val _showGoals = MutableStateFlow(prefs.getBoolean(KEY_SHOW_GOALS, true))
-    val showGoals: StateFlow<Boolean> = _showGoals.asStateFlow()
 
     private val _showTasks = MutableStateFlow(prefs.getBoolean(KEY_SHOW_TASKS, true))
     val showTasks: StateFlow<Boolean> = _showTasks.asStateFlow()
@@ -129,16 +124,6 @@ class LauncherPreferences(context: Context) {
     fun setShowNotes(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_NOTES, enabled).apply()
         _showNotes.value = enabled
-    }
-
-    fun setShowReminders(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_SHOW_REMINDERS, enabled).apply()
-        _showReminders.value = enabled
-    }
-
-    fun setShowGoals(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_SHOW_GOALS, enabled).apply()
-        _showGoals.value = enabled
     }
 
     fun setShowTasks(enabled: Boolean) {
@@ -688,6 +673,7 @@ class LauncherPreferences(context: Context) {
         put("name", topic.name)
         topic.deadlineMillis?.let { put("deadlineMillis", it) }
         topic.alertMillis?.let { put("alertMillis", it) }
+        if (topic.studiedMinutes > 0) put("studiedMinutes", topic.studiedMinutes)
         val classes = JSONArray()
         for (clazz in topic.classes) classes.put(studyClassToJson(clazz))
         put("classes", classes)
@@ -700,6 +686,7 @@ class LauncherPreferences(context: Context) {
         clazz.deadlineMillis?.let { put("deadlineMillis", it) }
         clazz.alertMillis?.let { put("alertMillis", it) }
         clazz.completedAtMillis?.let { put("completedAtMillis", it) }
+        if (clazz.studiedMinutes > 0) put("studiedMinutes", clazz.studiedMinutes)
     }
 
     private fun loadStudyCourses(): List<StudyCourse> {
@@ -745,7 +732,8 @@ class LauncherPreferences(context: Context) {
             name = obj.optString("name", "Topic"),
             classes = classes,
             deadlineMillis = if (obj.has("deadlineMillis")) obj.optLong("deadlineMillis") else null,
-            alertMillis = if (obj.has("alertMillis")) obj.optLong("alertMillis") else null
+            alertMillis = if (obj.has("alertMillis")) obj.optLong("alertMillis") else null,
+            studiedMinutes = obj.optInt("studiedMinutes", 0)
         )
     }
 
@@ -755,7 +743,8 @@ class LauncherPreferences(context: Context) {
         isCompleted = obj.optBoolean("isCompleted", false),
         deadlineMillis = if (obj.has("deadlineMillis")) obj.optLong("deadlineMillis") else null,
         alertMillis = if (obj.has("alertMillis")) obj.optLong("alertMillis") else null,
-        completedAtMillis = if (obj.has("completedAtMillis")) obj.optLong("completedAtMillis") else null
+        completedAtMillis = if (obj.has("completedAtMillis")) obj.optLong("completedAtMillis") else null,
+        studiedMinutes = obj.optInt("studiedMinutes", 0)
     )
 
     fun renameStudyCourse(courseId: String, name: String) {
@@ -792,6 +781,76 @@ class LauncherPreferences(context: Context) {
                 if (subject.id != subjectId) subject else subject.copy(topics = subject.topics.map { topic ->
                     if (topic.id != topicId) topic else topic.copy(classes = topic.classes.map { clazz ->
                         if (clazz.id == classId) clazz.copy(name = name.trim()) else clazz
+                    })
+                })
+            })
+        })
+    }
+
+    // ---------------------------------------------------------------------
+    // Study <-> Focus link
+    // ---------------------------------------------------------------------
+
+    fun getFocusTarget(): StudyFocusTarget? {
+        val raw = prefs.getString(KEY_FOCUS_TARGET, null) ?: return null
+        return try {
+            val obj = JSONObject(raw)
+            StudyFocusTarget(
+                level = obj.optString("level", "topic"),
+                courseId = obj.getString("courseId"),
+                subjectId = obj.getString("subjectId"),
+                topicId = obj.getString("topicId"),
+                classId = if (obj.has("classId")) obj.optString("classId") else null,
+                name = obj.optString("name", "")
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun setFocusTarget(target: StudyFocusTarget?) {
+        if (target == null) {
+            prefs.edit().remove(KEY_FOCUS_TARGET).apply()
+        } else {
+            val obj = JSONObject().apply {
+                put("level", target.level)
+                put("courseId", target.courseId)
+                put("subjectId", target.subjectId)
+                put("topicId", target.topicId)
+                if (target.classId != null) put("classId", target.classId)
+                put("name", target.name)
+            }
+            prefs.edit().putString(KEY_FOCUS_TARGET, obj.toString()).apply()
+        }
+    }
+
+    /** Adds focus minutes to the target topic (and to the class when the target is a class). */
+    fun addStudiedMinutes(target: StudyFocusTarget, minutes: Int) {
+        if (minutes <= 0) return
+        saveStudyCourses(_studyCourses.value.map { course ->
+            if (course.id != target.courseId) course else course.copy(subjects = course.subjects.map { subject ->
+                if (subject.id != target.subjectId) subject else subject.copy(topics = subject.topics.map { topic ->
+                    if (topic.id != target.topicId) topic else topic.copy(
+                        studiedMinutes = topic.studiedMinutes + minutes,
+                        classes = if (target.level == "class" && target.classId != null)
+                            topic.classes.map { clazz ->
+                                if (clazz.id == target.classId) clazz.copy(studiedMinutes = clazz.studiedMinutes + minutes)
+                                else clazz
+                            }
+                        else topic.classes
+                    )
+                })
+            })
+        })
+    }
+
+    fun markStudyClassDone(courseId: String, subjectId: String, topicId: String, classId: String) {
+        saveStudyCourses(_studyCourses.value.map { course ->
+            if (course.id != courseId) course else course.copy(subjects = course.subjects.map { subject ->
+                if (subject.id != subjectId) subject else subject.copy(topics = subject.topics.map { topic ->
+                    if (topic.id != topicId) topic else topic.copy(classes = topic.classes.map { clazz ->
+                        if (clazz.id == classId) clazz.copy(isCompleted = true, completedAtMillis = System.currentTimeMillis())
+                        else clazz
                     })
                 })
             })
@@ -862,8 +921,6 @@ class LauncherPreferences(context: Context) {
         _showTime.value = prefs.getBoolean(KEY_SHOW_TIME, true)
         _showDate.value = prefs.getBoolean(KEY_SHOW_DATE, true)
         _showNotes.value = prefs.getBoolean(KEY_SHOW_NOTES, true)
-        _showReminders.value = prefs.getBoolean(KEY_SHOW_REMINDERS, true)
-        _showGoals.value = prefs.getBoolean(KEY_SHOW_GOALS, true)
         _showTasks.value = prefs.getBoolean(KEY_SHOW_TASKS, true)
         _showScreenTime.value = prefs.getBoolean(KEY_SHOW_SCREEN_TIME, true)
         _showFocusTime.value = prefs.getBoolean(KEY_SHOW_FOCUS_TIME, true)
@@ -891,12 +948,11 @@ class LauncherPreferences(context: Context) {
         private const val KEY_SHOW_TIME = "show_time"
         private const val KEY_SHOW_DATE = "show_date"
         private const val KEY_SHOW_NOTES = "show_notes"
-        private const val KEY_SHOW_REMINDERS = "show_reminders"
-        private const val KEY_SHOW_GOALS = "show_goals"
         private const val KEY_SHOW_TASKS = "show_tasks"
         private const val KEY_BANNERS = "banners_data"
         private const val KEY_TASKS = "tasks_data"
         private const val KEY_STUDY_DATA = "study_manager_data"
+        private const val KEY_FOCUS_TARGET = "study_focus_target"
         private const val KEY_THEME = "theme_key"
         private const val KEY_SHOW_SCREEN_TIME = "show_screen_time"
         private const val KEY_SHOW_FOCUS_TIME = "show_focus_time"

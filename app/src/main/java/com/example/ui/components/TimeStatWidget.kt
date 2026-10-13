@@ -37,7 +37,7 @@ fun TimeStatWidget(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 4.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .testTag(testTag),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(

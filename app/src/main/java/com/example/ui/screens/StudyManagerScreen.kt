@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.StudyClass
 import com.example.data.model.StudyCourse
+import com.example.data.model.StudyFocusTarget
 import com.example.data.model.StudyStatus
 import com.example.data.model.allClassRefs
 import com.example.data.model.completedCount
@@ -91,7 +92,8 @@ private data class StudyRow(
     val hasChildren: Boolean = false,
     val isExpanded: Boolean = false,
     val deadlineMillis: Long? = null,
-    val alertMillis: Long? = null
+    val alertMillis: Long? = null,
+    val studiedMinutes: Int = 0
 )
 
 private data class AddTarget(
@@ -243,6 +245,22 @@ fun StudyManagerScreen(
                                 alertMillis = row.alertMillis
                             )
                         },
+                        onStartFocus = {
+                            val s = row.subjectId
+                            val t = row.topicId
+                            if (s != null && t != null) {
+                                viewModel.startFocusForStudy(
+                                    StudyFocusTarget(
+                                        level = if (row.type == NodeType.TOPIC) "topic" else "class",
+                                        courseId = row.courseId,
+                                        subjectId = s,
+                                        topicId = t,
+                                        classId = row.classId,
+                                        name = row.name
+                                    )
+                                )
+                            }
+                        },
                         onEditName = { renameRow = row },
                         onDelete = {
                             when (row.type) {
@@ -340,6 +358,7 @@ private fun StudyTreeRow(
     onToggleClass: () -> Unit,
     onAddChild: () -> Unit,
     onSetSchedule: () -> Unit,
+    onStartFocus: () -> Unit,
     onEditName: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -349,7 +368,7 @@ private fun StudyTreeRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = (4 + row.level * 16).dp, end = 4.dp, top = 2.dp, bottom = 2.dp)
+            .padding(start = (4 + row.level * 18).dp, end = 4.dp, top = 3.dp, bottom = 3.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(if (isDarkTheme) Color(0xFF1E1E24) else Color(0xFFF6EFEA))
             .clickable {
@@ -394,7 +413,7 @@ private fun StudyTreeRow(
                 color = if (row.type == NodeType.CLASS && row.isCompleted)
                     MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 else MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             if (row.deadlineMillis != null) {
@@ -402,6 +421,13 @@ private fun StudyTreeRow(
                     text = "Deadline: ${formatDateTime(row.deadlineMillis)}",
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     color = accent
+                )
+            }
+            if (row.studiedMinutes > 0) {
+                Text(
+                    text = "${row.studiedMinutes} min studied",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
                 )
             }
         }
@@ -440,6 +466,10 @@ private fun StudyTreeRow(
                     )
                 }
                 if (row.type == NodeType.TOPIC || row.type == NodeType.CLASS) {
+                    DropdownMenuItem(
+                        text = { Text("Start Focus session") },
+                        onClick = { menuOpen = false; onStartFocus() }
+                    )
                     DropdownMenuItem(
                         text = { Text("Deadline & Reminder") },
                         onClick = { menuOpen = false; onSetSchedule() }
@@ -697,7 +727,8 @@ private fun buildStudyRows(courses: List<StudyCourse>, expanded: Set<String>): L
                         hasChildren = topic.classes.isNotEmpty(),
                         isExpanded = topicExpanded,
                         deadlineMillis = topic.deadlineMillis,
-                        alertMillis = topic.alertMillis
+                        alertMillis = topic.alertMillis,
+                        studiedMinutes = topic.studiedMinutes
                     )
                 )
                 if (!topicExpanded) continue
@@ -717,7 +748,8 @@ private fun buildStudyRows(courses: List<StudyCourse>, expanded: Set<String>): L
                             status = clazz.status(),
                             isCompleted = clazz.isCompleted,
                             deadlineMillis = clazz.deadlineMillis,
-                            alertMillis = clazz.alertMillis
+                            alertMillis = clazz.alertMillis,
+                            studiedMinutes = clazz.studiedMinutes
                         )
                     )
                 }

@@ -67,6 +67,11 @@
             android:name=".service.StudyReminderReceiver"
             android:exported="false" />
 
+        <!-- Handles the "Mark done" action after a Study focus session -->
+        <receiver
+            android:name=".service.StudyFocusActionReceiver"
+            android:exported="false" />
+
         <!-- Re-schedules Study Manager reminders after boot / app update -->
         <receiver
             android:name=".service.BootReceiver"

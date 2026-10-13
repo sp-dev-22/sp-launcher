@@ -7,6 +7,7 @@ import com.example.data.model.AppInfo
 import com.example.data.model.BannerItem
 import com.example.data.model.FocusSessionRecord
 import com.example.data.model.StudyCourse
+import com.example.data.model.StudyFocusTarget
 import com.example.data.model.TaskItem
 import com.example.data.repository.AppRepository
 import com.example.data.repository.LauncherPreferences
@@ -48,27 +49,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val showTime = preferences.showTime
     val showDate = preferences.showDate
     val showNotes = preferences.showNotes
-    val showReminders = preferences.showReminders
-    val showGoals = preferences.showGoals
     val showTasks = preferences.showTasks
     val showScreenTime = preferences.showScreenTime
     val showFocusTime = preferences.showFocusTime
     val themeKey = preferences.themeKey
     val banners = preferences.banners
     val tasks = preferences.tasks
-
-    // Categorized lists for separate Notes, Reminders, and Goals widgets
-    val notesList: StateFlow<List<BannerItem>> = banners
-        .map { list -> list.filter { it.category.equals("Note", ignoreCase = true) } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val remindersList: StateFlow<List<BannerItem>> = banners
-        .map { list -> list.filter { it.category.equals("Reminder", ignoreCase = true) } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val goalsList: StateFlow<List<BannerItem>> = banners
-        .map { list -> list.filter { it.category.equals("Goal", ignoreCase = true) } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Focus Mode states
     val isFocusModeActive = preferences.isFocusModeActive
@@ -265,14 +251,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowNotes(enabled: Boolean) {
         preferences.setShowNotes(enabled)
-    }
-
-    fun setShowReminders(enabled: Boolean) {
-        preferences.setShowReminders(enabled)
-    }
-
-    fun setShowGoals(enabled: Boolean) {
-        preferences.setShowGoals(enabled)
     }
 
     fun setShowTasks(enabled: Boolean) {
@@ -559,6 +537,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun renameStudyClass(courseId: String, subjectId: String, topicId: String, classId: String, name: String) =
         preferences.renameStudyClass(courseId, subjectId, topicId, classId, name)
+
+    /** Starts a Focus session aimed at a specific Study node (Study <-> Focus link). */
+    fun startFocusForStudy(target: StudyFocusTarget) {
+        preferences.setFocusTarget(target)
+        focusManager.startFocusMode()
+    }
 
     private fun rescheduleStudyReminders() {
         StudyReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.studyCourses.value)

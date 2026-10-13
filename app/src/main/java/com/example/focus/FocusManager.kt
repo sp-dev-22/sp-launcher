@@ -78,6 +78,8 @@ class FocusManager(private val context: Context) {
 
         preferences.setFocusModeActive(false)
         preferences.setFocusBreakPhase(false)
+        // End of session -> forget the Study node we were focusing on.
+        preferences.setFocusTarget(null)
     }
 
     /**

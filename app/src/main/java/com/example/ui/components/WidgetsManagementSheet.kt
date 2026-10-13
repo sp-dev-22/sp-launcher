@@ -56,8 +56,6 @@ fun WidgetsManagementSheet(
     showTime: Boolean,
     showDate: Boolean,
     showNotes: Boolean,
-    showReminders: Boolean,
-    showGoals: Boolean,
     showTasks: Boolean,
     showScreenTime: Boolean,
     showFocusTime: Boolean,
@@ -66,8 +64,6 @@ fun WidgetsManagementSheet(
     onToggleShowTime: (Boolean) -> Unit,
     onToggleShowDate: (Boolean) -> Unit,
     onToggleShowNotes: (Boolean) -> Unit,
-    onToggleShowReminders: (Boolean) -> Unit,
-    onToggleShowGoals: (Boolean) -> Unit,
     onToggleShowTasks: (Boolean) -> Unit,
     onToggleShowScreenTime: (Boolean) -> Unit,
     onToggleShowFocusTime: (Boolean) -> Unit,
@@ -81,8 +77,7 @@ fun WidgetsManagementSheet(
 
     var newBannerTitle by remember { mutableStateOf("") }
     var newBannerContent by remember { mutableStateOf("") }
-    var newBannerCategory by remember { mutableStateOf("Note") }
-    var isCategoryDropdownExpanded by remember { mutableStateOf(false) }
+    var newBannerTag by remember { mutableStateOf("Note") }
 
     var newTaskInput by remember { mutableStateOf("") }
 
@@ -151,7 +146,7 @@ fun WidgetsManagementSheet(
                     Switch(checked = showDate, onCheckedChange = onToggleShowDate)
                 }
 
-                // Toggle Notes
+                // Toggle Notes (merged Notes + Reminders + Goals)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -161,30 +156,6 @@ fun WidgetsManagementSheet(
                 ) {
                     Text("Show Notes Widget", style = MaterialTheme.typography.bodyLarge)
                     Switch(checked = showNotes, onCheckedChange = onToggleShowNotes)
-                }
-
-                // Toggle Reminders
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Show Reminders Widget", style = MaterialTheme.typography.bodyLarge)
-                    Switch(checked = showReminders, onCheckedChange = onToggleShowReminders)
-                }
-
-                // Toggle Goals
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Show Goals Widget", style = MaterialTheme.typography.bodyLarge)
-                    Switch(checked = showGoals, onCheckedChange = onToggleShowGoals)
                 }
 
                 // Toggle Tasks
@@ -227,7 +198,7 @@ fun WidgetsManagementSheet(
 
                 // Banners Section
                 Text(
-                    text = "MANAGE NOTES, REMINDERS & GOALS",
+                    text = "MANAGE NOTES (WITH TAGS)",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -298,36 +269,41 @@ fun WidgetsManagementSheet(
                         Text("Add New Card", fontWeight = FontWeight.Medium, fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Category Dropdown
-                        ExposedDropdownMenuBox(
-                            expanded = isCategoryDropdownExpanded,
-                            onExpandedChange = { isCategoryDropdownExpanded = !isCategoryDropdownExpanded }
-                        ) {
-                            OutlinedTextField(
-                                value = newBannerCategory,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Category") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCategoryDropdownExpanded) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable, true)
-                            )
-                            ExposedDropdownMenu(
-                                expanded = isCategoryDropdownExpanded,
-                                onDismissRequest = { isCategoryDropdownExpanded = false }
-                            ) {
-                                listOf("Note", "Reminder", "Goal").forEach { cat ->
-                                    DropdownMenuItem(
-                                        text = { Text(cat) },
-                                        onClick = {
-                                            newBannerCategory = cat
-                                            isCategoryDropdownExpanded = false
-                                        }
+                        // Tag: three default tags as quick chips, plus a free-text field for custom tags
+                        Text("Tag", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            defaultTags().forEach { tag ->
+                                val selected = newBannerTag.equals(tag, ignoreCase = true)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(
+                                            if (selected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                        .clickable { newBannerTag = tag }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = tag,
+                                        fontSize = 12.sp,
+                                        color = if (selected) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        OutlinedTextField(
+                            value = newBannerTag,
+                            onValueChange = { newBannerTag = it },
+                            label = { Text("Tag (or type a custom one)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
                         Spacer(modifier = Modifier.height(8.dp))
 
@@ -357,7 +333,7 @@ fun WidgetsManagementSheet(
                                         BannerItem(
                                             title = newBannerTitle.trim(),
                                             content = newBannerContent.trim(),
-                                            category = newBannerCategory
+                                            category = if (newBannerTag.isBlank()) "Note" else newBannerTag.trim()
                                         )
                                     )
                                     newBannerTitle = ""
@@ -368,7 +344,7 @@ fun WidgetsManagementSheet(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Add $newBannerCategory")
+                            Text("Add")
                         }
                     }
                 }

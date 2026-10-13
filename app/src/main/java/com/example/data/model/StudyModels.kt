@@ -17,7 +17,9 @@ data class StudyClass(
     val deadlineMillis: Long? = null,
     /** Simple "you still have to complete this" reminder time. */
     val alertMillis: Long? = null,
-    val completedAtMillis: Long? = null
+    val completedAtMillis: Long? = null,
+    /** Total focus minutes logged against this class (Study <-> Focus link). */
+    val studiedMinutes: Int = 0
 )
 
 data class StudyTopic(
@@ -25,7 +27,9 @@ data class StudyTopic(
     val name: String,
     val classes: List<StudyClass> = emptyList(),
     val deadlineMillis: Long? = null,
-    val alertMillis: Long? = null
+    val alertMillis: Long? = null,
+    /** Total focus minutes logged against this topic (and its classes). */
+    val studiedMinutes: Int = 0
 )
 
 data class StudySubject(
@@ -68,3 +72,15 @@ fun StudySubject.totalCount(): Int = topics.sumOf { it.totalCount() }
 fun StudySubject.completedCount(): Int = topics.sumOf { it.completedCount() }
 fun StudyCourse.totalCount(): Int = subjects.sumOf { it.totalCount() }
 fun StudyCourse.completedCount(): Int = subjects.sumOf { it.completedCount() }
+fun StudyCourse.totalStudiedMinutes(): Int =
+    subjects.sumOf { s -> s.topics.sumOf { it.studiedMinutes } }
+
+/** The Study node a Focus session is currently running for (Study <-> Focus link). */
+data class StudyFocusTarget(
+    val level: String,          // "topic" or "class"
+    val courseId: String,
+    val subjectId: String,
+    val topicId: String,
+    val classId: String? = null,
+    val name: String
+)

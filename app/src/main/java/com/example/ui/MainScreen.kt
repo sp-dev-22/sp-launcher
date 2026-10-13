@@ -60,13 +60,8 @@ fun MainScreen(
     val showTime by viewModel.showTime.collectAsState()
     val showDate by viewModel.showDate.collectAsState()
     val showNotes by viewModel.showNotes.collectAsState()
-    val showReminders by viewModel.showReminders.collectAsState()
-    val showGoals by viewModel.showGoals.collectAsState()
     val showTasks by viewModel.showTasks.collectAsState()
 
-    val notesList by viewModel.notesList.collectAsState()
-    val remindersList by viewModel.remindersList.collectAsState()
-    val goalsList by viewModel.goalsList.collectAsState()
     val banners by viewModel.banners.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
 
@@ -140,7 +135,6 @@ fun MainScreen(
                         SettingsScreen(
                             isDarkTheme = isDarkTheme,
                             isFocusModeActive = isFocusModeActive,
-                            onToggleTheme = { viewModel.setNightMode(!isDarkTheme) },
                             onOpenFocusModeSettings = { viewModel.setShowFocusSettingsDialog(true) },
                             onOpenFocusHistory = { viewModel.setShowFocusHistorySheet(true) },
                             onOpenAppLimits = {
@@ -164,13 +158,9 @@ fun MainScreen(
                             showTime = showTime,
                             showDate = showDate,
                             showNotes = showNotes,
-                            showReminders = showReminders,
-                            showGoals = showGoals,
                             showTasks = showTasks,
                             isFocusModeActive = isFocusModeActive,
-                            notes = notesList,
-                            reminders = remindersList,
-                            goals = goalsList,
+                            notes = banners,
                             tasks = tasks,
                             showScreenTime = showScreenTime,
                             showFocusTime = showFocusTime,
@@ -263,8 +253,6 @@ fun MainScreen(
             showTime = showTime,
             showDate = showDate,
             showNotes = showNotes,
-            showReminders = showReminders,
-            showGoals = showGoals,
             showTasks = showTasks,
             showScreenTime = showScreenTime,
             showFocusTime = showFocusTime,
@@ -273,8 +261,6 @@ fun MainScreen(
             onToggleShowTime = { viewModel.setShowTime(it) },
             onToggleShowDate = { viewModel.setShowDate(it) },
             onToggleShowNotes = { viewModel.setShowNotes(it) },
-            onToggleShowReminders = { viewModel.setShowReminders(it) },
-            onToggleShowGoals = { viewModel.setShowGoals(it) },
             onToggleShowTasks = { viewModel.setShowTasks(it) },
             onToggleShowScreenTime = { viewModel.setShowScreenTime(it) },
             onToggleShowFocusTime = { viewModel.setShowFocusTime(it) },

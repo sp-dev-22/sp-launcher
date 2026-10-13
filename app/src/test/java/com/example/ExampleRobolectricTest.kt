@@ -115,17 +115,12 @@ class ExampleRobolectricTest {
     }
 
     @Test
-    fun `preferences manages separate widgets for notes reminders goals`() {
+    fun `preferences toggles notes widget visibility`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefs = LauncherPreferences(context)
         prefs.setShowNotes(false)
         assertFalse(prefs.showNotes.value)
         prefs.setShowNotes(true)
         assertTrue(prefs.showNotes.value)
-
-        prefs.setShowReminders(false)
-        assertFalse(prefs.showReminders.value)
-        prefs.setShowGoals(false)
-        assertFalse(prefs.showGoals.value)
     }
 }

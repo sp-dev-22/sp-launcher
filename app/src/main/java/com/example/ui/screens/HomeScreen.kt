@@ -38,7 +38,7 @@ import com.example.data.model.AppInfo
 import com.example.data.model.BannerItem
 import com.example.data.model.TaskItem
 import com.example.ui.components.AppFavoriteChip
-import com.example.ui.components.CategorySwipeWidget
+import com.example.ui.components.NotesWidget
 import com.example.ui.components.ClockWidget
 import com.example.ui.components.TasksWidget
 import com.example.ui.components.TimeStatWidget
@@ -50,13 +50,9 @@ fun HomeScreen(
     showTime: Boolean,
     showDate: Boolean,
     showNotes: Boolean,
-    showReminders: Boolean,
-    showGoals: Boolean,
     showTasks: Boolean,
     isFocusModeActive: Boolean,
     notes: List<BannerItem>,
-    reminders: List<BannerItem>,
-    goals: List<BannerItem>,
     tasks: List<TaskItem>,
     showScreenTime: Boolean,
     showFocusTime: Boolean,
@@ -130,37 +126,12 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 3. Separate Swipeable Widget for Notes (hidden when empty)
+            // 3. Merged Notes widget (Notes + Reminders + Goals, tagged) - hidden when empty
             if (showNotes && notes.isNotEmpty()) {
-                CategorySwipeWidget(
-                    category = "Note",
+                NotesWidget(
                     items = notes,
                     isDarkTheme = isDarkTheme,
-                    onManageCategory = onOpenWidgetsManagement,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // 4. Separate Swipeable Widget for Reminders (hidden when empty)
-            if (showReminders && reminders.isNotEmpty()) {
-                CategorySwipeWidget(
-                    category = "Reminder",
-                    items = reminders,
-                    isDarkTheme = isDarkTheme,
-                    onManageCategory = onOpenWidgetsManagement,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // 5. Separate Swipeable Widget for Goals (hidden when empty)
-            if (showGoals && goals.isNotEmpty()) {
-                CategorySwipeWidget(
-                    category = "Goal",
-                    items = goals,
-                    isDarkTheme = isDarkTheme,
-                    onManageCategory = onOpenWidgetsManagement,
+                    onManage = onOpenWidgetsManagement,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))

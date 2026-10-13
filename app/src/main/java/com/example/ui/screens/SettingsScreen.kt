@@ -48,7 +48,6 @@ import androidx.compose.ui.unit.sp
 fun SettingsScreen(
     isDarkTheme: Boolean,
     isFocusModeActive: Boolean,
-    onToggleTheme: () -> Unit,
     onOpenFocusModeSettings: () -> Unit,
     onOpenFocusHistory: () -> Unit,
     onOpenAppLimits: () -> Unit,
@@ -154,25 +153,7 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 4. Change Theme
-        SettingsItemRow(
-            title = "Change Theme",
-            subtitle = if (isDarkTheme) "Night (Dark Black)" else "Day (Bright White)",
-            icon = {
-                Icon(
-                    imageVector = if (isDarkTheme) Icons.Default.Brightness4 else Icons.Default.Brightness7,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            onClick = onToggleTheme,
-            testTag = "settings_change_theme"
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 4b. Themes (Pink, Green, Saffron, Seattle) + Night Mode
+        // Themes (Pink, Green, Saffron, Seattle) + Night Mode
         SettingsItemRow(
             title = "Themes",
             subtitle = "Pink, Green, Saffron, Seattle & Night Mode",
