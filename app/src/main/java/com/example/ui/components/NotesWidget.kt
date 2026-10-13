@@ -56,7 +56,7 @@ fun NotesWidget(
                 .testTag("empty_notes_card"),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (isDarkTheme) Color(0xFF1E1E22) else Color(0xFFF4ECE6)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         ) {
             Row(
@@ -102,7 +102,7 @@ fun NotesWidget(
                     .testTag("note_card_$page"),
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isDarkTheme) Color(0xFF1E1E24) else Color(0xFFF6EFEA)
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {

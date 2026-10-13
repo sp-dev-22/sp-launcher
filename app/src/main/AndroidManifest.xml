@@ -77,6 +77,11 @@
             android:name=".service.StudySummaryReceiver"
             android:exported="false" />
 
+        <!-- Writes the weekly automatic backup -->
+        <receiver
+            android:name=".service.AutoBackupReceiver"
+            android:exported="false" />
+
         <!-- Re-schedules Study Manager reminders after boot / app update -->
         <receiver
             android:name=".service.BootReceiver"

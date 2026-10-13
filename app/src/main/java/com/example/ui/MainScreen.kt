@@ -34,6 +34,7 @@ import com.example.ui.components.FocusHistorySheet
 import com.example.ui.components.FocusModeSheet
 import com.example.ui.components.ThemesSheet
 import com.example.ui.components.WidgetsManagementSheet
+import com.example.ui.screens.AboutDevScreen
 import com.example.ui.screens.BackupRestoreScreen
 import com.example.ui.screens.DrawerScreen
 import com.example.ui.screens.HomeScreen
@@ -103,12 +104,14 @@ fun MainScreen(
     val blockedAppDetails by viewModel.blockedAppDetails.collectAsState()
     val showStudyManager by viewModel.showStudyManager.collectAsState()
     val showBackupRestore by viewModel.showBackupRestore.collectAsState()
+    val showAboutDev by viewModel.showAboutDev.collectAsState()
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
-        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore
+        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showAboutDev
     ) {
         when {
+            showAboutDev -> viewModel.setShowAboutDev(false)
             showStudyManager -> viewModel.setShowStudyManager(false)
             showBackupRestore -> viewModel.setShowBackupRestore(false)
             showAddFavoritesScreen -> viewModel.setShowAddFavoritesScreen(false)
@@ -149,6 +152,7 @@ fun MainScreen(
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             onOpenBackupRestore = { viewModel.setShowBackupRestore(true) },
+                            onOpenAboutDev = { viewModel.setShowAboutDev(true) },
                             onSetDefaultLauncher = onSetDefaultLauncher,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -224,6 +228,11 @@ fun MainScreen(
                     viewModel = viewModel,
                     onBack = { viewModel.setShowBackupRestore(false) }
                 )
+            }
+
+            // Fullscreen About Dev
+            if (showAboutDev) {
+                AboutDevScreen(onBack = { viewModel.setShowAboutDev(false) })
             }
         }
     }

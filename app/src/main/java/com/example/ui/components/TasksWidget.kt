@@ -67,7 +67,7 @@ fun TasksWidget(
     val sortedTasks = remember(tasks) { tasks.sortedBy { it.isCompleted } }
     val pendingCount = tasks.count { !it.isCompleted }
 
-    val containerColor = if (isDarkTheme) Color(0xFF1E1E24) else Color(0xFFF6EFEA)
+    val containerColor = MaterialTheme.colorScheme.surfaceVariant
 
     Card(
         modifier = modifier
@@ -169,7 +169,7 @@ fun TasksWidget(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(if (isDarkTheme) Color(0xFF26262C) else Color(0xFFFFF9F5))
+                            .background(MaterialTheme.colorScheme.surface)
                             .clickable { onToggleTask(task.id) }
                             .padding(horizontal = 14.dp, vertical = 12.dp)
                             .testTag("task_item_${task.id}"),

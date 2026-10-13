@@ -19,6 +19,7 @@ class BootReceiver : BroadcastReceiver() {
                     prefs.studySummaryHour.value,
                     prefs.studySummaryMinute.value
                 )
+                AutoBackupScheduler.apply(context, prefs.autoBackupEnabled.value)
             }
         }
     }

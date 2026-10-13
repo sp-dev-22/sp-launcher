@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockClock
 import androidx.compose.material.icons.filled.School
@@ -57,6 +58,7 @@ fun SettingsScreen(
     onOpenWidgetsManagement: () -> Unit,
     onOpenStudyManager: () -> Unit,
     onOpenBackupRestore: () -> Unit,
+    onOpenAboutDev: () -> Unit,
     onSetDefaultLauncher: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -257,6 +259,24 @@ fun SettingsScreen(
             },
             onClick = onOpenBackupRestore,
             testTag = "settings_backup_restore"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // About Dev
+        SettingsItemRow(
+            title = "About Dev",
+            subtitle = "Developer, GitHub links & WhatsApp support",
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            onClick = onOpenAboutDev,
+            testTag = "settings_about_dev"
         )
 
         Spacer(modifier = Modifier.height(16.dp))

@@ -15,6 +15,7 @@ import com.example.data.repository.AppRepository
 import com.example.data.repository.LauncherPreferences
 import com.example.focus.FocusManager
 import com.example.focus.UsageTracker
+import com.example.service.AutoBackupScheduler
 import com.example.service.StudyReminderScheduler
 import com.example.ui.components.BlockReason
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,6 +59,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val showStudySummary = preferences.showStudySummary
     val studySummaryHour = preferences.studySummaryHour
     val studySummaryMinute = preferences.studySummaryMinute
+    val autoBackupEnabled = preferences.autoBackupEnabled
+    val autoBackupUri = preferences.autoBackupUri
+    val autoBackupLast = preferences.autoBackupLast
     val themeKey = preferences.themeKey
     val banners = preferences.banners
     val tasks = preferences.tasks
@@ -170,6 +174,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showThemesSheet = MutableStateFlow(false)
     val showThemesSheet: StateFlow<Boolean> = _showThemesSheet.asStateFlow()
 
+    private val _showAboutDev = MutableStateFlow(false)
+    val showAboutDev: StateFlow<Boolean> = _showAboutDev.asStateFlow()
+
     private val _blockedAppDetails = MutableStateFlow<Pair<AppInfo, BlockReason>?>(null)
     val blockedAppDetails: StateFlow<Pair<AppInfo, BlockReason>?> = _blockedAppDetails.asStateFlow()
 
@@ -231,6 +238,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             preferences.studySummaryHour.value,
             preferences.studySummaryMinute.value
         )
+        AutoBackupScheduler.apply(getApplication<Application>(), preferences.autoBackupEnabled.value)
     }
 
     fun loadApps() {
@@ -311,6 +319,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun setStudySummary(enabled: Boolean, hour: Int, minute: Int) {
         preferences.setStudySummary(enabled, hour, minute)
         StudyReminderScheduler.applyDailySummary(getApplication<Application>(), enabled, hour, minute)
+    }
+
+    fun setAutoBackup(enabled: Boolean) {
+        preferences.setAutoBackupEnabled(enabled)
+        AutoBackupScheduler.apply(getApplication<Application>(), enabled)
+    }
+
+    fun setAutoBackupFolder(uri: String) {
+        preferences.setAutoBackupUri(uri)
+        preferences.setAutoBackupEnabled(true)
+        AutoBackupScheduler.apply(getApplication<Application>(), true)
     }
 
     fun setTheme(key: String) {
@@ -399,6 +418,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowThemesSheet(show: Boolean) {
         _showThemesSheet.value = show
+    }
+
+    fun setShowAboutDev(show: Boolean) {
+        _showAboutDev.value = show
     }
 
     fun dismissBlockedAppDialog() {

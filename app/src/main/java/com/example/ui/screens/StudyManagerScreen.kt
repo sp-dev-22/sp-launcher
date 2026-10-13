@@ -459,7 +459,7 @@ private fun StudyTreeRow(
             .fillMaxWidth()
             .padding(start = (4 + row.level * 18).dp, end = 4.dp, top = 3.dp, bottom = 3.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(if (isDarkTheme) Color(0xFF1E1E24) else Color(0xFFF6EFEA))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable {
                 if (row.type == NodeType.CLASS) onToggleClass() else onToggleExpand()
             }
@@ -592,7 +592,7 @@ private fun StudyProgressGraph(
         modifier = modifier.padding(vertical = 8.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isDarkTheme) Color(0xFF1E1E24) else Color(0xFFF6EFEA)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {

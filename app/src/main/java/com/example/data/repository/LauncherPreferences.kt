@@ -66,6 +66,16 @@ class LauncherPreferences(context: Context) {
     private val _studySummaryMinute = MutableStateFlow(prefs.getInt(KEY_STUDY_SUMMARY_MINUTE, 0))
     val studySummaryMinute: StateFlow<Int> = _studySummaryMinute.asStateFlow()
 
+    // Auto backup (weekly, into a user-chosen folder)
+    private val _autoBackupEnabled = MutableStateFlow(prefs.getBoolean(KEY_AUTO_BACKUP_ENABLED, false))
+    val autoBackupEnabled: StateFlow<Boolean> = _autoBackupEnabled.asStateFlow()
+
+    private val _autoBackupUri = MutableStateFlow(prefs.getString(KEY_AUTO_BACKUP_URI, "") ?: "")
+    val autoBackupUri: StateFlow<String> = _autoBackupUri.asStateFlow()
+
+    private val _autoBackupLast = MutableStateFlow(prefs.getLong(KEY_AUTO_BACKUP_LAST, 0L))
+    val autoBackupLast: StateFlow<Long> = _autoBackupLast.asStateFlow()
+
     private val _banners = MutableStateFlow(loadBanners())
     val banners: StateFlow<List<BannerItem>> = _banners.asStateFlow()
 
@@ -169,6 +179,21 @@ class LauncherPreferences(context: Context) {
         _showStudySummary.value = enabled
         _studySummaryHour.value = h
         _studySummaryMinute.value = m
+    }
+
+    fun setAutoBackupEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_BACKUP_ENABLED, enabled).apply()
+        _autoBackupEnabled.value = enabled
+    }
+
+    fun setAutoBackupUri(uri: String) {
+        prefs.edit().putString(KEY_AUTO_BACKUP_URI, uri).apply()
+        _autoBackupUri.value = uri
+    }
+
+    fun setAutoBackupLast(millis: Long) {
+        prefs.edit().putLong(KEY_AUTO_BACKUP_LAST, millis).apply()
+        _autoBackupLast.value = millis
     }
 
     fun setTheme(key: String) {
@@ -958,6 +983,9 @@ class LauncherPreferences(context: Context) {
         _showStudySummary.value = prefs.getBoolean(KEY_STUDY_SUMMARY_ENABLED, false)
         _studySummaryHour.value = prefs.getInt(KEY_STUDY_SUMMARY_HOUR, 20)
         _studySummaryMinute.value = prefs.getInt(KEY_STUDY_SUMMARY_MINUTE, 0)
+        _autoBackupEnabled.value = prefs.getBoolean(KEY_AUTO_BACKUP_ENABLED, false)
+        _autoBackupUri.value = prefs.getString(KEY_AUTO_BACKUP_URI, "") ?: ""
+        _autoBackupLast.value = prefs.getLong(KEY_AUTO_BACKUP_LAST, 0L)
         _themeKey.value = prefs.getString(KEY_THEME, "default") ?: "default"
         _banners.value = loadBanners()
         _tasks.value = loadTasks()
@@ -994,6 +1022,9 @@ class LauncherPreferences(context: Context) {
         private const val KEY_STUDY_SUMMARY_ENABLED = "study_summary_enabled"
         private const val KEY_STUDY_SUMMARY_HOUR = "study_summary_hour"
         private const val KEY_STUDY_SUMMARY_MINUTE = "study_summary_minute"
+        private const val KEY_AUTO_BACKUP_ENABLED = "auto_backup_enabled"
+        private const val KEY_AUTO_BACKUP_URI = "auto_backup_uri"
+        private const val KEY_AUTO_BACKUP_LAST = "auto_backup_last"
 
         // Focus Mode Keys
         private const val KEY_FOCUS_MODE_ACTIVE = "focus_mode_active"

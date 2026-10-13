@@ -38,8 +38,15 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.collectAsState
 import com.example.ui.LauncherViewModel
 import com.example.util.FileIo
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun BackupRestoreScreen(
@@ -68,6 +75,27 @@ fun BackupRestoreScreen(
                 viewModel.importAllData(text) -> "Restore complete — your data is back."
                 else -> "That file is not a valid SP Launcher backup."
             }
+        }
+    }
+
+    val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsState()
+    val autoBackupUri by viewModel.autoBackupUri.collectAsState()
+    val autoBackupLast by viewModel.autoBackupLast.collectAsState()
+
+    val folderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            } catch (_: Exception) {
+                // Some providers don't grant persistable permission; the backup still tries.
+            }
+            viewModel.setAutoBackupFolder(uri.toString())
+            message = "Auto backup folder set. First backup runs within a few minutes."
         }
     }
 
@@ -139,6 +167,55 @@ fun BackupRestoreScreen(
             Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.size(8.dp))
             Text("Restore from file")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Auto backup (weekly)", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = if (autoBackupUri.isBlank()) "No folder chosen yet"
+                            else "Folder: " + Uri.parse(autoBackupUri).lastPathSegment,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                        )
+                        if (autoBackupLast > 0) {
+                            Text(
+                                text = "Last backup: " + SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(autoBackupLast)),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = autoBackupEnabled,
+                        onCheckedChange = { viewModel.setAutoBackup(it) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = { folderLauncher.launch(null) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("auto_backup_folder_btn")
+                ) {
+                    Text("Choose backup folder")
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
