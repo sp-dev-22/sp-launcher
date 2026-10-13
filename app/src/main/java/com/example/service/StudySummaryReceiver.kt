@@ -28,6 +28,11 @@ class StudySummaryReceiver : BroadcastReceiver() {
         val prefs = LauncherPreferences(context)
         if (!prefs.showStudySummary.value) return
 
+        // Re-arm for the next day first, so one quiet day never stops the summary.
+        StudyReminderScheduler.applyDailySummary(
+            context, true, prefs.studySummaryHour.value, prefs.studySummaryMinute.value
+        )
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED

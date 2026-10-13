@@ -81,6 +81,7 @@ fun BackupRestoreScreen(
     val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsState()
     val autoBackupUri by viewModel.autoBackupUri.collectAsState()
     val autoBackupLast by viewModel.autoBackupLast.collectAsState()
+    val backupMessage by viewModel.backupMessage.collectAsState()
 
     val folderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -214,6 +215,26 @@ fun BackupRestoreScreen(
                         .testTag("auto_backup_folder_btn")
                 ) {
                     Text("Choose backup folder")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = { viewModel.backupNow() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("backup_now_btn")
+                ) {
+                    Text("Backup now")
+                }
+
+                backupMessage?.let { msg ->
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = msg,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }

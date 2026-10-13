@@ -171,7 +171,12 @@ object StudyReminderScheduler {
         am.cancel(pi)
         pi.cancel()
         if (!enabled) return
+        // One-shot, Doze-friendly alarm — the same mechanism the (working) task reminders
+        // use. The receiver re-arms for the next day after it fires.
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextSummaryTrigger(hour, minute), pi)
+    }
 
+    private fun nextSummaryTrigger(hour: Int, minute: Int): Long {
         val cal = java.util.Calendar.getInstance().apply {
             set(java.util.Calendar.HOUR_OF_DAY, hour.coerceIn(0, 23))
             set(java.util.Calendar.MINUTE, minute.coerceIn(0, 59))
@@ -181,13 +186,7 @@ object StudyReminderScheduler {
         if (cal.timeInMillis <= System.currentTimeMillis()) {
             cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
         }
-        // Inexact daily repeat — Doze-friendly and needs no exact-alarm permission.
-        am.setInexactRepeating(
-            AlarmManager.RTC_WAKEUP,
-            cal.timeInMillis,
-            AlarmManager.INTERVAL_DAY,
-            pi
-        )
+        return cal.timeInMillis
     }
 
     private fun summaryPendingIntent(context: Context): PendingIntent {

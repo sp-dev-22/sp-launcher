@@ -33,14 +33,18 @@ object AutoBackupScheduler {
         am.cancel(pi)
         pi.cancel()
         if (!enabled) return
+        // First backup ~5 minutes after enabling, then weekly (re-armed by the receiver).
+        scheduleAt(context, System.currentTimeMillis() + 5 * 60_000L)
+    }
 
-        // First backup ~5 minutes after enabling, then weekly.
-        val first = System.currentTimeMillis() + 5 * 60_000L
-        am.setInexactRepeating(
-            AlarmManager.RTC_WAKEUP,
-            first,
-            AlarmManager.INTERVAL_DAY * 7,
-            pi
-        )
+    /** Schedules the next weekly backup — called by the receiver after each run. */
+    fun scheduleNextWeekly(context: Context) {
+        scheduleAt(context, System.currentTimeMillis() + AlarmManager.INTERVAL_DAY * 7)
+    }
+
+    private fun scheduleAt(context: Context, triggerAt: Long) {
+        val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+        // One-shot, Doze-friendly alarm — the same mechanism the working reminders use.
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent(context))
     }
 }

@@ -370,7 +370,8 @@ fun StudyManagerScreen(
                 viewModel.setStudySummary(enabled, h, m)
                 showSummaryDialog = false
             },
-            onDismiss = { showSummaryDialog = false }
+            onDismiss = { showSummaryDialog = false },
+            onSendTest = { viewModel.testStudySummary() }
         )
     }
 }
@@ -381,7 +382,8 @@ private fun StudySummaryDialog(
     hour: Int,
     minute: Int,
     onSave: (Boolean, Int, Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onSendTest: () -> Unit
 ) {
     val context = LocalContext.current
     var isEnabled by remember { mutableStateOf(enabled) }
@@ -417,6 +419,10 @@ private fun StudySummaryDialog(
                             ).show()
                         }
                     ) { Text("Set time") }
+                }
+
+                Row {
+                    TextButton(onClick = { onSendTest() }) { Text("Send a test now") }
                 }
 
                 Text(

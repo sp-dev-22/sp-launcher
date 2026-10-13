@@ -1,6 +1,7 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.AppInfo
@@ -15,8 +16,10 @@ import com.example.data.repository.AppRepository
 import com.example.data.repository.LauncherPreferences
 import com.example.focus.FocusManager
 import com.example.focus.UsageTracker
+import com.example.service.AutoBackup
 import com.example.service.AutoBackupScheduler
 import com.example.service.StudyReminderScheduler
+import com.example.service.StudySummaryReceiver
 import com.example.ui.components.BlockReason
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -177,6 +180,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showAboutDev = MutableStateFlow(false)
     val showAboutDev: StateFlow<Boolean> = _showAboutDev.asStateFlow()
 
+    private val _backupMessage = MutableStateFlow<String?>(null)
+    val backupMessage: StateFlow<String?> = _backupMessage.asStateFlow()
+
     private val _blockedAppDetails = MutableStateFlow<Pair<AppInfo, BlockReason>?>(null)
     val blockedAppDetails: StateFlow<Pair<AppInfo, BlockReason>?> = _blockedAppDetails.asStateFlow()
 
@@ -330,6 +336,36 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         preferences.setAutoBackupUri(uri)
         preferences.setAutoBackupEnabled(true)
         AutoBackupScheduler.apply(getApplication<Application>(), true)
+        // Write one immediately so the user can see it working.
+        backupNow()
+    }
+
+    fun backupNow() {
+        viewModelScope.launch {
+            val uri = preferences.autoBackupUri.value
+            if (uri.isBlank()) {
+                _backupMessage.value = "Choose a folder first."
+                return@launch
+            }
+            val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                AutoBackup.write(getApplication(), uri, preferences.exportAllData())
+            }
+            if (ok) {
+                preferences.setAutoBackupLast(System.currentTimeMillis())
+                _backupMessage.value = "Backup saved to your folder."
+            } else {
+                _backupMessage.value = "Backup failed — pick the folder again."
+            }
+        }
+    }
+
+    fun testStudySummary() {
+        val ctx = getApplication<Application>()
+        ctx.sendBroadcast(
+            Intent(ctx, StudySummaryReceiver::class.java).apply {
+                action = StudyReminderScheduler.ACTION_SUMMARY
+            }
+        )
     }
 
     fun setTheme(key: String) {
