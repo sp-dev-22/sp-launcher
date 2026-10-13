@@ -53,13 +53,10 @@ fun HomeScreen(
     showDate: Boolean,
     showNotes: Boolean,
     showTasks: Boolean,
-    isFocusModeActive: Boolean,
     notes: List<BannerItem>,
     tasks: List<TaskItem>,
     showScreenTime: Boolean,
-    showFocusTime: Boolean,
     totalScreenTimeMinutes: Int,
-    totalFocusedTimeMinutes: Int,
     showStudyDue: Boolean,
     studyDueItems: List<StudyDueItem>,
     isDarkTheme: Boolean,
@@ -68,7 +65,6 @@ fun HomeScreen(
     onToggleTask: (String) -> Unit,
     onAddTask: (String) -> Unit,
     onOpenWidgetsManagement: () -> Unit,
-    onPromptEndFocus: () -> Unit,
     onOpenStudyManager: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -105,39 +101,6 @@ fun HomeScreen(
                     onOpenStudyManager = onOpenStudyManager,
                     modifier = Modifier.fillMaxWidth()
                 )
-            }
-
-            // Focus Mode Active Banner
-            // Long press for 3s / click prompts confirmation to close session early
-            if (isFocusModeActive) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFFE53935).copy(alpha = 0.15f))
-                        .combinedClickable(
-                            onClick = onPromptEndFocus,
-                            onLongClick = onPromptEndFocus
-                        )
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
-                        .testTag("home_focus_mode_indicator")
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.HourglassTop,
-                            contentDescription = null,
-                            tint = Color(0xFFE53935),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Focus Mode Active • Long-press 3s to end",
-                            color = Color(0xFFE53935),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -177,18 +140,6 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
-
-            // 8. Total Focused Time (Today)
-            if (showFocusTime) {
-                TimeStatWidget(
-                    title = "FOCUSED TIME TODAY",
-                    minutes = totalFocusedTimeMinutes,
-                    accent = Color(0xFF4CAF50),
-                    isDarkTheme = isDarkTheme,
-                    testTag = "focus_time_widget"
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
         }
 
         // 7. Favorite Apps (Colorful Text Pills)
@@ -206,7 +157,7 @@ fun HomeScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (isFocusModeActive) "Only allowed apps are shown in Focus Mode" else "Swipe right to App Drawer\nor open Settings to add Favorite apps",
+                        text = "Swipe right to App Drawer\nor open Settings to add Favorite apps",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                         textAlign = TextAlign.Center

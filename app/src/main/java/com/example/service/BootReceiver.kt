@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import com.example.data.repository.LauncherPreferences
 
-/** Re-arms all Study Manager reminders after a reboot or an app update. */
+/** Re-arms Study Manager reminders and the daily backup reminder after a reboot or app update. */
 class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -13,13 +13,7 @@ class BootReceiver : BroadcastReceiver() {
             Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> {
                 val prefs = LauncherPreferences(context)
                 StudyReminderScheduler.rescheduleAll(context, prefs.studyCourses.value)
-                StudyReminderScheduler.applyDailySummary(
-                    context,
-                    prefs.showStudySummary.value,
-                    prefs.studySummaryHour.value,
-                    prefs.studySummaryMinute.value
-                )
-                AutoBackupScheduler.apply(context, prefs.autoBackupEnabled.value)
+                BackupReminderScheduler.apply(context)
             }
         }
     }

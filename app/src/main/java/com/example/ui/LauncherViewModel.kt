@@ -2,46 +2,35 @@ package com.example.ui
 
 import android.app.Application
 import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.AppInfo
 import com.example.data.model.BannerItem
-import com.example.data.model.FocusSessionRecord
 import com.example.data.model.StudyCourse
 import com.example.data.model.StudyDueItem
-import com.example.data.model.StudyFocusTarget
 import com.example.data.model.allClassRefs
 import com.example.data.model.TaskItem
 import com.example.data.repository.AppRepository
 import com.example.data.repository.LauncherPreferences
-import com.example.focus.FocusManager
 import com.example.focus.UsageTracker
-import com.example.service.AutoBackup
-import com.example.service.AutoBackupScheduler
+import com.example.service.AppLimitService
+import com.example.service.BackupReminderScheduler
 import com.example.service.StudyReminderScheduler
-import com.example.service.StudySummaryReceiver
 import com.example.ui.components.BlockReason
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-
-data class FocusFilterState(
-    val isFocus: Boolean,
-    val isBreak: Boolean,
-    val allowedApps: Set<String>,
-    val shouldHide: Boolean
-)
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appRepository = AppRepository(application)
     private val preferences = LauncherPreferences(application)
-    private val focusManager = FocusManager(application)
     private val usageTracker = UsageTracker(application)
 
     private val _installedApps = MutableStateFlow<List<AppInfo>>(emptyList())
@@ -57,58 +46,20 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val showNotes = preferences.showNotes
     val showTasks = preferences.showTasks
     val showScreenTime = preferences.showScreenTime
-    val showFocusTime = preferences.showFocusTime
     val showStudyDue = preferences.showStudyDue
-    val showStudySummary = preferences.showStudySummary
-    val studySummaryHour = preferences.studySummaryHour
-    val studySummaryMinute = preferences.studySummaryMinute
-    val autoBackupEnabled = preferences.autoBackupEnabled
-    val autoBackupUri = preferences.autoBackupUri
-    val autoBackupLast = preferences.autoBackupLast
     val themeKey = preferences.themeKey
     val banners = preferences.banners
     val tasks = preferences.tasks
-
-    // Focus Mode states
-    val isFocusModeActive = preferences.isFocusModeActive
-    val isFocusBreakPhase = preferences.isFocusBreakPhase
-    val studyDurationMinutes = preferences.studyDurationMinutes
-    val breakDurationMinutes = preferences.breakDurationMinutes
-    val longBreakDurationMinutes = preferences.longBreakDurationMinutes
-    val targetSessions = preferences.targetSessions
-    val allowedFocusApps = preferences.allowedFocusApps
-    val hideBlockedApps = preferences.hideBlockedApps
 
     // App Usage & Limits states
     val appLimits = preferences.appLimits
     private val _usageMap = MutableStateFlow<Map<String, Int>>(emptyMap())
     val usageMap: StateFlow<Map<String, Int>> = _usageMap.asStateFlow()
 
-    // Focus session totals
-    val completedSessionsCount = preferences.completedSessionsCount
-    val totalFocusMinutes = preferences.totalFocusMinutes
-
-    // Focus History
-    val focusHistory: StateFlow<List<FocusSessionRecord>> = preferences.focusHistory
-
     // Today's totals for the Home widgets
     val totalScreenTimeToday: StateFlow<Int> = usageMap
         .map { usage -> usage.values.sum() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
-    val totalFocusedTimeToday: StateFlow<Int> = focusHistory
-        .map { list ->
-            val now = System.currentTimeMillis()
-            list.filter { isSameDay(it.timestamp, now) }.sumOf { it.durationMinutes }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
-    private fun isSameDay(a: Long, b: Long): Boolean {
-        val calA = java.util.Calendar.getInstance().apply { timeInMillis = a }
-        val calB = java.util.Calendar.getInstance().apply { timeInMillis = b }
-        return calA.get(java.util.Calendar.YEAR) == calB.get(java.util.Calendar.YEAR) &&
-            calA.get(java.util.Calendar.DAY_OF_YEAR) == calB.get(java.util.Calendar.DAY_OF_YEAR)
-    }
 
     // Study Manager tree
     val studyCourses: StateFlow<List<StudyCourse>> = preferences.studyCourses
@@ -153,20 +104,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showWidgetsDialog = MutableStateFlow(false)
     val showWidgetsDialog: StateFlow<Boolean> = _showWidgetsDialog.asStateFlow()
 
-    private val _showFocusSettingsDialog = MutableStateFlow(false)
-    val showFocusSettingsDialog: StateFlow<Boolean> = _showFocusSettingsDialog.asStateFlow()
-
-    private val _showFocusHistorySheet = MutableStateFlow(false)
-    val showFocusHistorySheet: StateFlow<Boolean> = _showFocusHistorySheet.asStateFlow()
-
-    private val _showAllowedAppsSheet = MutableStateFlow(false)
-    val showAllowedAppsSheet: StateFlow<Boolean> = _showAllowedAppsSheet.asStateFlow()
-
     private val _showAppLimitsSheet = MutableStateFlow(false)
     val showAppLimitsSheet: StateFlow<Boolean> = _showAppLimitsSheet.asStateFlow()
-
-    private val _showEndFocusConfirmDialog = MutableStateFlow(false)
-    val showEndFocusConfirmDialog: StateFlow<Boolean> = _showEndFocusConfirmDialog.asStateFlow()
 
     private val _showStudyManager = MutableStateFlow(false)
     val showStudyManager: StateFlow<Boolean> = _showStudyManager.asStateFlow()
@@ -180,71 +119,34 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showAboutDev = MutableStateFlow(false)
     val showAboutDev: StateFlow<Boolean> = _showAboutDev.asStateFlow()
 
-    private val _backupMessage = MutableStateFlow<String?>(null)
-    val backupMessage: StateFlow<String?> = _backupMessage.asStateFlow()
-
     private val _blockedAppDetails = MutableStateFlow<Pair<AppInfo, BlockReason>?>(null)
     val blockedAppDetails: StateFlow<Pair<AppInfo, BlockReason>?> = _blockedAppDetails.asStateFlow()
 
-    // Combined focus filter state flow
-    private val focusFilterState = combine(
-        isFocusModeActive,
-        isFocusBreakPhase,
-        allowedFocusApps,
-        hideBlockedApps
-    ) { isFocus, isBreak, allowedList, shouldHide ->
-        FocusFilterState(
-            isFocus = isFocus,
-            isBreak = isBreak,
-            allowedApps = allowedList.toSet(),
-            shouldHide = shouldHide
-        )
-    }
-
-    // Filtered apps for Drawer: during Break phase, apps temporarily unhide and are accessible!
+    // Filtered apps for the App Drawer (search only)
     val filteredApps: StateFlow<List<AppInfo>> =
-        combine(_installedApps, _searchQuery, focusFilterState) { apps, query, focusState ->
-            var list = apps
-
-            // If focus mode is active, NOT in break phase, and hideBlockedApps is enabled: hide non-allowed apps
-            if (focusState.isFocus && !focusState.isBreak && focusState.shouldHide) {
-                list = list.filter { focusState.allowedApps.contains(it.packageName) }
-            }
-
-            if (query.isNotBlank()) {
-                list = list.filter { it.label.contains(query, ignoreCase = true) }
-            }
-            list
+        kotlinx.coroutines.flow.combine(_installedApps, _searchQuery) { apps, query ->
+            if (query.isBlank()) apps
+            else apps.filter { it.label.contains(query, ignoreCase = true) }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Filtered favorites for Home Screen: during Break phase, apps unhide!
+    // Favorite apps for the Home Screen
     val favoriteAppInfos: StateFlow<List<AppInfo>> =
-        combine(_installedApps, favorites, focusFilterState) { apps, favPkgs, focusState ->
+        kotlinx.coroutines.flow.combine(_installedApps, favorites) { apps, favPkgs ->
             val appMap = apps.associateBy { it.packageName }
-            var favs = favPkgs.mapNotNull { appMap[it] }
-
-            if (focusState.isFocus && !focusState.isBreak && focusState.shouldHide) {
-                favs = favs.filter { focusState.allowedApps.contains(it.packageName) }
-            }
-            favs
+            favPkgs.mapNotNull { appMap[it] }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         loadApps()
         refreshUsageStats()
-        // Ensure background monitor is running if limits are set or focus mode was active
-        if (preferences.appLimits.value.isNotEmpty() || preferences.isFocusModeActive.value) {
-            focusManager.updateLimitMonitoring()
+        // Keep the daily app-limit monitor running if any limit is set.
+        if (preferences.appLimits.value.isNotEmpty()) {
+            AppLimitService.start(getApplication())
         }
         // Re-arm any pending Study Manager reminders on launch.
         rescheduleStudyReminders()
-        StudyReminderScheduler.applyDailySummary(
-            getApplication<Application>(),
-            preferences.showStudySummary.value,
-            preferences.studySummaryHour.value,
-            preferences.studySummaryMinute.value
-        )
-        AutoBackupScheduler.apply(getApplication<Application>(), preferences.autoBackupEnabled.value)
+        // Arm the once-a-day backup reminder (19:00).
+        BackupReminderScheduler.apply(getApplication())
     }
 
     fun loadApps() {
@@ -314,58 +216,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         preferences.setShowScreenTime(enabled)
     }
 
-    fun setShowFocusTime(enabled: Boolean) {
-        preferences.setShowFocusTime(enabled)
-    }
-
     fun setShowStudyDue(enabled: Boolean) {
         preferences.setShowStudyDue(enabled)
-    }
-
-    fun setStudySummary(enabled: Boolean, hour: Int, minute: Int) {
-        preferences.setStudySummary(enabled, hour, minute)
-        StudyReminderScheduler.applyDailySummary(getApplication<Application>(), enabled, hour, minute)
-    }
-
-    fun setAutoBackup(enabled: Boolean) {
-        preferences.setAutoBackupEnabled(enabled)
-        AutoBackupScheduler.apply(getApplication<Application>(), enabled)
-    }
-
-    fun setAutoBackupFolder(uri: String) {
-        preferences.setAutoBackupUri(uri)
-        preferences.setAutoBackupEnabled(true)
-        AutoBackupScheduler.apply(getApplication<Application>(), true)
-        // Write one immediately so the user can see it working.
-        backupNow()
-    }
-
-    fun backupNow() {
-        viewModelScope.launch {
-            val uri = preferences.autoBackupUri.value
-            if (uri.isBlank()) {
-                _backupMessage.value = "Choose a folder first."
-                return@launch
-            }
-            val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                AutoBackup.write(getApplication(), uri, preferences.exportAllData())
-            }
-            if (ok) {
-                preferences.setAutoBackupLast(System.currentTimeMillis())
-                _backupMessage.value = "Backup saved to your folder."
-            } else {
-                _backupMessage.value = "Backup failed — pick the folder again."
-            }
-        }
-    }
-
-    fun testStudySummary() {
-        val ctx = getApplication<Application>()
-        ctx.sendBroadcast(
-            Intent(ctx, StudySummaryReceiver::class.java).apply {
-                action = StudyReminderScheduler.ACTION_SUMMARY
-            }
-        )
     }
 
     fun setTheme(key: String) {
@@ -424,24 +276,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _showWidgetsDialog.value = show
     }
 
-    fun setShowFocusSettingsDialog(show: Boolean) {
-        _showFocusSettingsDialog.value = show
-    }
-
-    fun setShowFocusHistorySheet(show: Boolean) {
-        _showFocusHistorySheet.value = show
-    }
-
-    fun setShowAllowedAppsSheet(show: Boolean) {
-        _showAllowedAppsSheet.value = show
-    }
-
     fun setShowAppLimitsSheet(show: Boolean) {
         _showAppLimitsSheet.value = show
-    }
-
-    fun setShowEndFocusConfirmDialog(show: Boolean) {
-        _showEndFocusConfirmDialog.value = show
     }
 
     fun setShowStudyManager(show: Boolean) {
@@ -464,17 +300,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _blockedAppDetails.value = null
     }
 
-    // Focus Mode methods
-    fun canDrawOverlays(): Boolean = focusManager.canDrawOverlays()
+    // ---- Overlay permission (needed for the daily-limit lock overlay) ----
+
+    fun canDrawOverlays(): Boolean = Settings.canDrawOverlays(getApplication())
 
     fun requestOverlayPermission() {
-        focusManager.requestOverlayPermission()
-    }
-
-    fun isNotificationPolicyAccessGranted(): Boolean = focusManager.isNotificationPolicyAccessGranted()
-
-    fun requestNotificationPolicyAccess() {
-        focusManager.requestNotificationPolicyAccess()
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:${getApplication<Application>().packageName}")
+        ).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            getApplication<Application>().startActivity(intent)
+        } catch (_: Exception) {
+            val fallback = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            try {
+                getApplication<Application>().startActivity(fallback)
+            } catch (_: Exception) {}
+        }
     }
 
     fun hasUsagePermission(): Boolean = usageTracker.hasUsageStatsPermission()
@@ -483,64 +329,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         usageTracker.requestUsageStatsPermission()
     }
 
-    fun startFocusMode() {
-        focusManager.startFocusMode()
-    }
-
-    fun stopFocusMode() {
-        focusManager.stopFocusMode()
-        _showEndFocusConfirmDialog.value = false
-    }
-
-    fun toggleFocusMode() {
-        if (isFocusModeActive.value) {
-            stopFocusMode()
-        } else {
-            startFocusMode()
-        }
-    }
-
-    fun setStudyDurationMinutes(minutes: Int) {
-        preferences.setStudyDurationMinutes(minutes)
-    }
-
-    fun setBreakDurationMinutes(minutes: Int) {
-        preferences.setBreakDurationMinutes(minutes)
-    }
-
-    fun setLongBreakDurationMinutes(minutes: Int) {
-        preferences.setLongBreakDurationMinutes(minutes)
-    }
-
-    fun setTargetSessions(sessions: Int) {
-        preferences.setTargetSessions(sessions)
-    }
-
-    fun toggleAllowedFocusApp(packageName: String) {
-        preferences.toggleAllowedFocusApp(packageName)
-    }
-
-    fun setHideBlockedApps(enabled: Boolean) {
-        preferences.setHideBlockedApps(enabled)
-    }
-
     fun setAppLimit(packageName: String, limitMinutes: Int) {
         preferences.setAppLimit(packageName, limitMinutes)
-        // Ensure background monitor is actively running to enforce limits live
-        focusManager.updateLimitMonitoring()
+        // Ensure the background monitor is actively running to enforce limits live
+        AppLimitService.start(getApplication())
     }
 
-    fun clearAllFocusHistory() {
-        preferences.clearAllFocusHistory()
-    }
-
-    fun clearFocusHistoryOlderThan(cutoffTimestamp: Long) {
-        preferences.clearFocusHistoryBefore(cutoffTimestamp)
-    }
-
-    // Smart App Launching: handles usage limit and focus mode blocking
+    // Smart App Launching: handles usage limit blocking
     fun tryLaunchApp(app: AppInfo) {
-        // 1. Check daily usage limit
+        // Check daily usage limit
         val limit = appLimits.value[app.packageName] ?: 0
         val used = _usageMap.value[app.packageName] ?: 0
         if (limit > 0 && used >= limit) {
@@ -548,16 +345,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
-        // 2. Check focus mode restriction (only when in Study phase, not in Break phase!)
-        if (isFocusModeActive.value && !isFocusBreakPhase.value) {
-            val allowedSet = allowedFocusApps.value.toSet()
-            if (!allowedSet.contains(app.packageName)) {
-                _blockedAppDetails.value = Pair(app, BlockReason.FOCUS_MODE_RESTRICTED)
-                return
-            }
-        }
-
-        // 3. Otherwise launch normally
+        // Otherwise launch normally
         appRepository.launchApp(app.packageName)
     }
 
@@ -644,12 +432,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun renameStudyClass(courseId: String, subjectId: String, topicId: String, classId: String, name: String) =
         preferences.renameStudyClass(courseId, subjectId, topicId, classId, name)
-
-    /** Starts a Focus session aimed at a specific Study node (Study <-> Focus link). */
-    fun startFocusForStudy(target: StudyFocusTarget) {
-        preferences.setFocusTarget(target)
-        focusManager.startFocusMode()
-    }
 
     private fun rescheduleStudyReminders() {
         StudyReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.studyCourses.value)

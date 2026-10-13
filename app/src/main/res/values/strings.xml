@@ -24,14 +24,4 @@
     <string name="show_date">Show Date</string>
     <string name="show_banners">Show Banners</string>
     <string name="show_tasks">Show Tasks</string>
-
-    <!-- Focus Mode -->
-    <string name="focus_mode">Focus Mode</string>
-    <string name="focus_mode_desc">Silent notifications, DND, and top-left floating text Pomodoro timer</string>
-    <string name="start_focus_mode">Start Focus Mode</string>
-    <string name="stop_focus_mode">Stop Focus Mode</string>
-    <string name="study_duration">Study Duration</string>
-    <string name="break_duration">Break Duration</string>
-    <string name="long_break_duration">Long Break Duration</string>
-    <string name="target_sessions">Target Sessions</string>
 </resources>

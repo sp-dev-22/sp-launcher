@@ -5,25 +5,21 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesCondition" />
 
-    <!-- Overlay permission for floating Pomodoro timer & block overlay -->
+    <!-- Overlay permission for the full-screen "daily limit reached" block -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-
-    <!-- DND / Notification policy access for silencing notifications -->
-    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
     <!-- Usage stats permission for tracking screen time and daily limits -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
-    <!-- Foreground service for continuous timer operation -->
+    <!-- Foreground service for continuous app-limit monitoring -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- Notifications (Android 13+): required for the focus timer / app-limits notification -->
+    <!-- Notifications (Android 13+): required for study reminders and the daily backup nudge -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Re-arm Study Manager reminders after a reboot -->
+    <!-- Re-arm Study Manager reminders & the daily backup reminder after a reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
@@ -54,12 +50,12 @@
         </activity>
 
         <service
-            android:name=".service.FocusOverlayService"
+            android:name=".service.AppLimitService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Pomodoro focus timer overlay" />
+                android:value="Daily app-limit monitor" />
         </service>
 
         <!-- Fires Study Manager alert / missed-deadline notifications -->
@@ -67,22 +63,12 @@
             android:name=".service.StudyReminderReceiver"
             android:exported="false" />
 
-        <!-- Handles the "Mark done" action after a Study focus session -->
+        <!-- Fires the once-a-day backup reminder -->
         <receiver
-            android:name=".service.StudyFocusActionReceiver"
+            android:name=".service.BackupReminderReceiver"
             android:exported="false" />
 
-        <!-- Fires the once-a-day study summary notification -->
-        <receiver
-            android:name=".service.StudySummaryReceiver"
-            android:exported="false" />
-
-        <!-- Writes the weekly automatic backup -->
-        <receiver
-            android:name=".service.AutoBackupReceiver"
-            android:exported="false" />
-
-        <!-- Re-schedules Study Manager reminders after boot / app update -->
+        <!-- Re-schedules Study Manager reminders & the backup reminder after boot / app update -->
         <receiver
             android:name=".service.BootReceiver"
             android:exported="false">

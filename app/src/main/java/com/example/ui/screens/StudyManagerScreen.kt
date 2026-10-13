@@ -61,7 +61,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.StudyClass
 import com.example.data.model.StudyCourse
-import com.example.data.model.StudyFocusTarget
 import com.example.data.model.StudyStatus
 import com.example.data.model.allClassRefs
 import com.example.data.model.completedCount
@@ -131,11 +130,6 @@ fun StudyManagerScreen(
     var scheduleTarget by remember { mutableStateOf<ScheduleTarget?>(null) }
     var renameRow by remember { mutableStateOf<StudyRow?>(null) }
     var exportMenu by remember { mutableStateOf(false) }
-    var showSummaryDialog by remember { mutableStateOf(false) }
-    val showStudySummary by viewModel.showStudySummary.collectAsState()
-    val summaryHour by viewModel.studySummaryHour.collectAsState()
-    val summaryMinute by viewModel.studySummaryMinute.collectAsState()
-
     val jsonExport = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri -> if (uri != null) FileIo.writeText(context, uri, StudyExport.toJson(courses)) }
@@ -170,12 +164,6 @@ fun StudyManagerScreen(
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.weight(1f)
             )
-            IconButton(
-                onClick = { showSummaryDialog = true },
-                modifier = Modifier.testTag("study_summary_btn")
-            ) {
-                Icon(Icons.Default.NotificationsActive, contentDescription = "Daily summary")
-            }
             IconButton(
                 onClick = { addTarget = AddTarget(NodeType.COURSE, label = "Course") },
                 modifier = Modifier.testTag("study_add_course_btn")
@@ -256,22 +244,6 @@ fun StudyManagerScreen(
                                 deadlineMillis = row.deadlineMillis,
                                 alertMillis = row.alertMillis
                             )
-                        },
-                        onStartFocus = {
-                            val s = row.subjectId
-                            val t = row.topicId
-                            if (s != null && t != null) {
-                                viewModel.startFocusForStudy(
-                                    StudyFocusTarget(
-                                        level = if (row.type == NodeType.TOPIC) "topic" else "class",
-                                        courseId = row.courseId,
-                                        subjectId = s,
-                                        topicId = t,
-                                        classId = row.classId,
-                                        name = row.name
-                                    )
-                                )
-                            }
                         },
                         onEditName = { renameRow = row },
                         onDelete = {
@@ -361,80 +333,6 @@ fun StudyManagerScreen(
         )
     }
 
-    if (showSummaryDialog) {
-        StudySummaryDialog(
-            enabled = showStudySummary,
-            hour = summaryHour,
-            minute = summaryMinute,
-            onSave = { enabled, h, m ->
-                viewModel.setStudySummary(enabled, h, m)
-                showSummaryDialog = false
-            },
-            onDismiss = { showSummaryDialog = false },
-            onSendTest = { viewModel.testStudySummary() }
-        )
-    }
-}
-
-@Composable
-private fun StudySummaryDialog(
-    enabled: Boolean,
-    hour: Int,
-    minute: Int,
-    onSave: (Boolean, Int, Int) -> Unit,
-    onDismiss: () -> Unit,
-    onSendTest: () -> Unit
-) {
-    val context = LocalContext.current
-    var isEnabled by remember { mutableStateOf(enabled) }
-    var h by remember { mutableStateOf(hour) }
-    var m by remember { mutableStateOf(minute) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Daily study summary", fontWeight = FontWeight.Bold) },
-        text = {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Send a daily summary", fontSize = 14.sp)
-                    Switch(checked = isEnabled, onCheckedChange = { isEnabled = it })
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text("Time: ${formatTimeOfDay(h, m)}", fontSize = 13.sp)
-                Row {
-                    TextButton(
-                        onClick = {
-                            TimePickerDialog(
-                                context,
-                                { _, hh, mm -> h = hh; m = mm },
-                                h,
-                                m,
-                                false
-                            ).show()
-                        }
-                    ) { Text("Set time") }
-                }
-
-                Row {
-                    TextButton(onClick = { onSendTest() }) { Text("Send a test now") }
-                }
-
-                Text(
-                    text = "One notification a day: how many classes are due, overdue and how long you studied.",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
-            }
-        },
-        confirmButton = { TextButton(onClick = { onSave(isEnabled, h, m) }) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
 }
 
 private fun formatTimeOfDay(hour: Int, minute: Int): String {
@@ -453,7 +351,6 @@ private fun StudyTreeRow(
     onToggleClass: () -> Unit,
     onAddChild: () -> Unit,
     onSetSchedule: () -> Unit,
-    onStartFocus: () -> Unit,
     onEditName: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -561,10 +458,6 @@ private fun StudyTreeRow(
                     )
                 }
                 if (row.type == NodeType.TOPIC || row.type == NodeType.CLASS) {
-                    DropdownMenuItem(
-                        text = { Text("Start Focus session") },
-                        onClick = { menuOpen = false; onStartFocus() }
-                    )
                     DropdownMenuItem(
                         text = { Text("Deadline & Reminder") },
                         onClick = { menuOpen = false; onSetSchedule() }

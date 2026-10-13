@@ -1,37 +1,24 @@
 package com.example.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
-import com.example.data.model.AppInfo
-import com.example.ui.components.AllowedAppsPickerSheet
 import com.example.ui.components.AppActionBottomSheet
 import com.example.ui.components.AppBlockedDialog
 import com.example.ui.components.AppLimitsSheet
-import com.example.ui.components.BlockReason
 import com.example.ui.components.EditFavoritesScreen
 import com.example.ui.components.FavoritesReorderBottomSheet
-import com.example.ui.components.FocusHistorySheet
-import com.example.ui.components.FocusModeSheet
 import com.example.ui.components.ThemesSheet
 import com.example.ui.components.WidgetsManagementSheet
 import com.example.ui.screens.AboutDevScreen
@@ -66,28 +53,14 @@ fun MainScreen(
     val banners by viewModel.banners.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
 
-    // Focus Mode states
-    val isFocusModeActive by viewModel.isFocusModeActive.collectAsState()
-    val studyDurationMinutes by viewModel.studyDurationMinutes.collectAsState()
-    val breakDurationMinutes by viewModel.breakDurationMinutes.collectAsState()
-    val longBreakDurationMinutes by viewModel.longBreakDurationMinutes.collectAsState()
-    val targetSessions by viewModel.targetSessions.collectAsState()
-    val allowedFocusApps by viewModel.allowedFocusApps.collectAsState()
-    val hideBlockedApps by viewModel.hideBlockedApps.collectAsState()
-
-    // Usage tracking, Limits & History
+    // Usage tracking & Limits
     val usageMap by viewModel.usageMap.collectAsState()
     val appLimits by viewModel.appLimits.collectAsState()
-    val completedSessions by viewModel.completedSessionsCount.collectAsState()
-    val totalFocusMinutes by viewModel.totalFocusMinutes.collectAsState()
-    val focusHistory by viewModel.focusHistory.collectAsState()
 
     // Themes & Today-time widgets
     val themeKey by viewModel.themeKey.collectAsState()
     val showScreenTime by viewModel.showScreenTime.collectAsState()
-    val showFocusTime by viewModel.showFocusTime.collectAsState()
     val totalScreenTimeToday by viewModel.totalScreenTimeToday.collectAsState()
-    val totalFocusedTimeToday by viewModel.totalFocusedTimeToday.collectAsState()
     val showStudyDue by viewModel.showStudyDue.collectAsState()
     val studyDueItems by viewModel.studyDueItems.collectAsState()
 
@@ -95,12 +68,8 @@ fun MainScreen(
     val showArrangeSheet by viewModel.showArrangeSheet.collectAsState()
     val showAddFavoritesScreen by viewModel.showAddFavoritesScreen.collectAsState()
     val showWidgetsDialog by viewModel.showWidgetsDialog.collectAsState()
-    val showFocusSettingsDialog by viewModel.showFocusSettingsDialog.collectAsState()
-    val showFocusHistorySheet by viewModel.showFocusHistorySheet.collectAsState()
-    val showAllowedAppsSheet by viewModel.showAllowedAppsSheet.collectAsState()
     val showAppLimitsSheet by viewModel.showAppLimitsSheet.collectAsState()
     val showThemesSheet by viewModel.showThemesSheet.collectAsState()
-    val showEndFocusConfirmDialog by viewModel.showEndFocusConfirmDialog.collectAsState()
     val blockedAppDetails by viewModel.blockedAppDetails.collectAsState()
     val showStudyManager by viewModel.showStudyManager.collectAsState()
     val showBackupRestore by viewModel.showBackupRestore.collectAsState()
@@ -139,9 +108,6 @@ fun MainScreen(
                         // Left Page: Settings
                         SettingsScreen(
                             isDarkTheme = isDarkTheme,
-                            isFocusModeActive = isFocusModeActive,
-                            onOpenFocusModeSettings = { viewModel.setShowFocusSettingsDialog(true) },
-                            onOpenFocusHistory = { viewModel.setShowFocusHistorySheet(true) },
                             onOpenAppLimits = {
                                 viewModel.refreshUsageStats()
                                 viewModel.setShowAppLimitsSheet(true)
@@ -165,13 +131,10 @@ fun MainScreen(
                             showDate = showDate,
                             showNotes = showNotes,
                             showTasks = showTasks,
-                            isFocusModeActive = isFocusModeActive,
                             notes = banners,
                             tasks = tasks,
                             showScreenTime = showScreenTime,
-                            showFocusTime = showFocusTime,
                             totalScreenTimeMinutes = totalScreenTimeToday,
-                            totalFocusedTimeMinutes = totalFocusedTimeToday,
                             showStudyDue = showStudyDue,
                             studyDueItems = studyDueItems,
                             isDarkTheme = isDarkTheme,
@@ -180,7 +143,6 @@ fun MainScreen(
                             onToggleTask = { id -> viewModel.toggleTask(id) },
                             onAddTask = { text -> viewModel.addTask(text) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
-                            onPromptEndFocus = { viewModel.setShowEndFocusConfirmDialog(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -269,7 +231,6 @@ fun MainScreen(
             showNotes = showNotes,
             showTasks = showTasks,
             showScreenTime = showScreenTime,
-            showFocusTime = showFocusTime,
             showStudyDue = showStudyDue,
             banners = banners,
             tasks = tasks,
@@ -278,60 +239,12 @@ fun MainScreen(
             onToggleShowNotes = { viewModel.setShowNotes(it) },
             onToggleShowTasks = { viewModel.setShowTasks(it) },
             onToggleShowScreenTime = { viewModel.setShowScreenTime(it) },
-            onToggleShowFocusTime = { viewModel.setShowFocusTime(it) },
             onToggleShowStudyDue = { viewModel.setShowStudyDue(it) },
             onAddBanner = { viewModel.addBanner(it) },
             onRemoveBanner = { viewModel.removeBanner(it) },
             onAddTask = { viewModel.addTask(it) },
             onRemoveTask = { viewModel.removeTask(it) },
             onDismiss = { viewModel.setShowWidgetsDialog(false) }
-        )
-    }
-
-    // Focus Mode Configuration Bottom Sheet
-    if (showFocusSettingsDialog) {
-        FocusModeSheet(
-            isActive = isFocusModeActive,
-            studyMinutes = studyDurationMinutes,
-            breakMinutes = breakDurationMinutes,
-            longBreakMinutes = longBreakDurationMinutes,
-            targetSessions = targetSessions,
-            allowedAppsCount = allowedFocusApps.size,
-            hideBlockedApps = hideBlockedApps,
-            hasOverlayPermission = viewModel.canDrawOverlays(),
-            hasNotificationPolicyPermission = viewModel.isNotificationPolicyAccessGranted(),
-            onOpenAllowedAppsPicker = { viewModel.setShowAllowedAppsSheet(true) },
-            onToggleHideBlockedApps = { viewModel.setHideBlockedApps(it) },
-            onRequestOverlayPermission = { viewModel.requestOverlayPermission() },
-            onRequestNotificationPolicyPermission = { viewModel.requestNotificationPolicyAccess() },
-            onToggleFocusMode = { viewModel.toggleFocusMode() },
-            onUpdateStudyMinutes = { viewModel.setStudyDurationMinutes(it) },
-            onUpdateBreakMinutes = { viewModel.setBreakDurationMinutes(it) },
-            onUpdateLongBreakMinutes = { viewModel.setLongBreakDurationMinutes(it) },
-            onUpdateTargetSessions = { viewModel.setTargetSessions(it) },
-            onDismiss = { viewModel.setShowFocusSettingsDialog(false) }
-        )
-    }
-
-    // Focus History Sheet (with custom duration and date/time clear options)
-    if (showFocusHistorySheet) {
-        FocusHistorySheet(
-            historyList = focusHistory,
-            totalSessions = completedSessions,
-            totalMinutes = totalFocusMinutes,
-            onClearAll = { viewModel.clearAllFocusHistory() },
-            onClearOlderThan = { cutoff -> viewModel.clearFocusHistoryOlderThan(cutoff) },
-            onDismiss = { viewModel.setShowFocusHistorySheet(false) }
-        )
-    }
-
-    // Allowed Apps in Focus Mode Picker Sheet
-    if (showAllowedAppsSheet) {
-        AllowedAppsPickerSheet(
-            allApps = allApps,
-            allowedPackages = allowedFocusApps,
-            onToggleAllowed = { viewModel.toggleAllowedFocusApp(it) },
-            onDismiss = { viewModel.setShowAllowedAppsSheet(false) }
         )
     }
 
@@ -361,31 +274,7 @@ fun MainScreen(
         )
     }
 
-    // Confirmation Dialog to End Focus Mode early (triggered by long-pressing timer)
-    if (showEndFocusConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.setShowEndFocusConfirmDialog(false) },
-            title = { Text("End Focus Mode Early?", fontWeight = FontWeight.Bold) },
-            text = {
-                Text("Are you sure you want to stop Focus Mode? Your phone will be un-silenced and all launcher settings & apps will be restored.")
-            },
-            confirmButton = {
-                Button(
-                    onClick = { viewModel.stopFocusMode() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
-                ) {
-                    Text("End Focus Mode")
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { viewModel.setShowEndFocusConfirmDialog(false) }) {
-                    Text("Keep Focusing")
-                }
-            }
-        )
-    }
-
-    // App Blocked / Limit Exceeded Overlap Screen Dialog
+    // App Blocked / Limit Exceeded Dialog
     blockedAppDetails?.let { (app, reason) ->
         val limit = appLimits[app.packageName] ?: 0
         val used = usageMap[app.packageName] ?: 0
@@ -394,13 +283,7 @@ fun MainScreen(
             reason = reason,
             usedMinutes = used,
             limitMinutes = limit,
-            onOpenSettings = {
-                if (reason == BlockReason.FOCUS_MODE_RESTRICTED) {
-                    viewModel.setShowFocusSettingsDialog(true)
-                } else {
-                    viewModel.setShowAppLimitsSheet(true)
-                }
-            },
+            onOpenSettings = { viewModel.setShowAppLimitsSheet(true) },
             onDismiss = { viewModel.dismissBlockedAppDialog() }
         )
     }

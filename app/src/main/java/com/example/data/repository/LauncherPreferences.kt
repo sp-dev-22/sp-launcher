@@ -1,13 +1,10 @@
 package com.example.data.repository
 
-import android.app.NotificationManager
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.data.model.BannerItem
-import com.example.data.model.FocusSessionRecord
 import com.example.data.model.StudyClass
 import com.example.data.model.StudyCourse
-import com.example.data.model.StudyFocusTarget
 import com.example.data.model.StudySubject
 import com.example.data.model.StudyTopic
 import com.example.data.model.TaskItem
@@ -16,9 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class LauncherPreferences(context: Context) {
 
@@ -41,7 +35,6 @@ class LauncherPreferences(context: Context) {
     private val _showDate = MutableStateFlow(prefs.getBoolean(KEY_SHOW_DATE, true))
     val showDate: StateFlow<Boolean> = _showDate.asStateFlow()
 
-    // Separate widget toggles for Notes, Reminders, and Goals
     private val _showNotes = MutableStateFlow(prefs.getBoolean(KEY_SHOW_NOTES, true))
     val showNotes: StateFlow<Boolean> = _showNotes.asStateFlow()
 
@@ -51,30 +44,8 @@ class LauncherPreferences(context: Context) {
     private val _showScreenTime = MutableStateFlow(prefs.getBoolean(KEY_SHOW_SCREEN_TIME, true))
     val showScreenTime: StateFlow<Boolean> = _showScreenTime.asStateFlow()
 
-    private val _showFocusTime = MutableStateFlow(prefs.getBoolean(KEY_SHOW_FOCUS_TIME, true))
-    val showFocusTime: StateFlow<Boolean> = _showFocusTime.asStateFlow()
-
     private val _showStudyDue = MutableStateFlow(prefs.getBoolean(KEY_SHOW_STUDY_DUE, true))
     val showStudyDue: StateFlow<Boolean> = _showStudyDue.asStateFlow()
-
-    private val _showStudySummary = MutableStateFlow(prefs.getBoolean(KEY_STUDY_SUMMARY_ENABLED, false))
-    val showStudySummary: StateFlow<Boolean> = _showStudySummary.asStateFlow()
-
-    private val _studySummaryHour = MutableStateFlow(prefs.getInt(KEY_STUDY_SUMMARY_HOUR, 20))
-    val studySummaryHour: StateFlow<Int> = _studySummaryHour.asStateFlow()
-
-    private val _studySummaryMinute = MutableStateFlow(prefs.getInt(KEY_STUDY_SUMMARY_MINUTE, 0))
-    val studySummaryMinute: StateFlow<Int> = _studySummaryMinute.asStateFlow()
-
-    // Auto backup (weekly, into a user-chosen folder)
-    private val _autoBackupEnabled = MutableStateFlow(prefs.getBoolean(KEY_AUTO_BACKUP_ENABLED, false))
-    val autoBackupEnabled: StateFlow<Boolean> = _autoBackupEnabled.asStateFlow()
-
-    private val _autoBackupUri = MutableStateFlow(prefs.getString(KEY_AUTO_BACKUP_URI, "") ?: "")
-    val autoBackupUri: StateFlow<String> = _autoBackupUri.asStateFlow()
-
-    private val _autoBackupLast = MutableStateFlow(prefs.getLong(KEY_AUTO_BACKUP_LAST, 0L))
-    val autoBackupLast: StateFlow<Long> = _autoBackupLast.asStateFlow()
 
     private val _banners = MutableStateFlow(loadBanners())
     val banners: StateFlow<List<BannerItem>> = _banners.asStateFlow()
@@ -82,47 +53,9 @@ class LauncherPreferences(context: Context) {
     private val _tasks = MutableStateFlow(loadTasks())
     val tasks: StateFlow<List<TaskItem>> = _tasks.asStateFlow()
 
-    // Focus Mode Preferences
-    private val _isFocusModeActive = MutableStateFlow(prefs.getBoolean(KEY_FOCUS_MODE_ACTIVE, false))
-    val isFocusModeActive: StateFlow<Boolean> = _isFocusModeActive.asStateFlow()
-
-    // Break Phase State: During Break, locked apps temporarily unlock & phone un-silents
-    private val _isFocusBreakPhase = MutableStateFlow(prefs.getBoolean(KEY_FOCUS_BREAK_PHASE, false))
-    val isFocusBreakPhase: StateFlow<Boolean> = _isFocusBreakPhase.asStateFlow()
-
-    private val _studyDurationMinutes = MutableStateFlow(prefs.getInt(KEY_STUDY_DURATION, 25))
-    val studyDurationMinutes: StateFlow<Int> = _studyDurationMinutes.asStateFlow()
-
-    private val _breakDurationMinutes = MutableStateFlow(prefs.getInt(KEY_BREAK_DURATION, 5))
-    val breakDurationMinutes: StateFlow<Int> = _breakDurationMinutes.asStateFlow()
-
-    private val _longBreakDurationMinutes = MutableStateFlow(prefs.getInt(KEY_LONG_BREAK_DURATION, 15))
-    val longBreakDurationMinutes: StateFlow<Int> = _longBreakDurationMinutes.asStateFlow()
-
-    private val _targetSessions = MutableStateFlow(prefs.getInt(KEY_TARGET_SESSIONS, 4))
-    val targetSessions: StateFlow<Int> = _targetSessions.asStateFlow()
-
-    // Allowed apps during Focus Mode
-    private val _allowedFocusApps = MutableStateFlow(loadAllowedFocusApps())
-    val allowedFocusApps: StateFlow<List<String>> = _allowedFocusApps.asStateFlow()
-
-    private val _hideBlockedApps = MutableStateFlow(prefs.getBoolean(KEY_HIDE_BLOCKED_APPS, true))
-    val hideBlockedApps: StateFlow<Boolean> = _hideBlockedApps.asStateFlow()
-
     // App Usage Limits (packageName -> daily limit in minutes)
     private val _appLimits = MutableStateFlow(loadAppLimits())
     val appLimits: StateFlow<Map<String, Int>> = _appLimits.asStateFlow()
-
-    // Focus session totals (used by Focus History)
-    private val _completedSessionsCount = MutableStateFlow(prefs.getInt(KEY_COMPLETED_SESSIONS, 0))
-    val completedSessionsCount: StateFlow<Int> = _completedSessionsCount.asStateFlow()
-
-    private val _totalFocusMinutes = MutableStateFlow(prefs.getInt(KEY_TOTAL_FOCUS_MINUTES, 0))
-    val totalFocusMinutes: StateFlow<Int> = _totalFocusMinutes.asStateFlow()
-
-    // Focus History
-    private val _focusHistory = MutableStateFlow(loadFocusHistory())
-    val focusHistory: StateFlow<List<FocusSessionRecord>> = _focusHistory.asStateFlow()
 
     // Study Manager tree (Course > Subject > Topic > Class)
     private val _studyCourses = MutableStateFlow(loadStudyCourses())
@@ -158,139 +91,14 @@ class LauncherPreferences(context: Context) {
         _showScreenTime.value = enabled
     }
 
-    fun setShowFocusTime(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_SHOW_FOCUS_TIME, enabled).apply()
-        _showFocusTime.value = enabled
-    }
-
     fun setShowStudyDue(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_STUDY_DUE, enabled).apply()
         _showStudyDue.value = enabled
     }
 
-    fun setStudySummary(enabled: Boolean, hour: Int, minute: Int) {
-        val h = hour.coerceIn(0, 23)
-        val m = minute.coerceIn(0, 59)
-        prefs.edit()
-            .putBoolean(KEY_STUDY_SUMMARY_ENABLED, enabled)
-            .putInt(KEY_STUDY_SUMMARY_HOUR, h)
-            .putInt(KEY_STUDY_SUMMARY_MINUTE, m)
-            .apply()
-        _showStudySummary.value = enabled
-        _studySummaryHour.value = h
-        _studySummaryMinute.value = m
-    }
-
-    fun setAutoBackupEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_AUTO_BACKUP_ENABLED, enabled).apply()
-        _autoBackupEnabled.value = enabled
-    }
-
-    fun setAutoBackupUri(uri: String) {
-        prefs.edit().putString(KEY_AUTO_BACKUP_URI, uri).apply()
-        _autoBackupUri.value = uri
-    }
-
-    fun setAutoBackupLast(millis: Long) {
-        prefs.edit().putLong(KEY_AUTO_BACKUP_LAST, millis).apply()
-        _autoBackupLast.value = millis
-    }
-
     fun setTheme(key: String) {
         prefs.edit().putString(KEY_THEME, key).apply()
         _themeKey.value = key
-    }
-
-    fun setFocusModeActive(active: Boolean) {
-        prefs.edit().putBoolean(KEY_FOCUS_MODE_ACTIVE, active).apply()
-        _isFocusModeActive.value = active
-        if (!active) {
-            setFocusBreakPhase(false)
-        }
-    }
-
-    fun setFocusBreakPhase(isBreak: Boolean) {
-        prefs.edit().putBoolean(KEY_FOCUS_BREAK_PHASE, isBreak).apply()
-        _isFocusBreakPhase.value = isBreak
-    }
-
-    // Persisted Pomodoro timer state, so a foreground-service restart can resume the
-    // in-progress session instead of resetting the timer to a brand-new study block.
-    fun getFocusSecondsRemaining(): Int = prefs.getInt(KEY_FOCUS_SECONDS_REMAINING, -1)
-
-    fun setFocusSecondsRemaining(seconds: Int) {
-        prefs.edit().putInt(KEY_FOCUS_SECONDS_REMAINING, seconds).apply()
-    }
-
-    fun getFocusIsStudying(): Boolean = prefs.getBoolean(KEY_FOCUS_IS_STUDYING, true)
-
-    fun setFocusIsStudying(isStudying: Boolean) {
-        prefs.edit().putBoolean(KEY_FOCUS_IS_STUDYING, isStudying).apply()
-    }
-
-    fun getFocusCurrentSession(): Int = prefs.getInt(KEY_FOCUS_CURRENT_SESSION, 1)
-
-    fun setFocusCurrentSession(session: Int) {
-        prefs.edit().putInt(KEY_FOCUS_CURRENT_SESSION, session).apply()
-    }
-
-    // The phone's sound state, saved when a study block starts and restored when it ends.
-    fun getSavedRingerMode(): Int = prefs.getInt(KEY_SAVED_RINGER_MODE, -1)
-
-    fun setSavedRingerMode(mode: Int) {
-        prefs.edit().putInt(KEY_SAVED_RINGER_MODE, mode).apply()
-    }
-
-    fun isAudioStateSaved(): Boolean = prefs.getBoolean(KEY_AUDIO_STATE_SAVED, false)
-
-    fun setAudioStateSaved(saved: Boolean) {
-        prefs.edit().putBoolean(KEY_AUDIO_STATE_SAVED, saved).apply()
-    }
-
-    fun setStudyDurationMinutes(minutes: Int) {
-        val clamped = minutes.coerceIn(1, 120)
-        prefs.edit().putInt(KEY_STUDY_DURATION, clamped).apply()
-        _studyDurationMinutes.value = clamped
-    }
-
-    fun setBreakDurationMinutes(minutes: Int) {
-        val clamped = minutes.coerceIn(1, 60)
-        prefs.edit().putInt(KEY_BREAK_DURATION, clamped).apply()
-        _breakDurationMinutes.value = clamped
-    }
-
-    fun setLongBreakDurationMinutes(minutes: Int) {
-        val clamped = minutes.coerceIn(1, 90)
-        prefs.edit().putInt(KEY_LONG_BREAK_DURATION, clamped).apply()
-        _longBreakDurationMinutes.value = clamped
-    }
-
-    fun setTargetSessions(sessions: Int) {
-        val clamped = sessions.coerceIn(1, 12)
-        prefs.edit().putInt(KEY_TARGET_SESSIONS, clamped).apply()
-        _targetSessions.value = clamped
-    }
-
-    fun setHideBlockedApps(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_HIDE_BLOCKED_APPS, enabled).apply()
-        _hideBlockedApps.value = enabled
-    }
-
-    fun setAllowedFocusApps(list: List<String>) {
-        val array = JSONArray()
-        list.forEach { array.put(it) }
-        prefs.edit().putString(KEY_ALLOWED_FOCUS_APPS, array.toString()).apply()
-        _allowedFocusApps.value = list
-    }
-
-    fun toggleAllowedFocusApp(packageName: String) {
-        val current = _allowedFocusApps.value.toMutableList()
-        if (current.contains(packageName)) {
-            current.remove(packageName)
-        } else {
-            current.add(packageName)
-        }
-        setAllowedFocusApps(current)
     }
 
     fun setAppLimit(packageName: String, limitMinutes: Int) {
@@ -304,98 +112,6 @@ class LauncherPreferences(context: Context) {
         current.forEach { (pkg, limit) -> obj.put(pkg, limit) }
         prefs.edit().putString(KEY_APP_LIMITS, obj.toString()).apply()
         _appLimits.value = current
-    }
-
-    fun recordCompletedFocusSession(minutes: Int, sessionType: String = "Focus Session") {
-        val newCount = _completedSessionsCount.value + 1
-        val newMinutes = _totalFocusMinutes.value + minutes
-        prefs.edit()
-            .putInt(KEY_COMPLETED_SESSIONS, newCount)
-            .putInt(KEY_TOTAL_FOCUS_MINUTES, newMinutes)
-            .apply()
-        _completedSessionsCount.value = newCount
-        _totalFocusMinutes.value = newMinutes
-
-        // Record session to history
-        val now = System.currentTimeMillis()
-        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-        val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
-        val record = FocusSessionRecord(
-            timestamp = now,
-            durationMinutes = minutes,
-            sessionType = sessionType,
-            dateFormatted = dateFormat.format(Date(now)),
-            timeFormatted = timeFormat.format(Date(now))
-        )
-        addFocusHistoryRecord(record)
-    }
-
-    private fun addFocusHistoryRecord(record: FocusSessionRecord) {
-        val list = _focusHistory.value.toMutableList()
-        list.add(0, record)
-        saveFocusHistory(list)
-    }
-
-    fun clearAllFocusHistory() {
-        saveFocusHistory(emptyList())
-    }
-
-    /**
-     * Clears focus history records older than the cutoff timestamp (i.e. timestamp < cutoffTimestamp).
-     */
-    fun clearFocusHistoryBefore(cutoffTimestamp: Long) {
-        val list = _focusHistory.value.filter { it.timestamp >= cutoffTimestamp }
-        saveFocusHistory(list)
-    }
-
-    private fun saveFocusHistory(list: List<FocusSessionRecord>) {
-        val array = JSONArray()
-        for (item in list) {
-            val obj = JSONObject().apply {
-                put("id", item.id)
-                put("timestamp", item.timestamp)
-                put("durationMinutes", item.durationMinutes)
-                put("sessionType", item.sessionType)
-                put("dateFormatted", item.dateFormatted)
-                put("timeFormatted", item.timeFormatted)
-            }
-            array.put(obj)
-        }
-        prefs.edit().putString(KEY_FOCUS_HISTORY, array.toString()).apply()
-        _focusHistory.value = list
-    }
-
-    private fun loadFocusHistory(): List<FocusSessionRecord> {
-        val raw = prefs.getString(KEY_FOCUS_HISTORY, null) ?: return emptyList()
-        return try {
-            val array = JSONArray(raw)
-            val list = mutableListOf<FocusSessionRecord>()
-            for (i in 0 until array.length()) {
-                val obj = array.getJSONObject(i)
-                list.add(
-                    FocusSessionRecord(
-                        id = obj.getString("id"),
-                        timestamp = obj.getLong("timestamp"),
-                        durationMinutes = obj.getInt("durationMinutes"),
-                        sessionType = obj.optString("sessionType", "Focus Session"),
-                        dateFormatted = obj.optString("dateFormatted", ""),
-                        timeFormatted = obj.optString("timeFormatted", "")
-                    )
-                )
-            }
-            list
-        } catch (_: Exception) {
-            emptyList()
-        }
-    }
-
-
-    fun getSavedInterruptionFilter(): Int {
-        return prefs.getInt(KEY_PREVIOUS_INTERRUPTION_FILTER, NotificationManager.INTERRUPTION_FILTER_ALL)
-    }
-
-    fun setSavedInterruptionFilter(filter: Int) {
-        prefs.edit().putInt(KEY_PREVIOUS_INTERRUPTION_FILTER, filter).apply()
     }
 
     fun saveFavorites(list: List<String>) {
@@ -491,20 +207,6 @@ class LauncherPreferences(context: Context) {
 
     private fun loadFavorites(): List<String> {
         val raw = prefs.getString(KEY_FAVORITES, null) ?: return emptyList()
-        return try {
-            val array = JSONArray(raw)
-            val list = mutableListOf<String>()
-            for (i in 0 until array.length()) {
-                list.add(array.getString(i))
-            }
-            list
-        } catch (_: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun loadAllowedFocusApps(): List<String> {
-        val raw = prefs.getString(KEY_ALLOWED_FOCUS_APPS, null) ?: return emptyList()
         return try {
             val array = JSONArray(raw)
             val list = mutableListOf<String>()
@@ -728,7 +430,6 @@ class LauncherPreferences(context: Context) {
         put("name", topic.name)
         topic.deadlineMillis?.let { put("deadlineMillis", it) }
         topic.alertMillis?.let { put("alertMillis", it) }
-        if (topic.studiedMinutes > 0) put("studiedMinutes", topic.studiedMinutes)
         val classes = JSONArray()
         for (clazz in topic.classes) classes.put(studyClassToJson(clazz))
         put("classes", classes)
@@ -741,7 +442,6 @@ class LauncherPreferences(context: Context) {
         clazz.deadlineMillis?.let { put("deadlineMillis", it) }
         clazz.alertMillis?.let { put("alertMillis", it) }
         clazz.completedAtMillis?.let { put("completedAtMillis", it) }
-        if (clazz.studiedMinutes > 0) put("studiedMinutes", clazz.studiedMinutes)
     }
 
     private fun loadStudyCourses(): List<StudyCourse> {
@@ -787,8 +487,7 @@ class LauncherPreferences(context: Context) {
             name = obj.optString("name", "Topic"),
             classes = classes,
             deadlineMillis = if (obj.has("deadlineMillis")) obj.optLong("deadlineMillis") else null,
-            alertMillis = if (obj.has("alertMillis")) obj.optLong("alertMillis") else null,
-            studiedMinutes = obj.optInt("studiedMinutes", 0)
+            alertMillis = if (obj.has("alertMillis")) obj.optLong("alertMillis") else null
         )
     }
 
@@ -798,8 +497,7 @@ class LauncherPreferences(context: Context) {
         isCompleted = obj.optBoolean("isCompleted", false),
         deadlineMillis = if (obj.has("deadlineMillis")) obj.optLong("deadlineMillis") else null,
         alertMillis = if (obj.has("alertMillis")) obj.optLong("alertMillis") else null,
-        completedAtMillis = if (obj.has("completedAtMillis")) obj.optLong("completedAtMillis") else null,
-        studiedMinutes = obj.optInt("studiedMinutes", 0)
+        completedAtMillis = if (obj.has("completedAtMillis")) obj.optLong("completedAtMillis") else null
     )
 
     fun renameStudyCourse(courseId: String, name: String) {
@@ -836,76 +534,6 @@ class LauncherPreferences(context: Context) {
                 if (subject.id != subjectId) subject else subject.copy(topics = subject.topics.map { topic ->
                     if (topic.id != topicId) topic else topic.copy(classes = topic.classes.map { clazz ->
                         if (clazz.id == classId) clazz.copy(name = name.trim()) else clazz
-                    })
-                })
-            })
-        })
-    }
-
-    // ---------------------------------------------------------------------
-    // Study <-> Focus link
-    // ---------------------------------------------------------------------
-
-    fun getFocusTarget(): StudyFocusTarget? {
-        val raw = prefs.getString(KEY_FOCUS_TARGET, null) ?: return null
-        return try {
-            val obj = JSONObject(raw)
-            StudyFocusTarget(
-                level = obj.optString("level", "topic"),
-                courseId = obj.getString("courseId"),
-                subjectId = obj.getString("subjectId"),
-                topicId = obj.getString("topicId"),
-                classId = if (obj.has("classId")) obj.optString("classId") else null,
-                name = obj.optString("name", "")
-            )
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    fun setFocusTarget(target: StudyFocusTarget?) {
-        if (target == null) {
-            prefs.edit().remove(KEY_FOCUS_TARGET).apply()
-        } else {
-            val obj = JSONObject().apply {
-                put("level", target.level)
-                put("courseId", target.courseId)
-                put("subjectId", target.subjectId)
-                put("topicId", target.topicId)
-                if (target.classId != null) put("classId", target.classId)
-                put("name", target.name)
-            }
-            prefs.edit().putString(KEY_FOCUS_TARGET, obj.toString()).apply()
-        }
-    }
-
-    /** Adds focus minutes to the target topic (and to the class when the target is a class). */
-    fun addStudiedMinutes(target: StudyFocusTarget, minutes: Int) {
-        if (minutes <= 0) return
-        saveStudyCourses(_studyCourses.value.map { course ->
-            if (course.id != target.courseId) course else course.copy(subjects = course.subjects.map { subject ->
-                if (subject.id != target.subjectId) subject else subject.copy(topics = subject.topics.map { topic ->
-                    if (topic.id != target.topicId) topic else topic.copy(
-                        studiedMinutes = topic.studiedMinutes + minutes,
-                        classes = if (target.level == "class" && target.classId != null)
-                            topic.classes.map { clazz ->
-                                if (clazz.id == target.classId) clazz.copy(studiedMinutes = clazz.studiedMinutes + minutes)
-                                else clazz
-                            }
-                        else topic.classes
-                    )
-                })
-            })
-        })
-    }
-
-    fun markStudyClassDone(courseId: String, subjectId: String, topicId: String, classId: String) {
-        saveStudyCourses(_studyCourses.value.map { course ->
-            if (course.id != courseId) course else course.copy(subjects = course.subjects.map { subject ->
-                if (subject.id != subjectId) subject else subject.copy(topics = subject.topics.map { topic ->
-                    if (topic.id != topicId) topic else topic.copy(classes = topic.classes.map { clazz ->
-                        if (clazz.id == classId) clazz.copy(isCompleted = true, completedAtMillis = System.currentTimeMillis())
-                        else clazz
                     })
                 })
             })
@@ -978,29 +606,11 @@ class LauncherPreferences(context: Context) {
         _showNotes.value = prefs.getBoolean(KEY_SHOW_NOTES, true)
         _showTasks.value = prefs.getBoolean(KEY_SHOW_TASKS, true)
         _showScreenTime.value = prefs.getBoolean(KEY_SHOW_SCREEN_TIME, true)
-        _showFocusTime.value = prefs.getBoolean(KEY_SHOW_FOCUS_TIME, true)
         _showStudyDue.value = prefs.getBoolean(KEY_SHOW_STUDY_DUE, true)
-        _showStudySummary.value = prefs.getBoolean(KEY_STUDY_SUMMARY_ENABLED, false)
-        _studySummaryHour.value = prefs.getInt(KEY_STUDY_SUMMARY_HOUR, 20)
-        _studySummaryMinute.value = prefs.getInt(KEY_STUDY_SUMMARY_MINUTE, 0)
-        _autoBackupEnabled.value = prefs.getBoolean(KEY_AUTO_BACKUP_ENABLED, false)
-        _autoBackupUri.value = prefs.getString(KEY_AUTO_BACKUP_URI, "") ?: ""
-        _autoBackupLast.value = prefs.getLong(KEY_AUTO_BACKUP_LAST, 0L)
         _themeKey.value = prefs.getString(KEY_THEME, "default") ?: "default"
         _banners.value = loadBanners()
         _tasks.value = loadTasks()
-        _isFocusModeActive.value = prefs.getBoolean(KEY_FOCUS_MODE_ACTIVE, false)
-        _isFocusBreakPhase.value = prefs.getBoolean(KEY_FOCUS_BREAK_PHASE, false)
-        _studyDurationMinutes.value = prefs.getInt(KEY_STUDY_DURATION, 25)
-        _breakDurationMinutes.value = prefs.getInt(KEY_BREAK_DURATION, 5)
-        _longBreakDurationMinutes.value = prefs.getInt(KEY_LONG_BREAK_DURATION, 15)
-        _targetSessions.value = prefs.getInt(KEY_TARGET_SESSIONS, 4)
-        _allowedFocusApps.value = loadAllowedFocusApps()
-        _hideBlockedApps.value = prefs.getBoolean(KEY_HIDE_BLOCKED_APPS, true)
         _appLimits.value = loadAppLimits()
-        _completedSessionsCount.value = prefs.getInt(KEY_COMPLETED_SESSIONS, 0)
-        _totalFocusMinutes.value = prefs.getInt(KEY_TOTAL_FOCUS_MINUTES, 0)
-        _focusHistory.value = loadFocusHistory()
         _studyCourses.value = loadStudyCourses()
     }
 
@@ -1014,38 +624,11 @@ class LauncherPreferences(context: Context) {
         private const val KEY_BANNERS = "banners_data"
         private const val KEY_TASKS = "tasks_data"
         private const val KEY_STUDY_DATA = "study_manager_data"
-        private const val KEY_FOCUS_TARGET = "study_focus_target"
         private const val KEY_THEME = "theme_key"
         private const val KEY_SHOW_SCREEN_TIME = "show_screen_time"
-        private const val KEY_SHOW_FOCUS_TIME = "show_focus_time"
         private const val KEY_SHOW_STUDY_DUE = "show_study_due"
-        private const val KEY_STUDY_SUMMARY_ENABLED = "study_summary_enabled"
-        private const val KEY_STUDY_SUMMARY_HOUR = "study_summary_hour"
-        private const val KEY_STUDY_SUMMARY_MINUTE = "study_summary_minute"
-        private const val KEY_AUTO_BACKUP_ENABLED = "auto_backup_enabled"
-        private const val KEY_AUTO_BACKUP_URI = "auto_backup_uri"
-        private const val KEY_AUTO_BACKUP_LAST = "auto_backup_last"
-
-        // Focus Mode Keys
-        private const val KEY_FOCUS_MODE_ACTIVE = "focus_mode_active"
-        private const val KEY_FOCUS_BREAK_PHASE = "focus_break_phase"
-        private const val KEY_STUDY_DURATION = "study_duration"
-        private const val KEY_BREAK_DURATION = "break_duration"
-        private const val KEY_LONG_BREAK_DURATION = "long_break_duration"
-        private const val KEY_TARGET_SESSIONS = "target_sessions"
-        private const val KEY_ALLOWED_FOCUS_APPS = "allowed_focus_apps"
-        private const val KEY_HIDE_BLOCKED_APPS = "hide_blocked_apps"
-        private const val KEY_PREVIOUS_INTERRUPTION_FILTER = "prev_interruption_filter"
-        private const val KEY_FOCUS_SECONDS_REMAINING = "focus_seconds_remaining"
-        private const val KEY_FOCUS_IS_STUDYING = "focus_is_studying"
-        private const val KEY_FOCUS_CURRENT_SESSION = "focus_current_session"
-        private const val KEY_SAVED_RINGER_MODE = "saved_ringer_mode"
-        private const val KEY_AUDIO_STATE_SAVED = "audio_state_saved"
 
         // App Limits
         private const val KEY_APP_LIMITS = "app_limits_data"
-        private const val KEY_COMPLETED_SESSIONS = "completed_sessions"
-        private const val KEY_TOTAL_FOCUS_MINUTES = "total_focus_minutes"
-        private const val KEY_FOCUS_HISTORY = "focus_history_records"
     }
 }

@@ -48,9 +48,6 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SettingsScreen(
     isDarkTheme: Boolean,
-    isFocusModeActive: Boolean,
-    onOpenFocusModeSettings: () -> Unit,
-    onOpenFocusHistory: () -> Unit,
     onOpenAppLimits: () -> Unit,
     onOpenThemes: () -> Unit,
     onOpenEditFavorites: () -> Unit,
@@ -94,48 +91,6 @@ fun SettingsScreen(
         )
 
         Spacer(modifier = Modifier.height(24.dp))
-
-        // 1. Focus Mode Setup & Status
-        // During Focus Mode, this option is strictly NON-CLICKABLE as requested!
-        SettingsItemRow(
-            title = if (isFocusModeActive) "Focus Mode (Locked)" else "Focus Mode",
-            subtitle = if (isFocusModeActive) "🔒 Non-clickable during active session • Long-press timer 3s to end" else "Allowed apps, silent alerts & Pomodoro timer",
-            icon = {
-                Icon(
-                    imageVector = if (isFocusModeActive) Icons.Default.Lock else Icons.Default.HourglassTop,
-                    contentDescription = null,
-                    tint = if (isFocusModeActive) Color(0xFFE53935) else MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            enabled = !isFocusModeActive,
-            onClick = {
-                if (!isFocusModeActive) {
-                    onOpenFocusModeSettings()
-                }
-            },
-            testTag = "settings_focus_mode"
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 1b. Focus History (Save & Custom Duration Clear)
-        SettingsItemRow(
-            title = "Focus History",
-            subtitle = "View completed sessions & clear by custom date/time",
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.History,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            onClick = onOpenFocusHistory,
-            testTag = "settings_focus_history"
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         // 2. App Usage Time & Limits
         SettingsItemRow(

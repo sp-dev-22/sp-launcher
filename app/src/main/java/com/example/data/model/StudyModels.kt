@@ -75,16 +75,6 @@ fun StudyCourse.completedCount(): Int = subjects.sumOf { it.completedCount() }
 fun StudyCourse.totalStudiedMinutes(): Int =
     subjects.sumOf { s -> s.topics.sumOf { it.studiedMinutes } }
 
-/** The Study node a Focus session is currently running for (Study <-> Focus link). */
-data class StudyFocusTarget(
-    val level: String,          // "topic" or "class"
-    val courseId: String,
-    val subjectId: String,
-    val topicId: String,
-    val classId: String? = null,
-    val name: String
-)
-
 /** A study class that is due today or already overdue (drives the Home "Due today" card). */
 data class StudyDueItem(
     val label: String,
