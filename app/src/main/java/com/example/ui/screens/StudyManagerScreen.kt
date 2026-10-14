@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -52,7 +53,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -68,6 +71,7 @@ import com.example.data.model.status
 import com.example.data.model.totalCount
 import com.example.service.StudyReminderScheduler
 import com.example.ui.LauncherViewModel
+import com.example.ui.components.rememberDragStep
 import com.example.util.FileIo
 import com.example.util.StudyExport
 import java.text.SimpleDateFormat
@@ -246,6 +250,23 @@ fun StudyManagerScreen(
                             )
                         },
                         onEditName = { renameRow = row },
+                        onMoveStep = { dir ->
+                            when (row.type) {
+                                NodeType.COURSE -> viewModel.moveStudyCourse(row.courseId, dir)
+                                NodeType.SUBJECT -> row.subjectId?.let { viewModel.moveStudySubject(row.courseId, it, dir) }
+                                NodeType.TOPIC -> {
+                                    val s = row.subjectId
+                                    val t = row.topicId
+                                    if (s != null && t != null) viewModel.moveStudyTopic(row.courseId, s, t, dir)
+                                }
+                                NodeType.CLASS -> {
+                                    val s = row.subjectId
+                                    val t = row.topicId
+                                    val c = row.classId
+                                    if (s != null && t != null && c != null) viewModel.moveStudyClass(row.courseId, s, t, c, dir)
+                                }
+                            }
+                        },
                         onDelete = {
                             when (row.type) {
                                 NodeType.COURSE -> viewModel.deleteStudyCourse(row.courseId)
@@ -352,14 +373,18 @@ private fun StudyTreeRow(
     onAddChild: () -> Unit,
     onSetSchedule: () -> Unit,
     onEditName: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onMoveStep: (Int) -> Unit
 ) {
     val accent = statusColor(row.status)
     var menuOpen by remember { mutableStateOf(false) }
+    val stepPx = with(LocalDensity.current) { 56.dp.toPx() }
+    val drag = rememberDragStep(stepPx, onMoveStep)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer { translationY = drag.offset.value }
             .padding(start = (4 + row.level * 18).dp, end = 4.dp, top = 3.dp, bottom = 3.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
@@ -441,6 +466,16 @@ private fun StudyTreeRow(
                 color = accent
             )
         }
+
+        Icon(
+            imageVector = Icons.Default.DragHandle,
+            contentDescription = "Drag to reorder",
+            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
+            modifier = Modifier
+                .size(24.dp)
+                .then(drag.modifier)
+                .testTag("study_drag_${row.rowKey}")
+        )
 
         Box {
             IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(30.dp)) {

@@ -14,7 +14,7 @@ class UsageTracker(private val context: Context) {
 
     // The limit monitor runs every ~1.5s; caching avoids rescanning the whole day each tick.
     private var cachedAt = 0L
-    private var cachedUsage: Map<String, Int> = emptyMap()
+    private var cachedMillis: Map<String, Long> = emptyMap()
 
     fun hasUsageStatsPermission(): Boolean {
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
@@ -61,36 +61,52 @@ class UsageTracker(private val context: Context) {
         return calendar.timeInMillis
     }
 
-    /**
-     * Total foreground minutes per app for today.
-     *
-     * Computed from usage *events* rather than queryUsageStats(INTERVAL_DAILY). The daily
-     * buckets are not aligned to midnight, so they could credit an app with time from before
-     * today; and the old code then added the running session on top, so an app could be
-     * counted twice. Both made daily limits fire early or late.
-     */
-    fun getTodayAppUsageMinutes(): Map<String, Int> {
+    /** Raw foreground milliseconds per app for today (cached for a few seconds). */
+    private fun todayUsageMillis(): Map<String, Long> {
         if (!hasUsageStatsPermission()) return emptyMap()
 
         val now = System.currentTimeMillis()
-        if (now - cachedAt < CACHE_TTL_MS) return cachedUsage
+        if (now - cachedAt < CACHE_TTL_MS) return cachedMillis
 
         val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
             ?: return emptyMap()
 
         val millis = foregroundMillis(manager, startOfToday(), now)
+        cachedAt = now
+        cachedMillis = millis
+        return millis
+    }
+
+    /**
+     * Total foreground minutes per app for today.
+     *
+     * Minutes are *rounded* (not truncated) so a handful of apps used for a few seconds
+     * each no longer collapse to 0 - that truncation was why the reported screen time
+     * looked far too low.
+     */
+    fun getTodayAppUsageMinutes(): Map<String, Int> {
         val result = HashMap<String, Int>()
-        for ((pkg, ms) in millis) {
-            val minutes = (ms / 60_000L).toInt()
+        for ((pkg, ms) in todayUsageMillis()) {
+            val minutes = Math.round(ms / 60_000.0).toInt()
             if (minutes > 0) result[pkg] = minutes
         }
-
-        cachedAt = now
-        cachedUsage = result
         return result
     }
 
-    /** Foreground milliseconds per package within [from, to], session by session. */
+    /**
+     * Today's total screen time in minutes, computed from the raw millisecond totals
+     * (so the whole-day figure is not the sum of individually-truncated app values).
+     */
+    fun getTodayTotalScreenTimeMinutes(): Int =
+        Math.round(todayUsageMillis().values.sum() / 60_000.0).toInt()
+
+    /**
+     * Foreground milliseconds per package within [from, to], session by session.
+     *
+     * Events are scanned from a little *before* [from] as well, so a session that was
+     * already open when the window began is still credited (clamped to [from, to])
+     * instead of being dropped - another reason the daily total used to read low.
+     */
     private fun foregroundMillis(
         manager: UsageStatsManager,
         from: Long,
@@ -98,7 +114,7 @@ class UsageTracker(private val context: Context) {
     ): Map<String, Long> {
         val totals = HashMap<String, Long>()
         val events = try {
-            manager.queryEvents(from, to)
+            manager.queryEvents(from - SEED_LOOKBACK_MS, to)
         } catch (_: Exception) {
             null
         } ?: return totals
@@ -107,26 +123,27 @@ class UsageTracker(private val context: Context) {
         var currentPkg: String? = null
         var currentStart = 0L
 
+        fun credit(pkg: String?, end: Long) {
+            if (pkg == null) return
+            val start = maxOf(currentStart, from)
+            val finish = minOf(end, to)
+            if (finish > start) {
+                totals[pkg] = (totals[pkg] ?: 0L) + (finish - start)
+            }
+        }
+
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
             when (event.eventType) {
                 UsageEvents.Event.ACTIVITY_RESUMED -> {
-                    val previous = currentPkg
-                    if (previous != null && previous != event.packageName &&
-                        event.timeStamp > currentStart
-                    ) {
-                        totals[previous] = (totals[previous] ?: 0L) + (event.timeStamp - currentStart)
-                    }
+                    credit(currentPkg, event.timeStamp)
                     currentPkg = event.packageName
                     currentStart = event.timeStamp
                 }
                 UsageEvents.Event.ACTIVITY_PAUSED,
                 UsageEvents.Event.ACTIVITY_STOPPED -> {
-                    val current = currentPkg
-                    if (current != null && event.packageName == current) {
-                        if (event.timeStamp > currentStart) {
-                            totals[current] = (totals[current] ?: 0L) + (event.timeStamp - currentStart)
-                        }
+                    if (event.packageName == currentPkg) {
+                        credit(currentPkg, event.timeStamp)
                         currentPkg = null
                     }
                 }
@@ -134,10 +151,7 @@ class UsageTracker(private val context: Context) {
         }
 
         // Whatever is still in the foreground right now.
-        val stillOpen = currentPkg
-        if (stillOpen != null && to > currentStart) {
-            totals[stillOpen] = (totals[stillOpen] ?: 0L) + (to - currentStart)
-        }
+        credit(currentPkg, to)
         return totals
     }
 
@@ -145,8 +159,8 @@ class UsageTracker(private val context: Context) {
      * The package currently in the foreground, if any.
      *
      * Looks back several minutes and returns the app whose last "resumed" has no matching
-     * "paused" - far more reliable than the previous 10-second window, which often missed
-     * the transition and let a blocked app through.
+     * "paused" - far more reliable than a tiny window, which often missed the transition
+     * and let a blocked app through.
      */
     fun getForegroundPackage(): String? {
         if (!hasUsageStatsPermission()) return null
@@ -179,5 +193,8 @@ class UsageTracker(private val context: Context) {
     companion object {
         private const val CACHE_TTL_MS = 10_000L
         private const val LOOKBACK_MS = 10 * 60_000L
+
+        /** How far before the window start to scan so an already-open session is credited. */
+        private const val SEED_LOOKBACK_MS = 6 * 60 * 60_000L
     }
 }

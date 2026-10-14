@@ -190,7 +190,7 @@ fun WidgetsManagementSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Show Study Due (Today)", style = MaterialTheme.typography.bodyLarge)
+                    Text("Show Study Due (Next 7 days)", style = MaterialTheme.typography.bodyLarge)
                     Switch(checked = showStudyDue, onCheckedChange = onToggleShowStudyDue)
                 }
 

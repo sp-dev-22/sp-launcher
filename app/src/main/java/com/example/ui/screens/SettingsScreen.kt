@@ -50,8 +50,7 @@ fun SettingsScreen(
     isDarkTheme: Boolean,
     onOpenAppLimits: () -> Unit,
     onOpenThemes: () -> Unit,
-    onOpenEditFavorites: () -> Unit,
-    onOpenArrangeFavorites: () -> Unit,
+    onOpenFavorites: () -> Unit,
     onOpenWidgetsManagement: () -> Unit,
     onOpenStudyManager: () -> Unit,
     onOpenBackupRestore: () -> Unit,
@@ -128,10 +127,10 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 5. Edit Favorites (Select & Checkbox list)
+        // Favorites (pick apps for the Home Screen + drag to reorder)
         SettingsItemRow(
-            title = "Edit Favorites",
-            subtitle = "Select apps to pin on the Home Screen",
+            title = "Favorites",
+            subtitle = "Pick apps for the Home Screen and drag to reorder",
             icon = {
                 Icon(
                     imageVector = Icons.Default.Star,
@@ -140,26 +139,8 @@ fun SettingsScreen(
                     modifier = Modifier.size(24.dp)
                 )
             },
-            onClick = onOpenEditFavorites,
-            testTag = "settings_edit_favorites"
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 6. Arrange / Reorder Favorites
-        SettingsItemRow(
-            title = "Arrange Favorites",
-            subtitle = "Reorder or remove pinned apps",
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.SwapVert,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            onClick = onOpenArrangeFavorites,
-            testTag = "settings_arrange_favorites"
+            onClick = onOpenFavorites,
+            testTag = "settings_favorites"
         )
 
         Spacer(modifier = Modifier.height(16.dp))

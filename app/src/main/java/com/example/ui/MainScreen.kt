@@ -17,8 +17,7 @@ import androidx.compose.ui.platform.testTag
 import com.example.ui.components.AppActionBottomSheet
 import com.example.ui.components.AppBlockedDialog
 import com.example.ui.components.AppLimitsSheet
-import com.example.ui.components.EditFavoritesScreen
-import com.example.ui.components.FavoritesReorderBottomSheet
+import com.example.ui.components.FavoritesScreen
 import com.example.ui.components.ThemesSheet
 import com.example.ui.components.WidgetsManagementSheet
 import com.example.ui.screens.AboutDevScreen
@@ -65,7 +64,6 @@ fun MainScreen(
     val studyDueItems by viewModel.studyDueItems.collectAsState()
 
     val selectedAppForActions by viewModel.selectedAppForActions.collectAsState()
-    val showArrangeSheet by viewModel.showArrangeSheet.collectAsState()
     val showAddFavoritesScreen by viewModel.showAddFavoritesScreen.collectAsState()
     val showWidgetsDialog by viewModel.showWidgetsDialog.collectAsState()
     val showAppLimitsSheet by viewModel.showAppLimitsSheet.collectAsState()
@@ -113,8 +111,7 @@ fun MainScreen(
                                 viewModel.setShowAppLimitsSheet(true)
                             },
                             onOpenThemes = { viewModel.setShowThemesSheet(true) },
-                            onOpenEditFavorites = { viewModel.setShowAddFavoritesScreen(true) },
-                            onOpenArrangeFavorites = { viewModel.setShowArrangeSheet(true) },
+                            onOpenFavorites = { viewModel.setShowAddFavoritesScreen(true) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             onOpenBackupRestore = { viewModel.setShowBackupRestore(true) },
@@ -139,7 +136,7 @@ fun MainScreen(
                             studyDueItems = studyDueItems,
                             isDarkTheme = isDarkTheme,
                             onAppClick = { app -> viewModel.tryLaunchApp(app) },
-                            onAppLongClick = { app -> viewModel.setShowArrangeSheet(true) },
+                            onAppLongClick = { app -> viewModel.setShowAddFavoritesScreen(true) },
                             onToggleTask = { id -> viewModel.toggleTask(id) },
                             onAddTask = { text -> viewModel.addTask(text) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
@@ -162,15 +159,12 @@ fun MainScreen(
                 }
             }
 
-            // Fullscreen Edit Favorites Screen
+            // Fullscreen Favorites (pick apps + drag to reorder)
             if (showAddFavoritesScreen) {
-                EditFavoritesScreen(
+                FavoritesScreen(
                     allApps = allApps,
                     initialFavorites = favoritePackages,
-                    onSaveFavorites = { newFavorites ->
-                        viewModel.reorderFavorites(newFavorites)
-                        viewModel.setShowAddFavoritesScreen(false)
-                    },
+                    onSave = { newFavorites -> viewModel.reorderFavorites(newFavorites) },
                     onBack = { viewModel.setShowAddFavoritesScreen(false) }
                 )
             }
@@ -209,17 +203,6 @@ fun MainScreen(
             onAppInfo = { viewModel.openAppInfo(app.packageName) },
             onUninstall = { viewModel.uninstallApp(app.packageName) },
             onDismiss = { viewModel.selectAppForActions(null) }
-        )
-    }
-
-    // Arrange Favorites Bottom Sheet
-    if (showArrangeSheet) {
-        FavoritesReorderBottomSheet(
-            favoriteApps = favoriteAppInfos,
-            onSaveOrder = { newOrder ->
-                viewModel.reorderFavorites(newOrder)
-            },
-            onDismiss = { viewModel.setShowArrangeSheet(false) }
         )
     }
 

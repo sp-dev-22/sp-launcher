@@ -16,7 +16,6 @@ import com.example.data.repository.AppRepository
 import com.example.data.repository.LauncherPreferences
 import com.example.focus.UsageTracker
 import com.example.service.AppLimitService
-import com.example.service.BackupReminderScheduler
 import com.example.service.StudyReminderScheduler
 import com.example.ui.components.BlockReason
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -56,40 +56,45 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _usageMap = MutableStateFlow<Map<String, Int>>(emptyMap())
     val usageMap: StateFlow<Map<String, Int>> = _usageMap.asStateFlow()
 
-    // Today's totals for the Home widgets
-    val totalScreenTimeToday: StateFlow<Int> = usageMap
-        .map { usage -> usage.values.sum() }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    // Today's total screen time for the Home widget (computed from raw usage millis so it
+    // is not the sum of individually-rounded per-app values).
+    private val _totalScreenTimeToday = MutableStateFlow(0)
+    val totalScreenTimeToday: StateFlow<Int> = _totalScreenTimeToday.asStateFlow()
 
     // Study Manager tree
     val studyCourses: StateFlow<List<StudyCourse>> = preferences.studyCourses
 
-    // Study classes due today or overdue (Home "Due today" card)
+    // Study classes overdue, due today, or due within the next 7 days (Home "Due" card)
     val studyDueItems: StateFlow<List<StudyDueItem>> = studyCourses
         .map { courses -> computeStudyDue(courses) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private fun computeStudyDue(courses: List<StudyCourse>): List<StudyDueItem> {
         val now = System.currentTimeMillis()
-        val endOfToday = java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, 23)
-            set(java.util.Calendar.MINUTE, 59)
-            set(java.util.Calendar.SECOND, 59)
-        }.timeInMillis
+        val endOfWindow = endOfWindowMillis()
         val items = mutableListOf<StudyDueItem>()
         for (course in courses) {
             for (ref in course.allClassRefs()) {
                 if (ref.clazz.isCompleted) continue
                 val deadline = ref.clazz.deadlineMillis ?: continue
                 val overdue = deadline < now
-                val dueToday = deadline in now..endOfToday
-                if (overdue || dueToday) {
+                val withinWindow = deadline in now..endOfWindow
+                if (overdue || withinWindow) {
                     items.add(StudyDueItem("${ref.topic.name} · ${ref.clazz.name}", deadline, overdue))
                 }
             }
         }
         return items.sortedBy { it.deadlineMillis }
     }
+
+    /** End of the day six days from now, i.e. the last moment of the "next 7 days" window. */
+    private fun endOfWindowMillis(): Long = Calendar.getInstance().apply {
+        add(Calendar.DAY_OF_YEAR, 6)
+        set(Calendar.HOUR_OF_DAY, 23)
+        set(Calendar.MINUTE, 59)
+        set(Calendar.SECOND, 59)
+        set(Calendar.MILLISECOND, 999)
+    }.timeInMillis
 
     // Dialog & Sheet States
     private val _selectedAppForActions = MutableStateFlow<AppInfo?>(null)
@@ -145,8 +150,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
         // Re-arm any pending Study Manager reminders on launch.
         rescheduleStudyReminders()
-        // Arm the once-a-day backup reminder (19:00).
-        BackupReminderScheduler.apply(getApplication())
     }
 
     fun loadApps() {
@@ -184,6 +187,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             if (usageTracker.hasUsageStatsPermission()) {
                 _usageMap.value = usageTracker.getTodayAppUsageMinutes()
+                _totalScreenTimeToday.value = usageTracker.getTodayTotalScreenTimeMinutes()
             }
         }
     }
@@ -405,6 +409,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         preferences.deleteStudyClass(courseId, subjectId, topicId, classId)
         rescheduleStudyReminders()
     }
+
+    // ---- Drag & drop reordering (moves an item among its siblings) ----
+
+    fun moveStudyCourse(courseId: String, direction: Int) = preferences.moveStudyCourse(courseId, direction)
+
+    fun moveStudySubject(courseId: String, subjectId: String, direction: Int) =
+        preferences.moveStudySubject(courseId, subjectId, direction)
+
+    fun moveStudyTopic(courseId: String, subjectId: String, topicId: String, direction: Int) =
+        preferences.moveStudyTopic(courseId, subjectId, topicId, direction)
+
+    fun moveStudyClass(courseId: String, subjectId: String, topicId: String, classId: String, direction: Int) =
+        preferences.moveStudyClass(courseId, subjectId, topicId, classId, direction)
 
     fun setStudyTopicSchedule(
         courseId: String, subjectId: String, topicId: String,

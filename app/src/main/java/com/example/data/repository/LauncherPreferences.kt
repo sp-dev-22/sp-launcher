@@ -541,6 +541,70 @@ class LauncherPreferences(context: Context) {
     }
 
     // ---------------------------------------------------------------------
+    // Drag & drop reordering (moves an item among its siblings)
+    // ---------------------------------------------------------------------
+
+    fun moveStudyCourse(courseId: String, direction: Int) {
+        val list = _studyCourses.value.toMutableList()
+        val index = list.indexOfFirst { it.id == courseId }
+        val target = index + direction
+        if (index < 0 || target !in list.indices) return
+        list.add(target, list.removeAt(index))
+        saveStudyCourses(list)
+    }
+
+    fun moveStudySubject(courseId: String, subjectId: String, direction: Int) {
+        saveStudyCourses(_studyCourses.value.map { course ->
+            if (course.id != courseId) course else {
+                val subjects = course.subjects.toMutableList()
+                val index = subjects.indexOfFirst { it.id == subjectId }
+                val target = index + direction
+                if (index < 0 || target !in subjects.indices) course
+                else {
+                    subjects.add(target, subjects.removeAt(index))
+                    course.copy(subjects = subjects)
+                }
+            }
+        })
+    }
+
+    fun moveStudyTopic(courseId: String, subjectId: String, topicId: String, direction: Int) {
+        saveStudyCourses(_studyCourses.value.map { course ->
+            if (course.id != courseId) course else course.copy(subjects = course.subjects.map { subject ->
+                if (subject.id != subjectId) subject else {
+                    val topics = subject.topics.toMutableList()
+                    val index = topics.indexOfFirst { it.id == topicId }
+                    val target = index + direction
+                    if (index < 0 || target !in topics.indices) subject
+                    else {
+                        topics.add(target, topics.removeAt(index))
+                        subject.copy(topics = topics)
+                    }
+                }
+            })
+        })
+    }
+
+    fun moveStudyClass(courseId: String, subjectId: String, topicId: String, classId: String, direction: Int) {
+        saveStudyCourses(_studyCourses.value.map { course ->
+            if (course.id != courseId) course else course.copy(subjects = course.subjects.map { subject ->
+                if (subject.id != subjectId) subject else subject.copy(topics = subject.topics.map { topic ->
+                    if (topic.id != topicId) topic else {
+                        val classes = topic.classes.toMutableList()
+                        val index = classes.indexOfFirst { it.id == classId }
+                        val target = index + direction
+                        if (index < 0 || target !in classes.indices) topic
+                        else {
+                            classes.add(target, classes.removeAt(index))
+                            topic.copy(classes = classes)
+                        }
+                    }
+                })
+            })
+        })
+    }
+
+    // ---------------------------------------------------------------------
     // Backup & Restore (whole-app export / import)
     // ---------------------------------------------------------------------
 

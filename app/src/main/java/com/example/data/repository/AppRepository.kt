@@ -76,14 +76,30 @@ class AppRepository(private val context: Context) {
         } catch (_: Exception) {}
     }
 
+    /**
+     * Opens the system uninstall confirmation for [packageName].
+     *
+     * On Android 11+ (API 30+) launching this intent requires the
+     * REQUEST_DELETE_PACKAGES permission (declared in the manifest); without it the
+     * system silently refuses to show the dialog, which is why "delete" used to do
+     * nothing. ACTION_DELETE is tried first, with ACTION_UNINSTALL_PACKAGE as a fallback.
+     */
     fun uninstallApp(packageName: String) {
+        val uri = Uri.fromParts("package", packageName, null)
+        val primary = Intent(Intent.ACTION_DELETE, uri).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
         try {
-            val intent = Intent(Intent.ACTION_DELETE).apply {
-                data = Uri.fromParts("package", packageName, null)
+            context.startActivity(primary)
+            return
+        } catch (_: Exception) {
+            // Fall through to the alternative intent below.
+        }
+        try {
+            val fallback = Intent(Intent.ACTION_UNINSTALL_PACKAGE, uri).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(intent)
+            context.startActivity(fallback)
         } catch (_: Exception) {}
     }
-
 }

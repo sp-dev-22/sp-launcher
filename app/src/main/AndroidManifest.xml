@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesCondition" />
 
+    <!-- Required on Android 11+ (API 30+) to launch the system uninstall dialog for an app. -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+
     <!-- Overlay permission for the full-screen "daily limit reached" block -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
@@ -16,10 +19,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
-    <!-- Notifications (Android 13+): required for study reminders and the daily backup nudge -->
+    <!-- Notifications (Android 13+): required for study reminders -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Re-arm Study Manager reminders & the daily backup reminder after a reboot -->
+    <!-- Re-arm Study Manager reminders after a reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
@@ -63,12 +66,7 @@
             android:name=".service.StudyReminderReceiver"
             android:exported="false" />
 
-        <!-- Fires the once-a-day backup reminder -->
-        <receiver
-            android:name=".service.BackupReminderReceiver"
-            android:exported="false" />
-
-        <!-- Re-schedules Study Manager reminders & the backup reminder after boot / app update -->
+        <!-- Re-schedules Study Manager reminders after boot / app update -->
         <receiver
             android:name=".service.BootReceiver"
             android:exported="false">
