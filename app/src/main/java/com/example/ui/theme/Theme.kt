@@ -13,7 +13,9 @@ enum class LauncherTheme(val key: String, val label: String) {
     PINK("pink", "Pink"),
     GREEN("green", "Green"),
     SAFFRON("saffron", "Saffron"),
-    SEATTLE("seattle", "Seattle");
+    SEATTLE("seattle", "Seattle"),
+    OCEAN("ocean", "Ocean"),
+    LAVENDER("lavender", "Lavender");
 
     companion object {
         fun fromKey(key: String?): LauncherTheme =
@@ -181,12 +183,78 @@ private val SeattleDark = darkColorScheme(
     onError = Color(0xFF690005)
 )
 
+private val OceanLight = lightColorScheme(
+    primary = Color(0xFF0277BD),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFE1F0F8),
+    onPrimaryContainer = Color(0xFF00263A),
+    background = Color(0xFFF2F9FD),
+    onBackground = Color(0xFF12222B),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF12222B),
+    surfaceVariant = Color(0xFFE1EEF5),
+    onSurfaceVariant = Color(0xFF3A4A52),
+    outline = Color(0xFFC6DBE6),
+    error = Color(0xFFBA1A1A),
+    onError = Color.White
+)
+
+private val OceanDark = darkColorScheme(
+    primary = Color(0xFF4FC3F7),
+    onPrimary = Color(0xFF00344E),
+    primaryContainer = Color(0xFF0C4A66),
+    onPrimaryContainer = Color(0xFFB3E5FC),
+    background = Color(0xFF0A1216),
+    onBackground = Color(0xFFD6E6EE),
+    surface = Color(0xFF111C21),
+    onSurface = Color(0xFFD6E6EE),
+    surfaceVariant = Color(0xFF18262D),
+    onSurfaceVariant = Color(0xFFB8CAD3),
+    outline = Color(0xFF33454D),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005)
+)
+
+private val LavenderLight = lightColorScheme(
+    primary = Color(0xFF6A4C93),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFECE4F6),
+    onPrimaryContainer = Color(0xFF22103A),
+    background = Color(0xFFF8F5FC),
+    onBackground = Color(0xFF1E1826),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF1E1826),
+    surfaceVariant = Color(0xFFEDE6F6),
+    onSurfaceVariant = Color(0xFF4A4256),
+    outline = Color(0xFFD6CBE8),
+    error = Color(0xFFBA1A1A),
+    onError = Color.White
+)
+
+private val LavenderDark = darkColorScheme(
+    primary = Color(0xFFC3A9E8),
+    onPrimary = Color(0xFF33195A),
+    primaryContainer = Color(0xFF4A2E73),
+    onPrimaryContainer = Color(0xFFEADDFF),
+    background = Color(0xFF130E1A),
+    onBackground = Color(0xFFE8DEF2),
+    surface = Color(0xFF1B1424),
+    onSurface = Color(0xFFE8DEF2),
+    surfaceVariant = Color(0xFF241A2F),
+    onSurfaceVariant = Color(0xFFCFC3DC),
+    outline = Color(0xFF443A50),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005)
+)
+
 fun colorSchemeFor(theme: LauncherTheme, dark: Boolean): ColorScheme = when (theme) {
     LauncherTheme.DEFAULT -> if (dark) DefaultDark else DefaultLight
     LauncherTheme.PINK -> if (dark) PinkDark else PinkLight
     LauncherTheme.GREEN -> if (dark) GreenDark else GreenLight
     LauncherTheme.SAFFRON -> if (dark) SaffronDark else SaffronLight
     LauncherTheme.SEATTLE -> if (dark) SeattleDark else SeattleLight
+    LauncherTheme.OCEAN -> if (dark) OceanDark else OceanLight
+    LauncherTheme.LAVENDER -> if (dark) LavenderDark else LavenderLight
 }
 
 /** Preview swatch colour for the Themes picker. */

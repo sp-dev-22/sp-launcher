@@ -19,31 +19,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.HourglassTop
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.data.model.AlertItem
 import com.example.data.model.AppInfo
-import com.example.data.model.BannerItem
 import com.example.data.model.StudyDueItem
 import com.example.data.model.TaskItem
 import com.example.ui.components.AppFavoriteChip
-import com.example.ui.components.NotesWidget
+import com.example.ui.components.AlertsWidget
 import com.example.ui.components.ClockWidget
 import com.example.ui.components.TasksWidget
 import com.example.ui.components.StudyDueWidget
-import com.example.ui.components.TimeStatWidget
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -51,12 +44,10 @@ fun HomeScreen(
     favoriteApps: List<AppInfo>,
     showTime: Boolean,
     showDate: Boolean,
-    showNotes: Boolean,
+    showAlerts: Boolean,
     showTasks: Boolean,
-    notes: List<BannerItem>,
+    alerts: List<AlertItem>,
     tasks: List<TaskItem>,
-    showScreenTime: Boolean,
-    totalScreenTimeMinutes: Int,
     showStudyDue: Boolean,
     studyDueItems: List<StudyDueItem>,
     isDarkTheme: Boolean,
@@ -105,10 +96,10 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 3. Merged Notes widget (Notes + Reminders + Goals, tagged) - hidden when empty
-            if (showNotes && notes.isNotEmpty()) {
-                NotesWidget(
-                    items = notes,
+            // Alerts widget (with custom tags + optional reminders) - hidden when empty
+            if (showAlerts && alerts.isNotEmpty()) {
+                AlertsWidget(
+                    items = alerts,
                     isDarkTheme = isDarkTheme,
                     onManage = onOpenWidgetsManagement,
                     modifier = Modifier.fillMaxWidth()
@@ -116,7 +107,7 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // 6. Interactive Tasks Widget (hidden when there are no tasks)
+            // Interactive Tasks Widget (hidden when there are no tasks)
             if (showTasks && tasks.isNotEmpty()) {
                 TasksWidget(
                     tasks = tasks,
@@ -128,21 +119,9 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.height(14.dp))
             }
-
-            // 7. Total Screen Time (Today)
-            if (showScreenTime) {
-                TimeStatWidget(
-                    title = "SCREEN TIME TODAY",
-                    minutes = totalScreenTimeMinutes,
-                    accent = Color(0xFF2196F3),
-                    isDarkTheme = isDarkTheme,
-                    testTag = "screen_time_widget"
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
         }
 
-        // 7. Favorite Apps (Colorful Text Pills)
+        // Favorite Apps (Colorful Text Pills)
         Column(
             modifier = Modifier
                 .fillMaxWidth()

@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -33,43 +34,49 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.model.BannerItem
+import com.example.data.model.AlertItem
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.math.absoluteValue
 
+/**
+ * The Alerts widget: every alert shown as one swipeable card, with its custom tag
+ * (only when set) and its reminder time (only when set).
+ */
 @Composable
-fun BannersWidget(
-    banners: List<BannerItem>,
+fun AlertsWidget(
+    items: List<AlertItem>,
     isDarkTheme: Boolean,
-    onManageBanners: () -> Unit,
+    onManage: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (banners.isEmpty()) {
+    if (items.isEmpty()) {
         Card(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 6.dp)
-                .clickable { onManageBanners() }
-                .testTag("empty_banners_card"),
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .clickable { onManage() }
+                .testTag("empty_alerts_card"),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (isDarkTheme) Color(0xFF1E1E22) else Color(0xFFF4ECE6)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
+                modifier = Modifier.fillMaxWidth().padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add banner",
+                    contentDescription = "Add alert",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Add Notes, Reminders or Goals",
+                    text = "Add an alert",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -78,46 +85,33 @@ fun BannersWidget(
         return
     }
 
-    val pagerState = rememberPagerState(pageCount = { banners.size })
+    val pagerState = rememberPagerState(pageCount = { items.size })
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .testTag("banners_widget"),
+            .testTag("alerts_widget"),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxWidth()
-        ) { page ->
-            val item = banners[page]
-            val badgeColor = when (item.category.lowercase()) {
-                "reminder" -> if (isDarkTheme) Color(0xFF5A3A1A) else Color(0xFFFFE0B2)
-                "goal" -> if (isDarkTheme) Color(0xFF1B3D2B) else Color(0xFFC8E6C9)
-                else -> if (isDarkTheme) Color(0xFF27324B) else Color(0xFFD1E3FF) // Note
-            }
-            val badgeTextColor = when (item.category.lowercase()) {
-                "reminder" -> if (isDarkTheme) Color(0xFFFFCC80) else Color(0xFFE65100)
-                "goal" -> if (isDarkTheme) Color(0xFFA5D6A7) else Color(0xFF1B5E20)
-                else -> if (isDarkTheme) Color(0xFF90CAF9) else Color(0xFF0D47A1)
-            }
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth()) { page ->
+            val item = items[page]
+            val chipBg = tagChipBackground(item.category, isDarkTheme)
+            val chipFg = tagChipForeground(item.category, isDarkTheme)
 
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 4.dp)
-                    .clickable { onManageBanners() }
-                    .testTag("banner_card_$page"),
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .clickable { onManage() }
+                    .testTag("alert_card_$page"),
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isDarkTheme) Color(0xFF1E1E24) else Color(0xFFF6EFEA)
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 12.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -133,20 +127,21 @@ fun BannersWidget(
                             modifier = Modifier.weight(1f)
                         )
 
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(badgeColor)
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = item.category.uppercase(),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = badgeTextColor
-                            )
+                        if (item.category.isNotBlank()) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(chipBg)
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = item.category,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = chipFg
+                                )
+                            }
                         }
                     }
 
@@ -159,26 +154,44 @@ fun BannersWidget(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
+
+                    item.reminderMillis?.let { millis ->
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.NotificationsActive,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = formatAlertTime(millis),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
             }
         }
 
-        // Pager indicator dots if more than 1 banner
-        if (banners.size > 1) {
-            Spacer(modifier = Modifier.height(6.dp))
+        if (items.size > 1) {
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                repeat(banners.size) { index ->
-                    val isSelected = pagerState.currentPage == index
+                repeat(items.size) { index ->
+                    val selected = pagerState.currentPage == index
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 3.dp)
-                            .size(if (isSelected) 6.dp else 4.dp)
+                            .size(if (selected) 6.dp else 4.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary
+                                if (selected) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f)
                             )
                     )
@@ -186,4 +199,22 @@ fun BannersWidget(
             }
         }
     }
+}
+
+private fun formatAlertTime(millis: Long): String =
+    SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(millis))
+
+private val CUSTOM_DARK_BG = listOf(0xFF3A2A4A, 0xFF243A3A, 0xFF3A3224, 0xFF2A2A3E, 0xFF3A2430)
+private val CUSTOM_LIGHT_BG = listOf(0xFFE7DDF2, 0xFFD6EFEA, 0xFFF3E7CF, 0xFFDDE3F2, 0xFFF2DDE6)
+private val CUSTOM_DARK_FG = listOf(0xFFD6B8F0, 0xFFA8E6DD, 0xFFEFD8A8, 0xFFB8C4F0, 0xFFF0B8D0)
+private val CUSTOM_LIGHT_FG = listOf(0xFF6A3E96, 0xFF1B6B60, 0xFF8A6A16, 0xFF3A4A96, 0xFF963A66)
+
+private fun tagChipBackground(tag: String, isDark: Boolean): Color {
+    val idx = tag.hashCode().absoluteValue % CUSTOM_DARK_BG.size
+    return Color(if (isDark) CUSTOM_DARK_BG[idx] else CUSTOM_LIGHT_BG[idx])
+}
+
+private fun tagChipForeground(tag: String, isDark: Boolean): Color {
+    val idx = tag.hashCode().absoluteValue % CUSTOM_DARK_FG.size
+    return Color(if (isDark) CUSTOM_DARK_FG[idx] else CUSTOM_LIGHT_FG[idx])
 }

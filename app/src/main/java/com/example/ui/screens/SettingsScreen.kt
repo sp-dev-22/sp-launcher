@@ -17,19 +17,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.Brightness4
-import androidx.compose.material.icons.filled.Brightness7
 import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.HourglassTop
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockClock
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -39,7 +31,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,13 +39,11 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SettingsScreen(
     isDarkTheme: Boolean,
-    onOpenAppLimits: () -> Unit,
     onOpenThemes: () -> Unit,
-    onOpenFavorites: () -> Unit,
-    onOpenWidgetsManagement: () -> Unit,
     onOpenStudyManager: () -> Unit,
+    onOpenWidgetsManagement: () -> Unit,
+    onOpenFavorites: () -> Unit,
     onOpenBackupRestore: () -> Unit,
-    onOpenAboutDev: () -> Unit,
     onSetDefaultLauncher: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -69,7 +58,7 @@ fun SettingsScreen(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Title matching Screenshot 3
+        // Title
         Text(
             text = "Settings",
             style = MaterialTheme.typography.headlineMedium.copy(
@@ -91,28 +80,10 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 2. App Usage Time & Limits
-        SettingsItemRow(
-            title = "App Use Time & Limits",
-            subtitle = "Track daily screen time & instant app limit lock",
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.LockClock,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            onClick = onOpenAppLimits,
-            testTag = "settings_app_limits"
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Themes (Pink, Green, Saffron, Seattle) + Night Mode
+        // 1. Themes (Pink, Green, Saffron, Seattle, Ocean, Lavender) + Night Mode
         SettingsItemRow(
             title = "Themes",
-            subtitle = "Pink, Green, Saffron, Seattle & Night Mode",
+            subtitle = "Pink, Green, Saffron, Seattle, Ocean, Lavender & Night Mode",
             icon = {
                 Icon(
                     imageVector = Icons.Default.Palette,
@@ -127,43 +98,7 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Favorites (pick apps for the Home Screen + drag to reorder)
-        SettingsItemRow(
-            title = "Favorites",
-            subtitle = "Pick apps for the Home Screen and drag to reorder",
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            onClick = onOpenFavorites,
-            testTag = "settings_favorites"
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 7. Widgets Configuration (Notes, Reminders, Goals, Tasks, Clock, Date)
-        SettingsItemRow(
-            title = "Widgets",
-            subtitle = "Manage separate Notes, Reminders & Goals widgets",
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Checklist,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            onClick = onOpenWidgetsManagement,
-            testTag = "settings_widgets"
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 7b. Study Manager
+        // 2. Study Manager
         SettingsItemRow(
             title = "Study Manager",
             subtitle = "Courses > Subjects > Topics > Classes, deadlines & reminders",
@@ -181,10 +116,46 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 7c. Backup & Restore
+        // 3. Widgets (Clock, Date, Alerts, Tasks, Study Due)
+        SettingsItemRow(
+            title = "Widgets",
+            subtitle = "Manage the Clock, Date, Alerts, Tasks & Study widgets",
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Checklist,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            onClick = onOpenWidgetsManagement,
+            testTag = "settings_widgets"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 4. Favorites (pick apps for the Home Screen + drag to reorder)
+        SettingsItemRow(
+            title = "Favorites",
+            subtitle = "Pick apps for the Home Screen and drag to reorder",
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            onClick = onOpenFavorites,
+            testTag = "settings_favorites"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 5. Backup & Restore
         SettingsItemRow(
             title = "Backup & Restore",
-            subtitle = "Save or restore all settings, todos and study data",
+            subtitle = "Save or restore all settings, alerts, tasks and study data",
             icon = {
                 Icon(
                     imageVector = Icons.Default.Backup,
@@ -199,25 +170,7 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // About Dev
-        SettingsItemRow(
-            title = "About Dev",
-            subtitle = "Developer, GitHub links & WhatsApp support",
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            onClick = onOpenAboutDev,
-            testTag = "settings_about_dev"
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 8. Set Default Launcher
+        // 6. Set Default Launcher
         SettingsItemRow(
             title = "Set Default Launcher",
             subtitle = "Set SP Launcher as system home screen",
