@@ -19,9 +19,9 @@
     <string name="add_task">Add Task</string>
     <string name="add_banner">Add Banner</string>
     <string name="tasks">Tasks</string>
-    <string name="notes_and_goals">Notes &amp; Goals</string>
+    <string name="alerts">Alerts</string>
     <string name="show_clock">Show Clock</string>
     <string name="show_date">Show Date</string>
-    <string name="show_banners">Show Banners</string>
+    <string name="show_alerts">Show Alerts</string>
     <string name="show_tasks">Show Tasks</string>
 </resources>
