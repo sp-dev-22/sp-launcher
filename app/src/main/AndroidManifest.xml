@@ -8,21 +8,10 @@
     <!-- Required on Android 11+ (API 30+) to launch the system uninstall dialog for an app. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
-    <!-- Overlay permission for the full-screen "daily limit reached" block -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-
-    <!-- Usage stats permission for tracking screen time and daily limits -->
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions" />
-
-    <!-- Foreground service for continuous app-limit monitoring -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-
-    <!-- Notifications (Android 13+): required for study reminders -->
+    <!-- Notifications (Android 13+): required for Alerts and Study reminders -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Re-arm Study Manager reminders after a reboot -->
+    <!-- Re-arm Alerts and Study Manager reminders after a reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
@@ -52,21 +41,17 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".service.AppLimitService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Daily app-limit monitor" />
-        </service>
-
         <!-- Fires Study Manager alert / missed-deadline notifications -->
         <receiver
             android:name=".service.StudyReminderReceiver"
             android:exported="false" />
 
-        <!-- Re-schedules Study Manager reminders after boot / app update -->
+        <!-- Fires Alerts reminder notifications -->
+        <receiver
+            android:name=".service.AlertReminderReceiver"
+            android:exported="false" />
+
+        <!-- Re-schedules Alerts and Study Manager reminders after boot / app update -->
         <receiver
             android:name=".service.BootReceiver"
             android:exported="false">
