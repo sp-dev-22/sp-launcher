@@ -104,7 +104,7 @@ fun BackupRestoreScreen(
                 Text("What gets backed up", fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "• All settings\n• All home-screen todos (notes, reminders, goals)\n• All Study Manager data\n• App limits",
+                    text = "• All settings & themes\n• All Alerts (with tags & reminders)\n• All home-screen tasks\n• All Study Manager data",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     lineHeight = 19.sp
