@@ -440,6 +440,13 @@ private fun StudyTreeRow(
                     color = accent
                 )
             }
+            if (row.alertMillis != null) {
+                Text(
+                    text = "Reminder: ${formatDateTime(row.alertMillis)}",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
             if (row.studiedMinutes > 0) {
                 Text(
                     text = "${row.studiedMinutes} min studied",
@@ -486,12 +493,12 @@ private fun StudyTreeRow(
                     text = { Text("Edit name") },
                     onClick = { menuOpen = false; onEditName() }
                 )
-                if (row.type != NodeType.CLASS) {
-                    DropdownMenuItem(
-                        text = { Text("Add ${childLabel(row.type)}") },
-                        onClick = { menuOpen = false; onAddChild() }
-                    )
-                }
+                // "Add <child>" is shown for every level, including Class, so a long
+                // list of classes can be extended without scrolling back to the Topic.
+                DropdownMenuItem(
+                    text = { Text("Add ${childLabel(row.type)}") },
+                    onClick = { menuOpen = false; onAddChild() }
+                )
                 if (row.type == NodeType.TOPIC || row.type == NodeType.CLASS) {
                     DropdownMenuItem(
                         text = { Text("Deadline & Reminder") },
@@ -629,7 +636,7 @@ private fun ScheduleDialog(
         title = { Text(target.name, fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                Text("Simple reminder", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text("Reminder (notification)", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 Text(
                     text = alert?.let { formatDateTime(it) } ?: "Not set",
                     fontSize = 12.sp,
@@ -644,7 +651,7 @@ private fun ScheduleDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Text("Deadline", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text("Deadline (notification)", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 Text(
                     text = deadline?.let { formatDateTime(it) } ?: "Not set",
                     fontSize = 12.sp,
@@ -794,7 +801,9 @@ private fun childLabel(type: NodeType): String = when (type) {
     NodeType.COURSE -> "Subject"
     NodeType.SUBJECT -> "Topic"
     NodeType.TOPIC -> "Class"
-    NodeType.CLASS -> ""
+    // A Class can also spawn a sibling Class, so the same "Add Class" action is
+    // offered from a class row too (no need to scroll back up to the Topic).
+    NodeType.CLASS -> "Class"
 }
 
 private fun statusColor(status: StudyStatus): Color = when (status) {
