@@ -1,27 +1,23 @@
 package com.example.ui
 
 import android.app.Application
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.model.AlertItem
 import com.example.data.model.AppInfo
-import com.example.data.model.BannerItem
 import com.example.data.model.StudyCourse
 import com.example.data.model.StudyDueItem
-import com.example.data.model.allClassRefs
 import com.example.data.model.TaskItem
+import com.example.data.model.allClassRefs
 import com.example.data.repository.AppRepository
 import com.example.data.repository.LauncherPreferences
-import com.example.focus.UsageTracker
-import com.example.service.AppLimitService
+import com.example.service.AlertReminderScheduler
 import com.example.service.StudyReminderScheduler
-import com.example.ui.components.BlockReason
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -31,7 +27,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val appRepository = AppRepository(application)
     private val preferences = LauncherPreferences(application)
-    private val usageTracker = UsageTracker(application)
 
     private val _installedApps = MutableStateFlow<List<AppInfo>>(emptyList())
     val installedApps: StateFlow<List<AppInfo>> = _installedApps.asStateFlow()
@@ -43,23 +38,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val favorites = preferences.favorites
     val showTime = preferences.showTime
     val showDate = preferences.showDate
-    val showNotes = preferences.showNotes
+    val showAlerts = preferences.showAlerts
     val showTasks = preferences.showTasks
-    val showScreenTime = preferences.showScreenTime
     val showStudyDue = preferences.showStudyDue
     val themeKey = preferences.themeKey
-    val banners = preferences.banners
+    val alerts = preferences.alerts
     val tasks = preferences.tasks
-
-    // App Usage & Limits states
-    val appLimits = preferences.appLimits
-    private val _usageMap = MutableStateFlow<Map<String, Int>>(emptyMap())
-    val usageMap: StateFlow<Map<String, Int>> = _usageMap.asStateFlow()
-
-    // Today's total screen time for the Home widget (computed from raw usage millis so it
-    // is not the sum of individually-rounded per-app values).
-    private val _totalScreenTimeToday = MutableStateFlow(0)
-    val totalScreenTimeToday: StateFlow<Int> = _totalScreenTimeToday.asStateFlow()
 
     // Study Manager tree
     val studyCourses: StateFlow<List<StudyCourse>> = preferences.studyCourses
@@ -100,17 +84,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _selectedAppForActions = MutableStateFlow<AppInfo?>(null)
     val selectedAppForActions: StateFlow<AppInfo?> = _selectedAppForActions.asStateFlow()
 
-    private val _showArrangeSheet = MutableStateFlow(false)
-    val showArrangeSheet: StateFlow<Boolean> = _showArrangeSheet.asStateFlow()
-
     private val _showAddFavoritesScreen = MutableStateFlow(false)
     val showAddFavoritesScreen: StateFlow<Boolean> = _showAddFavoritesScreen.asStateFlow()
 
     private val _showWidgetsDialog = MutableStateFlow(false)
     val showWidgetsDialog: StateFlow<Boolean> = _showWidgetsDialog.asStateFlow()
-
-    private val _showAppLimitsSheet = MutableStateFlow(false)
-    val showAppLimitsSheet: StateFlow<Boolean> = _showAppLimitsSheet.asStateFlow()
 
     private val _showStudyManager = MutableStateFlow(false)
     val showStudyManager: StateFlow<Boolean> = _showStudyManager.asStateFlow()
@@ -121,34 +99,24 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showThemesSheet = MutableStateFlow(false)
     val showThemesSheet: StateFlow<Boolean> = _showThemesSheet.asStateFlow()
 
-    private val _showAboutDev = MutableStateFlow(false)
-    val showAboutDev: StateFlow<Boolean> = _showAboutDev.asStateFlow()
-
-    private val _blockedAppDetails = MutableStateFlow<Pair<AppInfo, BlockReason>?>(null)
-    val blockedAppDetails: StateFlow<Pair<AppInfo, BlockReason>?> = _blockedAppDetails.asStateFlow()
-
     // Filtered apps for the App Drawer (search only)
     val filteredApps: StateFlow<List<AppInfo>> =
-        kotlinx.coroutines.flow.combine(_installedApps, _searchQuery) { apps, query ->
+        combine(_installedApps, _searchQuery) { apps, query ->
             if (query.isBlank()) apps
             else apps.filter { it.label.contains(query, ignoreCase = true) }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Favorite apps for the Home Screen
     val favoriteAppInfos: StateFlow<List<AppInfo>> =
-        kotlinx.coroutines.flow.combine(_installedApps, favorites) { apps, favPkgs ->
+        combine(_installedApps, favorites) { apps, favPkgs ->
             val appMap = apps.associateBy { it.packageName }
             favPkgs.mapNotNull { appMap[it] }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         loadApps()
-        refreshUsageStats()
-        // Keep the daily app-limit monitor running if any limit is set.
-        if (preferences.appLimits.value.isNotEmpty()) {
-            AppLimitService.start(getApplication())
-        }
-        // Re-arm any pending Study Manager reminders on launch.
+        // Re-arm any pending Alerts and Study Manager reminders on launch.
+        rescheduleAlertReminders()
         rescheduleStudyReminders()
     }
 
@@ -183,15 +151,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun refreshUsageStats() {
-        viewModelScope.launch {
-            if (usageTracker.hasUsageStatsPermission()) {
-                _usageMap.value = usageTracker.getTodayAppUsageMinutes()
-                _totalScreenTimeToday.value = usageTracker.getTodayTotalScreenTimeMinutes()
-            }
-        }
-    }
-
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
     }
@@ -208,16 +167,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         preferences.setShowDate(enabled)
     }
 
-    fun setShowNotes(enabled: Boolean) {
-        preferences.setShowNotes(enabled)
+    fun setShowAlerts(enabled: Boolean) {
+        preferences.setShowAlerts(enabled)
     }
 
     fun setShowTasks(enabled: Boolean) {
         preferences.setShowTasks(enabled)
-    }
-
-    fun setShowScreenTime(enabled: Boolean) {
-        preferences.setShowScreenTime(enabled)
     }
 
     fun setShowStudyDue(enabled: Boolean) {
@@ -256,20 +211,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         preferences.removeTask(id)
     }
 
-    fun addBanner(banner: BannerItem) {
-        preferences.addBanner(banner)
+    // ---- Alerts (with optional reminders) ----
+
+    fun addAlert(alert: AlertItem) {
+        preferences.addAlert(alert)
+        rescheduleAlertReminders()
     }
 
-    fun removeBanner(id: String) {
-        preferences.removeBanner(id)
+    fun removeAlert(id: String) {
+        AlertReminderScheduler.cancel(getApplication(), id)
+        preferences.removeAlert(id)
+        rescheduleAlertReminders()
     }
 
     fun selectAppForActions(app: AppInfo?) {
         _selectedAppForActions.value = app
-    }
-
-    fun setShowArrangeSheet(show: Boolean) {
-        _showArrangeSheet.value = show
     }
 
     fun setShowAddFavoritesScreen(show: Boolean) {
@@ -278,10 +234,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowWidgetsDialog(show: Boolean) {
         _showWidgetsDialog.value = show
-    }
-
-    fun setShowAppLimitsSheet(show: Boolean) {
-        _showAppLimitsSheet.value = show
     }
 
     fun setShowStudyManager(show: Boolean) {
@@ -296,60 +248,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _showThemesSheet.value = show
     }
 
-    fun setShowAboutDev(show: Boolean) {
-        _showAboutDev.value = show
-    }
-
-    fun dismissBlockedAppDialog() {
-        _blockedAppDetails.value = null
-    }
-
-    // ---- Overlay permission (needed for the daily-limit lock overlay) ----
-
-    fun canDrawOverlays(): Boolean = Settings.canDrawOverlays(getApplication())
-
-    fun requestOverlayPermission() {
-        val intent = Intent(
-            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-            Uri.parse("package:${getApplication<Application>().packageName}")
-        ).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        try {
-            getApplication<Application>().startActivity(intent)
-        } catch (_: Exception) {
-            val fallback = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            try {
-                getApplication<Application>().startActivity(fallback)
-            } catch (_: Exception) {}
-        }
-    }
-
-    fun hasUsagePermission(): Boolean = usageTracker.hasUsageStatsPermission()
-
-    fun requestUsagePermission() {
-        usageTracker.requestUsageStatsPermission()
-    }
-
-    fun setAppLimit(packageName: String, limitMinutes: Int) {
-        preferences.setAppLimit(packageName, limitMinutes)
-        // Ensure the background monitor is actively running to enforce limits live
-        AppLimitService.start(getApplication())
-    }
-
-    // Smart App Launching: handles usage limit blocking
-    fun tryLaunchApp(app: AppInfo) {
-        // Check daily usage limit
-        val limit = appLimits.value[app.packageName] ?: 0
-        val used = _usageMap.value[app.packageName] ?: 0
-        if (limit > 0 && used >= limit) {
-            _blockedAppDetails.value = Pair(app, BlockReason.USAGE_LIMIT_EXCEEDED)
-            return
-        }
-
-        // Otherwise launch normally
+    // Smart App Launching (no usage limits any more — just launch)
+    fun launchApp(app: AppInfo) {
         appRepository.launchApp(app.packageName)
     }
 
@@ -454,6 +354,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         StudyReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.studyCourses.value)
     }
 
+    private fun rescheduleAlertReminders() {
+        AlertReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.alerts.value)
+    }
+
     // ---------------------------------------------------------------------
     // Backup & Restore
     // ---------------------------------------------------------------------
@@ -462,8 +366,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun importAllData(json: String): Boolean {
         val ok = preferences.importAllData(json)
-        if (ok) rescheduleStudyReminders()
+        if (ok) {
+            rescheduleStudyReminders()
+            rescheduleAlertReminders()
+        }
         return ok
     }
-
 }
