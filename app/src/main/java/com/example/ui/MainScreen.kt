@@ -15,12 +15,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import com.example.ui.components.AppActionBottomSheet
-import com.example.ui.components.AppBlockedDialog
-import com.example.ui.components.AppLimitsSheet
 import com.example.ui.components.FavoritesScreen
 import com.example.ui.components.ThemesSheet
 import com.example.ui.components.WidgetsManagementSheet
-import com.example.ui.screens.AboutDevScreen
 import com.example.ui.screens.BackupRestoreScreen
 import com.example.ui.screens.DrawerScreen
 import com.example.ui.screens.HomeScreen
@@ -46,39 +43,29 @@ fun MainScreen(
 
     val showTime by viewModel.showTime.collectAsState()
     val showDate by viewModel.showDate.collectAsState()
-    val showNotes by viewModel.showNotes.collectAsState()
+    val showAlerts by viewModel.showAlerts.collectAsState()
     val showTasks by viewModel.showTasks.collectAsState()
 
-    val banners by viewModel.banners.collectAsState()
+    val alerts by viewModel.alerts.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
 
-    // Usage tracking & Limits
-    val usageMap by viewModel.usageMap.collectAsState()
-    val appLimits by viewModel.appLimits.collectAsState()
-
-    // Themes & Today-time widgets
+    // Themes
     val themeKey by viewModel.themeKey.collectAsState()
-    val showScreenTime by viewModel.showScreenTime.collectAsState()
-    val totalScreenTimeToday by viewModel.totalScreenTimeToday.collectAsState()
     val showStudyDue by viewModel.showStudyDue.collectAsState()
     val studyDueItems by viewModel.studyDueItems.collectAsState()
 
     val selectedAppForActions by viewModel.selectedAppForActions.collectAsState()
     val showAddFavoritesScreen by viewModel.showAddFavoritesScreen.collectAsState()
     val showWidgetsDialog by viewModel.showWidgetsDialog.collectAsState()
-    val showAppLimitsSheet by viewModel.showAppLimitsSheet.collectAsState()
     val showThemesSheet by viewModel.showThemesSheet.collectAsState()
-    val blockedAppDetails by viewModel.blockedAppDetails.collectAsState()
     val showStudyManager by viewModel.showStudyManager.collectAsState()
     val showBackupRestore by viewModel.showBackupRestore.collectAsState()
-    val showAboutDev by viewModel.showAboutDev.collectAsState()
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
-        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showAboutDev
+        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore
     ) {
         when {
-            showAboutDev -> viewModel.setShowAboutDev(false)
             showStudyManager -> viewModel.setShowStudyManager(false)
             showBackupRestore -> viewModel.setShowBackupRestore(false)
             showAddFavoritesScreen -> viewModel.setShowAddFavoritesScreen(false)
@@ -106,16 +93,11 @@ fun MainScreen(
                         // Left Page: Settings
                         SettingsScreen(
                             isDarkTheme = isDarkTheme,
-                            onOpenAppLimits = {
-                                viewModel.refreshUsageStats()
-                                viewModel.setShowAppLimitsSheet(true)
-                            },
                             onOpenThemes = { viewModel.setShowThemesSheet(true) },
-                            onOpenFavorites = { viewModel.setShowAddFavoritesScreen(true) },
-                            onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
+                            onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
+                            onOpenFavorites = { viewModel.setShowAddFavoritesScreen(true) },
                             onOpenBackupRestore = { viewModel.setShowBackupRestore(true) },
-                            onOpenAboutDev = { viewModel.setShowAboutDev(true) },
                             onSetDefaultLauncher = onSetDefaultLauncher,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -126,16 +108,14 @@ fun MainScreen(
                             favoriteApps = favoriteAppInfos,
                             showTime = showTime,
                             showDate = showDate,
-                            showNotes = showNotes,
+                            showAlerts = showAlerts,
                             showTasks = showTasks,
-                            notes = banners,
+                            alerts = alerts,
                             tasks = tasks,
-                            showScreenTime = showScreenTime,
-                            totalScreenTimeMinutes = totalScreenTimeToday,
                             showStudyDue = showStudyDue,
                             studyDueItems = studyDueItems,
                             isDarkTheme = isDarkTheme,
-                            onAppClick = { app -> viewModel.tryLaunchApp(app) },
+                            onAppClick = { app -> viewModel.launchApp(app) },
                             onAppLongClick = { app -> viewModel.setShowAddFavoritesScreen(true) },
                             onToggleTask = { id -> viewModel.toggleTask(id) },
                             onAddTask = { text -> viewModel.addTask(text) },
@@ -151,7 +131,7 @@ fun MainScreen(
                             searchQuery = searchQuery,
                             onSearchQueryChange = { query -> viewModel.setSearchQuery(query) },
                             isDarkTheme = isDarkTheme,
-                            onAppClick = { app -> viewModel.tryLaunchApp(app) },
+                            onAppClick = { app -> viewModel.launchApp(app) },
                             onAppLongClick = { app -> viewModel.selectAppForActions(app) },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -185,11 +165,6 @@ fun MainScreen(
                     onBack = { viewModel.setShowBackupRestore(false) }
                 )
             }
-
-            // Fullscreen About Dev
-            if (showAboutDev) {
-                AboutDevScreen(onBack = { viewModel.setShowAboutDev(false) })
-            }
         }
     }
 
@@ -211,38 +186,21 @@ fun MainScreen(
         WidgetsManagementSheet(
             showTime = showTime,
             showDate = showDate,
-            showNotes = showNotes,
+            showAlerts = showAlerts,
             showTasks = showTasks,
-            showScreenTime = showScreenTime,
             showStudyDue = showStudyDue,
-            banners = banners,
+            alerts = alerts,
             tasks = tasks,
             onToggleShowTime = { viewModel.setShowTime(it) },
             onToggleShowDate = { viewModel.setShowDate(it) },
-            onToggleShowNotes = { viewModel.setShowNotes(it) },
+            onToggleShowAlerts = { viewModel.setShowAlerts(it) },
             onToggleShowTasks = { viewModel.setShowTasks(it) },
-            onToggleShowScreenTime = { viewModel.setShowScreenTime(it) },
             onToggleShowStudyDue = { viewModel.setShowStudyDue(it) },
-            onAddBanner = { viewModel.addBanner(it) },
-            onRemoveBanner = { viewModel.removeBanner(it) },
+            onAddAlert = { viewModel.addAlert(it) },
+            onRemoveAlert = { viewModel.removeAlert(it) },
             onAddTask = { viewModel.addTask(it) },
             onRemoveTask = { viewModel.removeTask(it) },
             onDismiss = { viewModel.setShowWidgetsDialog(false) }
-        )
-    }
-
-    // App Limits & Usage Stats Sheet
-    if (showAppLimitsSheet) {
-        AppLimitsSheet(
-            allApps = allApps,
-            usageMap = usageMap,
-            appLimits = appLimits,
-            hasUsagePermission = viewModel.hasUsagePermission(),
-            hasOverlayPermission = viewModel.canDrawOverlays(),
-            onRequestUsagePermission = { viewModel.requestUsagePermission() },
-            onRequestOverlayPermission = { viewModel.requestOverlayPermission() },
-            onSetAppLimit = { pkg, limit -> viewModel.setAppLimit(pkg, limit) },
-            onDismiss = { viewModel.setShowAppLimitsSheet(false) }
         )
     }
 
@@ -254,20 +212,6 @@ fun MainScreen(
             onSelectTheme = { viewModel.setTheme(it.key) },
             onToggleNightMode = { viewModel.setNightMode(it) },
             onDismiss = { viewModel.setShowThemesSheet(false) }
-        )
-    }
-
-    // App Blocked / Limit Exceeded Dialog
-    blockedAppDetails?.let { (app, reason) ->
-        val limit = appLimits[app.packageName] ?: 0
-        val used = usageMap[app.packageName] ?: 0
-        AppBlockedDialog(
-            app = app,
-            reason = reason,
-            usedMinutes = used,
-            limitMinutes = limit,
-            onOpenSettings = { viewModel.setShowAppLimitsSheet(true) },
-            onDismiss = { viewModel.dismissBlockedAppDialog() }
         )
     }
 }
