@@ -49,7 +49,10 @@ class StudyPopupReceiver : BroadcastReceiver() {
             return
         }
 
-        val card = prefs.flashcardBank.value.firstOrNull { !it.locked && isDue(it) }
+        val disabled = settings.disabledDecks
+        val card = prefs.flashcardBank.value.firstOrNull {
+            !it.locked && isDue(it) && !disabled.contains(it.deck.ifBlank { "Ungrouped" })
+        }
         if (card != null) {
             ensureChannel(context)
             showFront(context, card)
@@ -104,7 +107,7 @@ class StudyPopupReceiver : BroadcastReceiver() {
             ?: prefs.flashcardBank.value.firstOrNull { !it.locked }
             ?: return
         val updated = if (correct) {
-            card.copy(locked = true)
+            card.copy(locked = true, masteredAtMillis = System.currentTimeMillis())
         } else {
             val stage = card.repeatStage + 1
             if (stage > REPEAT_DAYS.size) {

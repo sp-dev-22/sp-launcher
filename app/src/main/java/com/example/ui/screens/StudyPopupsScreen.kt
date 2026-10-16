@@ -196,6 +196,16 @@ fun StudyPopupsScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedButton(
+            onClick = { viewModel.setShowCards(true) },
+            enabled = cards.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth().height(50.dp).testTag("manage_cards_btn")
+        ) {
+            Text("Manage cards (browse · edit · decks)")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedButton(
             onClick = { confirmClear = true },
             enabled = cards.isNotEmpty(),
             modifier = Modifier.fillMaxWidth().height(50.dp).testTag("clear_cards_btn")

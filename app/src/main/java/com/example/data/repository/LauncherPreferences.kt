@@ -695,6 +695,7 @@ class LauncherPreferences(context: Context) {
                 put("repeatStage", c.repeatStage)
                 c.nextDueMillis?.let { put("nextDueMillis", it) }
                 put("deck", c.deck)
+                c.masteredAtMillis?.let { put("masteredAtMillis", it) }
             })
         }
         prefs.edit().putString(KEY_FLASHCARD_BANK, arr.toString()).apply()
@@ -707,8 +708,18 @@ class LauncherPreferences(context: Context) {
             put("start", s.startMinutes)
             put("stop", s.stopMinutes)
             put("interval", s.intervalMinutes)
+            val decks = JSONArray(); s.disabledDecks.forEach { decks.put(it) }
+            put("disabledDecks", decks)
         }.toString()).apply()
         _popupSettings.value = s
+    }
+
+    fun updateCard(card: FlashcardItem) {
+        saveFlashcardBank(_flashcardBank.value.map { if (it.id == card.id) card else it })
+    }
+
+    fun deleteCard(id: String) {
+        saveFlashcardBank(_flashcardBank.value.filterNot { it.id == id })
     }
 
     private fun loadFlashcardBank(): List<FlashcardItem> {
@@ -726,7 +737,8 @@ class LauncherPreferences(context: Context) {
                         locked = o.optBoolean("locked", false),
                         repeatStage = o.optInt("repeatStage", 0),
                         nextDueMillis = if (o.has("nextDueMillis")) o.optLong("nextDueMillis") else null,
-                        deck = o.optString("deck", "")
+                        deck = o.optString("deck", ""),
+                        masteredAtMillis = if (o.has("masteredAtMillis")) o.optLong("masteredAtMillis") else null
                     )
                 )
             }
@@ -738,11 +750,15 @@ class LauncherPreferences(context: Context) {
         val raw = prefs.getString(KEY_POPUP_SETTINGS, null) ?: return StudyPopupSettings()
         return try {
             val o = JSONObject(raw)
+            val decksArr = o.optJSONArray("disabledDecks") ?: JSONArray()
+            val decks = mutableListOf<String>()
+            for (i in 0 until decksArr.length()) decks.add(decksArr.getString(i))
             StudyPopupSettings(
                 enabled = o.optBoolean("enabled", false),
                 startMinutes = o.optInt("start", 9 * 60),
                 stopMinutes = o.optInt("stop", 21 * 60),
-                intervalMinutes = o.optInt("interval", 10)
+                intervalMinutes = o.optInt("interval", 10),
+                disabledDecks = decks
             )
         } catch (_: Exception) { StudyPopupSettings() }
     }

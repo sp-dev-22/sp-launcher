@@ -7,6 +7,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.AlertItem
 import com.example.data.model.AppInfo
+import com.example.data.model.CardStats
+import com.example.data.model.FlashcardItem
 import com.example.data.model.StudyCourse
 import com.example.data.model.StudyDueItem
 import com.example.data.model.TaskItem
@@ -120,6 +122,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _cardImportCount = MutableStateFlow<Int?>(null)
     val cardImportCount: StateFlow<Int?> = _cardImportCount.asStateFlow()
+
+    private val _showCards = MutableStateFlow(false)
+    val showCards: StateFlow<Boolean> = _showCards.asStateFlow()
+
+    val cardStats: StateFlow<CardStats> = flashcardBank
+        .map { cards ->
+            val today = startOfToday()
+            CardStats(
+                total = cards.size,
+                mastered = cards.count { it.locked },
+                due = cards.count { !it.locked && (it.nextDueMillis == null || it.nextDueMillis <= System.currentTimeMillis()) },
+                masteredToday = cards.count { it.masteredAtMillis != null && it.masteredAtMillis >= today }
+            )
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CardStats())
 
     // Filtered apps for the App Drawer (search only)
     val filteredApps: StateFlow<List<AppInfo>> =
@@ -469,6 +486,30 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun clearCards() {
         preferences.saveFlashcardBank(emptyList())
         _cardImportCount.value = null
+    }
+
+    fun setShowCards(show: Boolean) {
+        _showCards.value = show
+    }
+
+    fun updateCard(card: FlashcardItem) {
+        preferences.updateCard(card)
+    }
+
+    fun deleteCard(id: String) {
+        preferences.deleteCard(id)
+    }
+
+    /** Turns a whole deck on or off for the popups. */
+    fun setDeckEnabled(deck: String, enabled: Boolean) {
+        val s = preferences.popupSettings.value
+        val disabled = s.disabledDecks.toMutableList()
+        if (enabled) {
+            disabled.remove(deck)
+        } else if (!disabled.contains(deck)) {
+            disabled.add(deck)
+        }
+        savePopupSettings(s.copy(disabledDecks = disabled))
     }
 
     private fun displayName(uri: Uri): String? = try {
