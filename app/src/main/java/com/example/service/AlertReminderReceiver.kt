@@ -12,17 +12,32 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.MainActivity
 import com.example.R
+import com.example.data.repository.LauncherPreferences
 
 /**
  * Receives the alarms scheduled by [AlertReminderScheduler] and shows the reminder
- * notification for a home-screen Alert.
+ * notification for a home-screen Alert. The notification carries "Snooze 10 min" and
+ * "Snooze 1 hour" actions that push the alert's reminder forward and re-arm it.
  */
 class AlertReminderReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        val id = intent.getStringExtra(AlertReminderScheduler.EXTRA_ID).orEmpty()
+
+        // A snooze tap from the notification: move this alert's reminder forward.
+        if (intent.action == ACTION_SNOOZE) {
+            if (id.isEmpty()) return
+            val minutes = intent.getIntExtra(EXTRA_SNOOZE_MIN, 10)
+            val prefs = LauncherPreferences(context)
+            val alert = prefs.alerts.value.firstOrNull { it.id == id } ?: return
+            prefs.updateAlert(alert.copy(reminderMillis = System.currentTimeMillis() + minutes * 60_000L))
+            AlertReminderScheduler.rescheduleAll(context, prefs.alerts.value)
+            NotificationManagerCompat.from(context).cancel("alert-$id".hashCode())
+            return
+        }
+
         val title = intent.getStringExtra(AlertReminderScheduler.EXTRA_TITLE) ?: "Alert"
         val message = intent.getStringExtra(AlertReminderScheduler.EXTRA_MESSAGE).orEmpty()
-        val id = intent.getStringExtra(AlertReminderScheduler.EXTRA_ID).orEmpty()
 
         AlertReminderScheduler.ensureChannel(context)
 
@@ -51,6 +66,8 @@ class AlertReminderReceiver : BroadcastReceiver() {
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(contentPi)
+            .addAction(0, "Snooze 10 min", snoozePendingIntent(context, id, 10))
+            .addAction(0, "Snooze 1 hour", snoozePendingIntent(context, id, 60))
             .build()
 
         try {
@@ -58,5 +75,20 @@ class AlertReminderReceiver : BroadcastReceiver() {
         } catch (_: SecurityException) {
             // Permission revoked between the check and the notify call — nothing to do.
         }
+    }
+
+    private fun snoozePendingIntent(context: Context, id: String, minutes: Int): PendingIntent {
+        val intent = Intent(context, AlertReminderReceiver::class.java).apply {
+            action = ACTION_SNOOZE
+            putExtra(AlertReminderScheduler.EXTRA_ID, id)
+            putExtra(EXTRA_SNOOZE_MIN, minutes)
+        }
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        return PendingIntent.getBroadcast(context, "$id-snooze-$minutes".hashCode(), intent, flags)
+    }
+
+    companion object {
+        const val ACTION_SNOOZE = "com.example.sp_launcher.ACTION_ALERT_SNOOZE"
+        const val EXTRA_SNOOZE_MIN = "alert_snooze_min"
     }
 }

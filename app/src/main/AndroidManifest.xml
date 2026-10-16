@@ -51,6 +51,11 @@
             android:name=".service.AlertReminderReceiver"
             android:exported="false" />
 
+        <!-- Delivers the Study Popups (MCQ + flashcards) and their answers -->
+        <receiver
+            android:name=".service.StudyPopupReceiver"
+            android:exported="false" />
+
         <!-- Re-schedules Alerts and Study Manager reminders after boot / app update -->
         <receiver
             android:name=".service.BootReceiver"

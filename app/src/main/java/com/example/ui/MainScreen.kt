@@ -23,6 +23,8 @@ import com.example.ui.screens.DrawerScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StudyManagerScreen
+import com.example.ui.screens.StudyPopupsScreen
+import com.example.ui.screens.TimeTableScreen
 import com.example.ui.theme.LauncherTheme
 import kotlinx.coroutines.launch
 
@@ -60,12 +62,16 @@ fun MainScreen(
     val showThemesSheet by viewModel.showThemesSheet.collectAsState()
     val showStudyManager by viewModel.showStudyManager.collectAsState()
     val showBackupRestore by viewModel.showBackupRestore.collectAsState()
+    val showTimeTable by viewModel.showTimeTable.collectAsState()
+    val showStudyPopups by viewModel.showStudyPopups.collectAsState()
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
-        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore
+        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showTimeTable || showStudyPopups
     ) {
         when {
+            showStudyPopups -> viewModel.setShowStudyPopups(false)
+            showTimeTable -> viewModel.setShowTimeTable(false)
             showStudyManager -> viewModel.setShowStudyManager(false)
             showBackupRestore -> viewModel.setShowBackupRestore(false)
             showAddFavoritesScreen -> viewModel.setShowAddFavoritesScreen(false)
@@ -95,6 +101,7 @@ fun MainScreen(
                             isDarkTheme = isDarkTheme,
                             onOpenThemes = { viewModel.setShowThemesSheet(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
+                            onOpenStudyPopups = { viewModel.setShowStudyPopups(true) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onOpenFavorites = { viewModel.setShowAddFavoritesScreen(true) },
                             onOpenBackupRestore = { viewModel.setShowBackupRestore(true) },
@@ -154,7 +161,8 @@ fun MainScreen(
                 StudyManagerScreen(
                     viewModel = viewModel,
                     isDarkTheme = isDarkTheme,
-                    onBack = { viewModel.setShowStudyManager(false) }
+                    onBack = { viewModel.setShowStudyManager(false) },
+                    onOpenTimeTable = { viewModel.setShowTimeTable(true) }
                 )
             }
 
@@ -163,6 +171,22 @@ fun MainScreen(
                 BackupRestoreScreen(
                     viewModel = viewModel,
                     onBack = { viewModel.setShowBackupRestore(false) }
+                )
+            }
+
+            // Fullscreen Quick Time Table
+            if (showTimeTable) {
+                TimeTableScreen(
+                    viewModel = viewModel,
+                    onBack = { viewModel.setShowTimeTable(false) }
+                )
+            }
+
+            // Fullscreen Study Popups
+            if (showStudyPopups) {
+                StudyPopupsScreen(
+                    viewModel = viewModel,
+                    onBack = { viewModel.setShowStudyPopups(false) }
                 )
             }
         }
@@ -197,6 +221,7 @@ fun MainScreen(
             onToggleShowTasks = { viewModel.setShowTasks(it) },
             onToggleShowStudyDue = { viewModel.setShowStudyDue(it) },
             onAddAlert = { viewModel.addAlert(it) },
+            onEditAlert = { viewModel.updateAlert(it) },
             onRemoveAlert = { viewModel.removeAlert(it) },
             onAddTask = { viewModel.addTask(it) },
             onRemoveTask = { viewModel.removeTask(it) },

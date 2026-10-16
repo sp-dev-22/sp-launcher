@@ -3,6 +3,11 @@ package com.example.data.repository
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.data.model.AlertItem
+import com.example.data.model.FlashcardItem
+import com.example.data.model.StudyPopupSettings
+import com.example.data.model.SubjectPlanSettings
+import com.example.data.model.TimeTableEntry
+import com.example.data.model.TimeTableSettings
 import com.example.data.model.StudyClass
 import com.example.data.model.StudyCourse
 import com.example.data.model.StudySubject
@@ -53,6 +58,17 @@ class LauncherPreferences(context: Context) {
     // Study Manager tree (Course > Subject > Topic > Class)
     private val _studyCourses = MutableStateFlow(loadStudyCourses())
     val studyCourses: StateFlow<List<StudyCourse>> = _studyCourses.asStateFlow()
+
+    // Quick Time Table (settings + last generated plan)
+    private val _timeTable = MutableStateFlow(loadTimeTable())
+    val timeTable: StateFlow<TimeTableSettings> = _timeTable.asStateFlow()
+
+    // Study Popups (cards + their schedule)
+    private val _flashcardBank = MutableStateFlow(loadFlashcardBank())
+    val flashcardBank: StateFlow<List<FlashcardItem>> = _flashcardBank.asStateFlow()
+
+    private val _popupSettings = MutableStateFlow(loadPopupSettings())
+    val popupSettings: StateFlow<StudyPopupSettings> = _popupSettings.asStateFlow()
 
     fun setNightMode(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_NIGHT_MODE, enabled).apply()
@@ -173,6 +189,11 @@ class LauncherPreferences(context: Context) {
     fun addAlert(alert: AlertItem) {
         val current = _alerts.value.toMutableList()
         current.add(alert)
+        saveAlerts(current)
+    }
+
+    fun updateAlert(alert: AlertItem) {
+        val current = _alerts.value.map { if (it.id == alert.id) alert else it }
         saveAlerts(current)
     }
 
@@ -566,6 +587,167 @@ class LauncherPreferences(context: Context) {
     }
 
     // ---------------------------------------------------------------------
+    // Quick Time Table
+    // ---------------------------------------------------------------------
+
+    fun saveTimeTable(settings: TimeTableSettings) {
+        prefs.edit().putString(KEY_TIMETABLE, timeTableToJson(settings).toString()).apply()
+        _timeTable.value = settings
+    }
+
+    private fun timeTableToJson(s: TimeTableSettings): JSONObject = JSONObject().apply {
+        put("windowStart", s.windowStartMinutes)
+        put("windowEnd", s.windowEndMinutes)
+        val ss = JSONObject()
+        for ((id, v) in s.subjectSettings) {
+            ss.put(id, JSONObject().apply {
+                put("duration", v.durationMinutes)
+                put("rest", v.restMinutes)
+            })
+        }
+        put("subjectSettings", ss)
+        val entriesArr = JSONArray()
+        for (e in s.entries) {
+            entriesArr.put(JSONObject().apply {
+                put("day", e.day)
+                put("dateMillis", e.dateMillis)
+                put("courseId", e.courseId)
+                put("subjectId", e.subjectId)
+                put("subjectName", e.subjectName)
+                put("topicId", e.topicId)
+                put("classId", e.classId)
+                put("className", e.className)
+                put("startMillis", e.startMillis)
+                put("endMillis", e.endMillis)
+                put("isFree", e.isFree)
+            })
+        }
+        put("entries", entriesArr)
+        val idsArr = JSONArray()
+        for (id in s.generatedClassIds) idsArr.put(id)
+        put("generatedClassIds", idsArr)
+    }
+
+    private fun loadTimeTable(): TimeTableSettings {
+        val raw = prefs.getString(KEY_TIMETABLE, null) ?: return TimeTableSettings()
+        return try {
+            val obj = JSONObject(raw)
+            val ssObj = obj.optJSONObject("subjectSettings")
+            val subjectSettings = mutableMapOf<String, SubjectPlanSettings>()
+            if (ssObj != null) {
+                val keys = ssObj.keys()
+                while (keys.hasNext()) {
+                    val k = keys.next()
+                    val v = ssObj.optJSONObject(k) ?: continue
+                    subjectSettings[k] = SubjectPlanSettings(
+                        durationMinutes = v.optInt("duration", 45),
+                        restMinutes = v.optInt("rest", 10)
+                    )
+                }
+            }
+            val entriesArr = obj.optJSONArray("entries") ?: JSONArray()
+            val entries = mutableListOf<TimeTableEntry>()
+            for (i in 0 until entriesArr.length()) {
+                val e = entriesArr.getJSONObject(i)
+                entries.add(
+                    TimeTableEntry(
+                        day = e.optInt("day", 0),
+                        dateMillis = e.optLong("dateMillis", 0L),
+                        courseId = e.optString("courseId", ""),
+                        subjectId = e.optString("subjectId", ""),
+                        subjectName = e.optString("subjectName", ""),
+                        topicId = e.optString("topicId", ""),
+                        classId = e.optString("classId", ""),
+                        className = e.optString("className", ""),
+                        startMillis = e.optLong("startMillis", 0L),
+                        endMillis = e.optLong("endMillis", 0L),
+                        isFree = e.optBoolean("isFree", false)
+                    )
+                )
+            }
+            val idsArr = obj.optJSONArray("generatedClassIds") ?: JSONArray()
+            val ids = mutableListOf<String>()
+            for (i in 0 until idsArr.length()) ids.add(idsArr.getString(i))
+            TimeTableSettings(
+                windowStartMinutes = obj.optInt("windowStart", 9 * 60),
+                windowEndMinutes = obj.optInt("windowEnd", 21 * 60),
+                subjectSettings = subjectSettings,
+                entries = entries,
+                generatedClassIds = ids
+            )
+        } catch (_: Exception) {
+            TimeTableSettings()
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Study Popups (MCQ + flashcard banks and their schedule)
+    // ---------------------------------------------------------------------
+
+    fun saveFlashcardBank(list: List<FlashcardItem>) {
+        val arr = JSONArray()
+        for (c in list) {
+            arr.put(JSONObject().apply {
+                put("id", c.id)
+                put("front", c.front)
+                put("back", c.back)
+                put("locked", c.locked)
+                put("repeatStage", c.repeatStage)
+                c.nextDueMillis?.let { put("nextDueMillis", it) }
+                put("deck", c.deck)
+            })
+        }
+        prefs.edit().putString(KEY_FLASHCARD_BANK, arr.toString()).apply()
+        _flashcardBank.value = list
+    }
+
+    fun savePopupSettings(s: StudyPopupSettings) {
+        prefs.edit().putString(KEY_POPUP_SETTINGS, JSONObject().apply {
+            put("enabled", s.enabled)
+            put("start", s.startMinutes)
+            put("stop", s.stopMinutes)
+            put("interval", s.intervalMinutes)
+        }.toString()).apply()
+        _popupSettings.value = s
+    }
+
+    private fun loadFlashcardBank(): List<FlashcardItem> {
+        val raw = prefs.getString(KEY_FLASHCARD_BANK, null) ?: return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            val list = mutableListOf<FlashcardItem>()
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                list.add(
+                    FlashcardItem(
+                        id = o.optString("id", java.util.UUID.randomUUID().toString()),
+                        front = o.optString("front", ""),
+                        back = o.optString("back", ""),
+                        locked = o.optBoolean("locked", false),
+                        repeatStage = o.optInt("repeatStage", 0),
+                        nextDueMillis = if (o.has("nextDueMillis")) o.optLong("nextDueMillis") else null,
+                        deck = o.optString("deck", "")
+                    )
+                )
+            }
+            list
+        } catch (_: Exception) { emptyList() }
+    }
+
+    private fun loadPopupSettings(): StudyPopupSettings {
+        val raw = prefs.getString(KEY_POPUP_SETTINGS, null) ?: return StudyPopupSettings()
+        return try {
+            val o = JSONObject(raw)
+            StudyPopupSettings(
+                enabled = o.optBoolean("enabled", false),
+                startMinutes = o.optInt("start", 9 * 60),
+                stopMinutes = o.optInt("stop", 21 * 60),
+                intervalMinutes = o.optInt("interval", 10)
+            )
+        } catch (_: Exception) { StudyPopupSettings() }
+    }
+
+    // ---------------------------------------------------------------------
     // Backup & Restore (whole-app export / import)
     // ---------------------------------------------------------------------
 
@@ -640,6 +822,9 @@ class LauncherPreferences(context: Context) {
         _alerts.value = loadAlerts()
         _tasks.value = loadTasks()
         _studyCourses.value = loadStudyCourses()
+        _timeTable.value = loadTimeTable()
+        _flashcardBank.value = loadFlashcardBank()
+        _popupSettings.value = loadPopupSettings()
     }
 
     companion object {
@@ -654,5 +839,8 @@ class LauncherPreferences(context: Context) {
         private const val KEY_STUDY_DATA = "study_manager_data"
         private const val KEY_THEME = "theme_key"
         private const val KEY_SHOW_STUDY_DUE = "show_study_due"
+        private const val KEY_TIMETABLE = "timetable_settings"
+        private const val KEY_FLASHCARD_BANK = "flashcard_bank"
+        private const val KEY_POPUP_SETTINGS = "study_popup_settings"
     }
 }

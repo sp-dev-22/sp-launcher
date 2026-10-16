@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -124,7 +125,8 @@ private data class ScheduleTarget(
 fun StudyManagerScreen(
     viewModel: LauncherViewModel,
     isDarkTheme: Boolean,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenTimeTable: () -> Unit
 ) {
     val courses by viewModel.studyCourses.collectAsState()
     val context = LocalContext.current
@@ -168,6 +170,12 @@ fun StudyManagerScreen(
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.weight(1f)
             )
+            IconButton(
+                onClick = onOpenTimeTable,
+                modifier = Modifier.testTag("study_timetable_btn")
+            ) {
+                Icon(Icons.Default.Schedule, contentDescription = "Quick Time Table")
+            }
             IconButton(
                 onClick = { addTarget = AddTarget(NodeType.COURSE, label = "Course") },
                 modifier = Modifier.testTag("study_add_course_btn")

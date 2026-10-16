@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Star
@@ -35,12 +36,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.BuildConfig
 
 @Composable
 fun SettingsScreen(
     isDarkTheme: Boolean,
     onOpenThemes: () -> Unit,
     onOpenStudyManager: () -> Unit,
+    onOpenStudyPopups: () -> Unit,
     onOpenWidgetsManagement: () -> Unit,
     onOpenFavorites: () -> Unit,
     onOpenBackupRestore: () -> Unit,
@@ -116,6 +119,24 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // 2b. Study Popups (MCQ & flashcards)
+        SettingsItemRow(
+            title = "Study Popups",
+            subtitle = "MCQ & flashcard nudges through the day",
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.NotificationsActive,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            onClick = onOpenStudyPopups,
+            testTag = "settings_study_popups"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // 3. Widgets (Clock, Date, Alerts, Tasks, Study Due)
         SettingsItemRow(
             title = "Widgets",
@@ -184,6 +205,18 @@ fun SettingsScreen(
             },
             onClick = onSetDefaultLauncher,
             testTag = "settings_default_launcher"
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Version marker — makes it obvious which build is installed.
+        Text(
+            text = "SP Launcher v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("settings_version")
         )
 
         Spacer(modifier = Modifier.height(36.dp))

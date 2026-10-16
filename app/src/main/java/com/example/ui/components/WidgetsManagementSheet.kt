@@ -21,7 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -72,6 +74,7 @@ fun WidgetsManagementSheet(
     onToggleShowTasks: (Boolean) -> Unit,
     onToggleShowStudyDue: (Boolean) -> Unit,
     onAddAlert: (AlertItem) -> Unit,
+    onEditAlert: (AlertItem) -> Unit,
     onRemoveAlert: (String) -> Unit,
     onAddTask: (String) -> Unit,
     onRemoveTask: (String) -> Unit,
@@ -84,6 +87,8 @@ fun WidgetsManagementSheet(
     var newAlertContent by remember { mutableStateOf("") }
     var newAlertTag by remember { mutableStateOf("") }
     var newAlertReminder by remember { mutableStateOf<Long?>(null) }
+
+    var editingAlert by remember { mutableStateOf<AlertItem?>(null) }
 
     var newTaskInput by remember { mutableStateOf("") }
 
@@ -128,38 +133,30 @@ fun WidgetsManagementSheet(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Toggle Time
                 ToggleRow("Show Clock (Time)", showTime, onToggleShowTime)
-
-                // Toggle Date
                 ToggleRow("Show Date", showDate, onToggleShowDate)
-
-                // Toggle Alerts
                 ToggleRow("Show Alerts Widget", showAlerts, onToggleShowAlerts)
-
-                // Toggle Tasks
                 ToggleRow("Show Tasks Checklist", showTasks, onToggleShowTasks)
-
-                // Toggle Study Due (today / overdue)
                 ToggleRow("Show Study Due (Next 7 days)", showStudyDue, onToggleShowStudyDue)
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-                // Alerts Section
                 Text(
-                    text = "MANAGE ALERTS (WITH TAGS + REMINDERS)",
+                    text = "MANAGE ALERTS (TAP TO EDIT)",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            // Existing alerts
+            // Existing alerts — tap a card to edit it
             items(alerts, key = { it.id }) { alert ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = 4.dp)
+                        .clickable { editingAlert = alert }
+                        .testTag("alert_row_${alert.id}"),
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -213,6 +210,13 @@ fun WidgetsManagementSheet(
                             }
                         }
 
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Alert",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
                         IconButton(onClick = { onRemoveAlert(alert.id) }) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
@@ -268,7 +272,6 @@ fun WidgetsManagementSheet(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Optional reminder for this alert
                         Text("Reminder (notification)", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                         Text(
                             text = newAlertReminder?.let { formatDateTime(it) } ?: "Not set",
@@ -314,7 +317,6 @@ fun WidgetsManagementSheet(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-                // Tasks Section
                 Text(
                     text = "TASKS MANAGEMENT",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
@@ -379,6 +381,92 @@ fun WidgetsManagementSheet(
             }
         }
     }
+
+    // Edit an existing alert
+    editingAlert?.let { original ->
+        AlertEditDialog(
+            original = original,
+            onSave = { updated ->
+                onEditAlert(updated)
+                editingAlert = null
+            },
+            onDismiss = { editingAlert = null }
+        )
+    }
+}
+
+@Composable
+private fun AlertEditDialog(
+    original: AlertItem,
+    onSave: (AlertItem) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var title by remember { mutableStateOf(original.title) }
+    var content by remember { mutableStateOf(original.content) }
+    var tag by remember { mutableStateOf(original.category) }
+    var reminder by remember { mutableStateOf(original.reminderMillis) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Alert", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = content,
+                    onValueChange = { content = it },
+                    label = { Text("Details") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = tag,
+                    onValueChange = { tag = it },
+                    label = { Text("Tag (optional, custom)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Reminder (notification)", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(
+                    text = reminder?.let { formatDateTime(it) } ?: "Not set",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                Row {
+                    TextButton(onClick = { showDateTimePicker(context, reminder) { reminder = it } }) {
+                        Text("Set date & time")
+                    }
+                    if (reminder != null) {
+                        TextButton(onClick = { reminder = null }) { Text("Clear") }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                if (title.isNotBlank()) {
+                    onSave(
+                        original.copy(
+                            title = title.trim(),
+                            content = content.trim(),
+                            category = tag.trim(),
+                            reminderMillis = reminder
+                        )
+                    )
+                }
+            }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable

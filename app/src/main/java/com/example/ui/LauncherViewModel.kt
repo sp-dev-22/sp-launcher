@@ -1,6 +1,8 @@
 package com.example.ui
 
 import android.app.Application
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.AlertItem
@@ -11,16 +13,24 @@ import com.example.data.model.TaskItem
 import com.example.data.model.allClassRefs
 import com.example.data.repository.AppRepository
 import com.example.data.repository.LauncherPreferences
+import com.example.data.model.SubjectPlanSettings
+import com.example.data.model.TimeTableSettings
+import com.example.data.model.StudyPopupSettings
 import com.example.service.AlertReminderScheduler
+import com.example.service.StudyPopupScheduler
 import com.example.service.StudyReminderScheduler
+import com.example.util.CardFileParser
+import com.example.util.TimeTablePlanner
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
@@ -44,6 +54,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val themeKey = preferences.themeKey
     val alerts = preferences.alerts
     val tasks = preferences.tasks
+    val timeTable = preferences.timeTable
+    val flashcardBank = preferences.flashcardBank
+    val popupSettings = preferences.popupSettings
 
     // Study Manager tree
     val studyCourses: StateFlow<List<StudyCourse>> = preferences.studyCourses
@@ -99,6 +112,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showThemesSheet = MutableStateFlow(false)
     val showThemesSheet: StateFlow<Boolean> = _showThemesSheet.asStateFlow()
 
+    private val _showTimeTable = MutableStateFlow(false)
+    val showTimeTable: StateFlow<Boolean> = _showTimeTable.asStateFlow()
+
+    private val _showStudyPopups = MutableStateFlow(false)
+    val showStudyPopups: StateFlow<Boolean> = _showStudyPopups.asStateFlow()
+
+    private val _cardImportCount = MutableStateFlow<Int?>(null)
+    val cardImportCount: StateFlow<Int?> = _cardImportCount.asStateFlow()
+
     // Filtered apps for the App Drawer (search only)
     val filteredApps: StateFlow<List<AppInfo>> =
         combine(_installedApps, _searchQuery) { apps, query ->
@@ -118,6 +140,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         // Re-arm any pending Alerts and Study Manager reminders on launch.
         rescheduleAlertReminders()
         rescheduleStudyReminders()
+        StudyPopupScheduler.reschedule(application, preferences.popupSettings.value)
     }
 
     fun loadApps() {
@@ -218,6 +241,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         rescheduleAlertReminders()
     }
 
+    fun updateAlert(alert: AlertItem) {
+        preferences.updateAlert(alert)
+        rescheduleAlertReminders()
+    }
+
     fun removeAlert(id: String) {
         AlertReminderScheduler.cancel(getApplication(), id)
         preferences.removeAlert(id)
@@ -246,6 +274,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowThemesSheet(show: Boolean) {
         _showThemesSheet.value = show
+    }
+
+    fun setShowTimeTable(show: Boolean) {
+        _showTimeTable.value = show
+    }
+
+    fun setShowStudyPopups(show: Boolean) {
+        _showStudyPopups.value = show
     }
 
     // Smart App Launching (no usage limits any more — just launch)
@@ -350,6 +386,98 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun renameStudyClass(courseId: String, subjectId: String, topicId: String, classId: String, name: String) =
         preferences.renameStudyClass(courseId, subjectId, topicId, classId, name)
 
+    // ---------------------------------------------------------------------
+    // Quick Time Table
+    // ---------------------------------------------------------------------
+
+    fun setTimeTableWindow(startMinutes: Int, endMinutes: Int) {
+        val s = preferences.timeTable.value
+        preferences.saveTimeTable(s.copy(windowStartMinutes = startMinutes, windowEndMinutes = endMinutes))
+    }
+
+    fun setSubjectPlan(subjectId: String, durationMinutes: Int, restMinutes: Int) {
+        val s = preferences.timeTable.value
+        val updated = s.subjectSettings.toMutableMap()
+        updated[subjectId] = SubjectPlanSettings(durationMinutes = durationMinutes, restMinutes = restMinutes)
+        preferences.saveTimeTable(s.copy(subjectSettings = updated))
+    }
+
+    fun generateTimeTable() {
+        val settings = preferences.timeTable.value
+        val courses = preferences.studyCourses.value
+        if (courses.isEmpty()) return
+        val result = TimeTablePlanner.generate(
+            courses = courses,
+            previousClassIds = settings.generatedClassIds.toSet(),
+            settings = settings,
+            todayStartMillis = startOfToday()
+        )
+        preferences.saveStudyCourses(result.courses)
+        preferences.saveTimeTable(
+            settings.copy(entries = result.entries, generatedClassIds = result.generatedClassIds)
+        )
+        rescheduleStudyReminders()
+    }
+
+    private fun startOfToday(): Long = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+
+    // ---------------------------------------------------------------------
+    // Study Popups
+    // ---------------------------------------------------------------------
+
+    private fun savePopupSettings(s: StudyPopupSettings) {
+        preferences.savePopupSettings(s)
+        StudyPopupScheduler.reschedule(getApplication<Application>(), s)
+    }
+
+    fun setPopupEnabled(enabled: Boolean) =
+        savePopupSettings(preferences.popupSettings.value.copy(enabled = enabled))
+
+    fun setPopupWindow(startMinutes: Int, endMinutes: Int) =
+        savePopupSettings(preferences.popupSettings.value.copy(startMinutes = startMinutes, stopMinutes = endMinutes))
+
+    fun setPopupInterval(minutes: Int) =
+        savePopupSettings(preferences.popupSettings.value.copy(intervalMinutes = minutes))
+
+    /** Reads one or more card files (JSON) and adds every card it finds. */
+    fun importCardFiles(uris: List<Uri>) {
+        viewModelScope.launch {
+            val existing = preferences.flashcardBank.value.toMutableList()
+            var added = 0
+            for (uri in uris) {
+                val text = withContext(Dispatchers.IO) {
+                    try {
+                        getApplication<Application>().contentResolver.openInputStream(uri)
+                            ?.use { it.readBytes().decodeToString() }
+                    } catch (_: Exception) { null }
+                } ?: continue
+                val deck = displayName(uri) ?: "file"
+                val cards = CardFileParser.parse(text, deck)
+                existing.addAll(cards)
+                added += cards.size
+            }
+            if (added > 0) preferences.saveFlashcardBank(existing)
+            _cardImportCount.value = added
+        }
+    }
+
+    fun clearCards() {
+        preferences.saveFlashcardBank(emptyList())
+        _cardImportCount.value = null
+    }
+
+    private fun displayName(uri: Uri): String? = try {
+        getApplication<Application>().contentResolver.query(uri, null, null, null, null)?.use { cur ->
+            val idx = cur.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (idx >= 0 && cur.moveToFirst()) cur.getString(idx) else null
+        }
+    } catch (_: Exception) { null }
+
     private fun rescheduleStudyReminders() {
         StudyReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.studyCourses.value)
     }
@@ -369,6 +497,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         if (ok) {
             rescheduleStudyReminders()
             rescheduleAlertReminders()
+            StudyPopupScheduler.reschedule(getApplication<Application>(), preferences.popupSettings.value)
         }
         return ok
     }
