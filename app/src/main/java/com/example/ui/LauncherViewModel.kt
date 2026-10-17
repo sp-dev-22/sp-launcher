@@ -9,6 +9,7 @@ import com.example.data.model.AlertItem
 import com.example.data.model.AppInfo
 import com.example.data.model.CardStats
 import com.example.data.model.FlashcardItem
+import com.example.data.model.StudyProgress
 import com.example.data.model.StudyCourse
 import com.example.data.model.StudyDueItem
 import com.example.data.model.TaskItem
@@ -138,6 +139,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CardStats())
 
+    val studyProgress: StateFlow<StudyProgress> = studyCourses
+        .map { courses ->
+            var total = 0
+            var done = 0
+            for (course in courses) for (subject in course.subjects) for (topic in subject.topics) for (clazz in topic.classes) {
+                total++
+                if (clazz.isCompleted) done++
+            }
+            StudyProgress(completed = done, total = total)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StudyProgress())
+
     // Filtered apps for the App Drawer (search only)
     val filteredApps: StateFlow<List<AppInfo>> =
         combine(_installedApps, _searchQuery) { apps, query ->
@@ -251,6 +264,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         preferences.removeTask(id)
     }
 
+    fun updateTask(id: String, text: String) {
+        preferences.updateTask(id, text)
+    }
+
+    fun moveTask(id: String, direction: Int) {
+        preferences.moveTask(id, direction)
+    }
+
     // ---- Alerts (with optional reminders) ----
 
     fun addAlert(alert: AlertItem) {
@@ -267,6 +288,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         AlertReminderScheduler.cancel(getApplication(), id)
         preferences.removeAlert(id)
         rescheduleAlertReminders()
+    }
+
+    fun moveAlert(id: String, direction: Int) {
+        preferences.moveAlert(id, direction)
     }
 
     fun selectAppForActions(app: AppInfo?) {
