@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -47,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -76,12 +78,16 @@ fun WidgetsManagementSheet(
     onAddAlert: (AlertItem) -> Unit,
     onEditAlert: (AlertItem) -> Unit,
     onRemoveAlert: (String) -> Unit,
+    onMoveAlert: (String, Int) -> Unit,
     onAddTask: (String) -> Unit,
     onRemoveTask: (String) -> Unit,
+    onEditTask: (String, String) -> Unit,
+    onMoveTask: (String, Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
+    val stepPx = with(LocalDensity.current) { 56.dp.toPx() }
 
     var newAlertTitle by remember { mutableStateOf("") }
     var newAlertContent by remember { mutableStateOf("") }
@@ -89,6 +95,7 @@ fun WidgetsManagementSheet(
     var newAlertReminder by remember { mutableStateOf<Long?>(null) }
 
     var editingAlert by remember { mutableStateOf<AlertItem?>(null) }
+    var editingTask by remember { mutableStateOf<TaskItem?>(null) }
 
     var newTaskInput by remember { mutableStateOf("") }
 
@@ -168,6 +175,17 @@ fun WidgetsManagementSheet(
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val alertDrag = rememberDragStep(stepPx) { dir -> onMoveAlert(alert.id, dir) }
+                        Icon(
+                            imageVector = Icons.Default.Menu,
+                            contentDescription = "Long-press to drag",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                            modifier = Modifier
+                                .size(20.dp)
+                                .then(alertDrag.modifier)
+                                .testTag("alert_drag_${alert.id}")
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 if (alert.category.isNotBlank()) {
@@ -333,12 +351,33 @@ fun WidgetsManagementSheet(
                         .padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val taskDrag = rememberDragStep(stepPx) { dir -> onMoveTask(task.id, dir) }
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "Long-press to drag",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                        modifier = Modifier
+                            .size(20.dp)
+                            .then(taskDrag.modifier)
+                            .testTag("task_drag_${task.id}")
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = if (task.isCompleted) "✓ ${task.text}" else "○ ${task.text}",
                         style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { editingTask = task }
+                            .testTag("task_row_${task.id}")
                     )
 
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Task",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
                     IconButton(onClick = { onRemoveTask(task.id) }) {
                         Icon(
                             imageVector = Icons.Default.Delete,
@@ -393,6 +432,43 @@ fun WidgetsManagementSheet(
             onDismiss = { editingAlert = null }
         )
     }
+
+    // Edit an existing task
+    editingTask?.let { original ->
+        TaskEditDialog(
+            original = original,
+            onSave = { text ->
+                onEditTask(original.id, text)
+                editingTask = null
+            },
+            onDismiss = { editingTask = null }
+        )
+    }
+}
+
+@Composable
+private fun TaskEditDialog(
+    original: TaskItem,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var text by remember { mutableStateOf(original.text) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Task", fontWeight = FontWeight.Bold) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("Task") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { if (text.isNotBlank()) onSave(text.trim()) }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable
