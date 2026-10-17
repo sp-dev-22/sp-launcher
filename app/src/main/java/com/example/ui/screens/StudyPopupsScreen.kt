@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -56,7 +57,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-private val INTERVAL_OPTIONS = listOf(5, 10, 15, 20, 30)
+private val INTERVAL_PRESETS = listOf(5, 10)
 
 @Composable
 fun StudyPopupsScreen(
@@ -69,6 +70,9 @@ fun StudyPopupsScreen(
     val importCount by viewModel.cardImportCount.collectAsState()
 
     var confirmClear by remember { mutableStateOf(false) }
+    var customText by remember {
+        mutableStateOf(if (settings.intervalMinutes in INTERVAL_PRESETS) "" else settings.intervalMinutes.toString())
+    }
 
     val filePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
@@ -148,8 +152,12 @@ fun StudyPopupsScreen(
                 Spacer(modifier = Modifier.height(10.dp))
                 Text("One card every", fontSize = 13.sp)
                 Spacer(modifier = Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    INTERVAL_OPTIONS.forEach { opt ->
+                val isCustom = settings.intervalMinutes !in INTERVAL_PRESETS
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    INTERVAL_PRESETS.forEach { opt ->
                         val selected = settings.intervalMinutes == opt
                         Box(
                             modifier = Modifier
@@ -165,6 +173,39 @@ fun StudyPopupsScreen(
                             )
                         }
                     }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (isCustom) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)
+                            .clickable {
+                                if (!isCustom) {
+                                    customText = "15"
+                                    viewModel.setPopupInterval(15)
+                                }
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .testTag("interval_custom")
+                    ) {
+                        Text(
+                            "custom",
+                            fontSize = 12.sp,
+                            color = if (isCustom) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+                if (isCustom) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = customText,
+                        onValueChange = { raw ->
+                            val digits = raw.filter { it.isDigit() }.take(3)
+                            customText = digits
+                            digits.toIntOrNull()?.let { if (it in 1..600) viewModel.setPopupInterval(it) }
+                        },
+                        label = { Text("minutes", fontSize = 12.sp) },
+                        singleLine = true,
+                        modifier = Modifier.width(130.dp).testTag("interval_custom_input")
+                    )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
