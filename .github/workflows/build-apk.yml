@@ -52,6 +52,14 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
+      # Keep a per-version copy so older APKs are never lost when the rolling
+      # app-debug.apk is replaced by the next build.
+      - name: Make a versioned copy of the APK
+        run: |
+          VERSION=$(grep -m1 'versionName' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
+          cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/sp-launcher-v${VERSION}.apk"
+          echo "Versioned APK: sp-launcher-v${VERSION}.apk"
+
       - name: Upload APK (artifact)
         uses: actions/upload-artifact@v4
         with:
