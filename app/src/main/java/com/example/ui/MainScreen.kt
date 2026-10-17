@@ -66,7 +66,7 @@ fun MainScreen(
     val showTimeTable by viewModel.showTimeTable.collectAsState()
     val showStudyPopups by viewModel.showStudyPopups.collectAsState()
     val showCards by viewModel.showCards.collectAsState()
-    val cardStats by viewModel.cardStats.collectAsState()
+    val studyProgress by viewModel.studyProgress.collectAsState()
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
@@ -125,7 +125,7 @@ fun MainScreen(
                             tasks = tasks,
                             showStudyDue = showStudyDue,
                             studyDueItems = studyDueItems,
-                            cardsStats = cardStats,
+                            studyProgress = studyProgress,
                             isDarkTheme = isDarkTheme,
                             onAppClick = { app -> viewModel.launchApp(app) },
                             onAppLongClick = { app -> viewModel.setShowAddFavoritesScreen(true) },
@@ -133,7 +133,6 @@ fun MainScreen(
                             onAddTask = { text -> viewModel.addTask(text) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
-                            onOpenCards = { viewModel.setShowCards(true) },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -235,10 +234,13 @@ fun MainScreen(
             onToggleShowTasks = { viewModel.setShowTasks(it) },
             onToggleShowStudyDue = { viewModel.setShowStudyDue(it) },
             onAddAlert = { viewModel.addAlert(it) },
-            onEditAlert = { viewModel.updateAlert(it) },
-            onRemoveAlert = { viewModel.removeAlert(it) },
-            onAddTask = { viewModel.addTask(it) },
-            onRemoveTask = { viewModel.removeTask(it) },
+                            onEditAlert = { viewModel.updateAlert(it) },
+                            onRemoveAlert = { viewModel.removeAlert(it) },
+                            onMoveAlert = { id, dir -> viewModel.moveAlert(id, dir) },
+                            onAddTask = { viewModel.addTask(it) },
+                            onRemoveTask = { viewModel.removeTask(it) },
+                            onEditTask = { id, text -> viewModel.updateTask(id, text) },
+                            onMoveTask = { id, dir -> viewModel.moveTask(id, dir) },
             onDismiss = { viewModel.setShowWidgetsDialog(false) }
         )
     }
