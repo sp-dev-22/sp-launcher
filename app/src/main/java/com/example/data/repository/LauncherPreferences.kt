@@ -170,6 +170,20 @@ class LauncherPreferences(context: Context) {
         saveTasks(current)
     }
 
+    fun updateTask(id: String, text: String) {
+        if (text.isBlank()) return
+        saveTasks(_tasks.value.map { if (it.id == id) it.copy(text = text.trim()) else it })
+    }
+
+    fun moveTask(id: String, direction: Int) {
+        val list = _tasks.value.toMutableList()
+        val index = list.indexOfFirst { it.id == id }
+        val target = index + direction
+        if (index < 0 || target !in list.indices) return
+        list.add(target, list.removeAt(index))
+        saveTasks(list)
+    }
+
     fun saveAlerts(list: List<AlertItem>) {
         val array = JSONArray()
         for (item in list) {
@@ -200,6 +214,15 @@ class LauncherPreferences(context: Context) {
     fun removeAlert(id: String) {
         val current = _alerts.value.filter { it.id != id }
         saveAlerts(current)
+    }
+
+    fun moveAlert(id: String, direction: Int) {
+        val list = _alerts.value.toMutableList()
+        val index = list.indexOfFirst { it.id == id }
+        val target = index + direction
+        if (index < 0 || target !in list.indices) return
+        list.add(target, list.removeAt(index))
+        saveAlerts(list)
     }
 
     private fun loadFavorites(): List<String> {
