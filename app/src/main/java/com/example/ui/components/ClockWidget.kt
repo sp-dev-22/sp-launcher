@@ -5,10 +5,10 @@ import android.content.Intent
 import android.provider.AlarmClock
 import android.provider.CalendarContract
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -30,6 +31,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Clock + date. When both are on they sit side by side, each taking half the width
+ * (neither holds long text, so two full-width rows wasted space). A lone one stays centred.
+ */
 @Composable
 fun ClockWidget(
     showTime: Boolean,
@@ -44,7 +49,6 @@ fun ClockWidget(
     LaunchedEffect(Unit) {
         while (true) {
             currentTime = Date()
-            // Delay 1 second to stay tightly synchronized
             delay(1000L)
         }
     }
@@ -62,7 +66,39 @@ fun ClockWidget(
             .testTag("clock_widget"),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (showTime) {
+        if (showTime && showDate) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = formattedTime,
+                    fontSize = 38.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-1).sp,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { openClockApp(context) }
+                        .testTag("clock_time_text")
+                )
+                Text(
+                    text = formattedDate,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { openCalendarApp(context) }
+                        .testTag("clock_date_text")
+                )
+            }
+        } else if (showTime) {
             Text(
                 text = formattedTime,
                 fontSize = 52.sp,
@@ -73,17 +109,14 @@ fun ClockWidget(
                     .clickable { openClockApp(context) }
                     .testTag("clock_time_text")
             )
-        }
-
-        if (showDate) {
-            if (showTime) Spacer(modifier = Modifier.height(2.dp))
+        } else {
             Text(
                 text = formattedDate,
                 style = MaterialTheme.typography.bodyMedium.copy(
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
                 ),
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 modifier = Modifier
                     .clickable { openCalendarApp(context) }
                     .testTag("clock_date_text")
