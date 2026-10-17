@@ -31,6 +31,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -117,6 +119,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _showTimeTable = MutableStateFlow(false)
     val showTimeTable: StateFlow<Boolean> = _showTimeTable.asStateFlow()
+
+    /** A message to show when a time table could not be generated (e.g. not enough time). */
+    private val _timeTableAlert = MutableStateFlow<String?>(null)
+    val timeTableAlert: StateFlow<String?> = _timeTableAlert.asStateFlow()
 
     private val _showStudyPopups = MutableStateFlow(false)
     val showStudyPopups: StateFlow<Boolean> = _showStudyPopups.asStateFlow()
@@ -343,28 +349,33 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     // Study Manager
     // ---------------------------------------------------------------------
 
+    // A freshly added course/subject/topic/class never carries a Reminder or Deadline, so there
+    // is nothing to (re)schedule — skipping that work is what keeps adding instant.
+
     fun addStudyCourse(name: String) {
         preferences.addStudyCourse(name)
-        rescheduleStudyReminders()
     }
 
     fun addStudySubject(courseId: String, name: String) {
         preferences.addStudySubject(courseId, name)
-        rescheduleStudyReminders()
     }
 
     fun addStudyTopic(courseId: String, subjectId: String, name: String) {
         preferences.addStudyTopic(courseId, subjectId, name)
-        rescheduleStudyReminders()
     }
 
     fun addStudyClass(courseId: String, subjectId: String, topicId: String, name: String) {
         preferences.addStudyClass(courseId, subjectId, topicId, name)
-        rescheduleStudyReminders()
     }
 
     fun toggleStudyClass(courseId: String, subjectId: String, topicId: String, classId: String) {
         preferences.toggleStudyClass(courseId, subjectId, topicId, classId)
+        rescheduleStudyReminders()
+    }
+
+    /** Clears every study task's Reminder & Deadline (backs the Study Manager "Clean" button). */
+    fun clearAllStudySchedules() {
+        preferences.clearAllStudySchedules()
         rescheduleStudyReminders()
     }
 
@@ -437,28 +448,50 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         preferences.saveTimeTable(s.copy(windowStartMinutes = startMinutes, windowEndMinutes = endMinutes))
     }
 
-    fun setSubjectPlan(subjectId: String, durationMinutes: Int, restMinutes: Int) {
+    fun setTimeTableDays(days: Int) {
+        val s = preferences.timeTable.value
+        preferences.saveTimeTable(s.copy(days = days.coerceIn(1, 7)))
+    }
+
+    fun setSubjectPlan(subjectId: String, durationMinutes: Int, restMinutes: Int, sessionsPerDay: Int) {
         val s = preferences.timeTable.value
         val updated = s.subjectSettings.toMutableMap()
-        updated[subjectId] = SubjectPlanSettings(durationMinutes = durationMinutes, restMinutes = restMinutes)
+        updated[subjectId] = SubjectPlanSettings(
+            durationMinutes = durationMinutes,
+            restMinutes = restMinutes,
+            sessionsPerDay = sessionsPerDay.coerceIn(1, 3)
+        )
         preferences.saveTimeTable(s.copy(subjectSettings = updated))
     }
 
     fun generateTimeTable() {
         val settings = preferences.timeTable.value
         val courses = preferences.studyCourses.value
-        if (courses.isEmpty()) return
+        if (courses.isEmpty()) {
+            _timeTableAlert.value = "Add a course and a subject in Study Manager first."
+            return
+        }
         val result = TimeTablePlanner.generate(
             courses = courses,
             previousClassIds = settings.generatedClassIds.toSet(),
             settings = settings,
             todayStartMillis = startOfToday()
         )
+        if (result.error != null) {
+            // Not enough time — leave the existing plan untouched and surface the calculation.
+            _timeTableAlert.value = result.error
+            return
+        }
         preferences.saveStudyCourses(result.courses)
         preferences.saveTimeTable(
             settings.copy(entries = result.entries, generatedClassIds = result.generatedClassIds)
         )
+        _timeTableAlert.value = null
         rescheduleStudyReminders()
+    }
+
+    fun dismissTimeTableAlert() {
+        _timeTableAlert.value = null
     }
 
     private fun startOfToday(): Long = Calendar.getInstance().apply {
@@ -544,8 +577,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     } catch (_: Exception) { null }
 
+    private var studyRescheduleJob: Job? = null
+
+    /**
+     * (Re)arms the Study Manager alarms. This walks every task and touches the AlarmManager, so
+     * it runs off the main thread and debounces bursts of edits — doing it inline on the main
+     * thread is what made adding / completing a class feel laggy.
+     */
     private fun rescheduleStudyReminders() {
-        StudyReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.studyCourses.value)
+        studyRescheduleJob?.cancel()
+        studyRescheduleJob = viewModelScope.launch(Dispatchers.Default) {
+            delay(150)
+            StudyReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.studyCourses.value)
+        }
     }
 
     private fun rescheduleAlertReminders() {

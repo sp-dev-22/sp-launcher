@@ -40,6 +40,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -135,6 +136,7 @@ fun StudyManagerScreen(
     var addTarget by remember { mutableStateOf<AddTarget?>(null) }
     var scheduleTarget by remember { mutableStateOf<ScheduleTarget?>(null) }
     var renameRow by remember { mutableStateOf<StudyRow?>(null) }
+    var showCleanConfirm by remember { mutableStateOf(false) }
     var exportMenu by remember { mutableStateOf(false) }
     val jsonExport = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -204,6 +206,19 @@ fun StudyManagerScreen(
         }
 
         StudyProgressGraph(courses, isDarkTheme, Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+
+        // Clears the Reminder & Deadline of every study task in one tap.
+        if (courses.isNotEmpty()) {
+            OutlinedButton(
+                onClick = { showCleanConfirm = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 2.dp)
+                    .testTag("study_clean_btn")
+            ) {
+                Text("Clean all reminders & deadlines")
+            }
+        }
 
         if (courses.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -359,6 +374,28 @@ fun StudyManagerScreen(
                 renameRow = null
             },
             onDismiss = { renameRow = null }
+        )
+    }
+
+    if (showCleanConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCleanConfirm = false },
+            title = { Text("Clean reminders & deadlines", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "This clears the Reminder and Deadline of every study task. " +
+                        "Your completed / pending marks are kept. Continue?"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.clearAllStudySchedules()
+                    showCleanConfirm = false
+                }) { Text("Clean") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCleanConfirm = false }) { Text("Cancel") }
+            }
         )
     }
 

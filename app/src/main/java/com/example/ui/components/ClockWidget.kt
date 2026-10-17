@@ -53,7 +53,8 @@ fun ClockWidget(
         }
     }
 
-    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    // 12-hour clock, e.g. "8:19 PM" (was 24-hour "20:18").
+    val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val dateFormat = remember { SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()) }
 
     val formattedTime = timeFormat.format(currentTime)

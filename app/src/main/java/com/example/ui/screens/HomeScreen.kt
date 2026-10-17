@@ -2,7 +2,6 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,20 +13,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.data.model.AlertItem
 import com.example.data.model.AppInfo
 import com.example.data.model.StudyDueItem
@@ -85,23 +79,14 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Study classes due today / overdue
-            if (showStudyDue && studyDueItems.isNotEmpty()) {
+            // Study Manager status — progress + tasks due, in one combined card
+            if (showStudyDue && (studyDueItems.isNotEmpty() || studyProgress.total > 0)) {
                 Spacer(modifier = Modifier.height(8.dp))
                 StudyDueWidget(
                     items = studyDueItems,
+                    progress = studyProgress,
                     isDarkTheme = isDarkTheme,
                     onOpenStudyManager = onOpenStudyManager,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            // Study Manager progress
-            if (studyProgress.total > 0) {
-                Spacer(modifier = Modifier.height(8.dp))
-                StudyProgressCard(
-                    stats = studyProgress,
-                    onClick = onOpenStudyManager,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -176,31 +161,3 @@ fun HomeScreen(
     }
 }
 
-@Composable
-private fun StudyProgressCard(stats: StudyProgress, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clickable { onClick() }
-            .testTag("study_progress_card"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
-            Text(
-                text = "STUDY MANAGER",
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                letterSpacing = 1.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "${stats.completed}/${stats.total} ✅  [${stats.percent}%]",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
-    }
-}

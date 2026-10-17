@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,14 +56,20 @@ import java.util.Locale
 
 private val REST_OPTIONS = listOf(5, 10, 15, 20, 30, 60)
 
+/** Plan lengths the user can pick — kept short on purpose (a longer plan gets boring). */
+private val DAY_OPTIONS = listOf(1, 3, 7)
+
+/** Sessions per subject per day: single / double / triple. */
+private val SESSION_OPTIONS = listOf(1 to "Single", 2 to "Double", 3 to "Triple")
+
 @Composable
 fun TimeTableScreen(
     viewModel: LauncherViewModel,
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
     val courses by viewModel.studyCourses.collectAsState()
     val tt by viewModel.timeTable.collectAsState()
+    val alertMessage = viewModel.timeTableAlert.collectAsState().value
 
     // (courseName, subjectId, subjectName) for every subject in the tree
     val subjects = remember(courses) {
@@ -97,8 +105,9 @@ fun TimeTableScreen(
         }
 
         Text(
-            text = "Set how long each subject runs and the rest after it, pick your study window, " +
-                "and the app lays out the next 7 days from your un-completed classes.",
+            text = "Set how long each subject runs, how many sessions it gets (single / double / " +
+                "triple), and your study window — then pick 1, 3 or 7 days and the app lays the " +
+                "plan out from your un-completed classes.",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
         )
@@ -130,8 +139,38 @@ fun TimeTableScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // ---- Plan length (1 / 3 / 7 days) ----
+        Text("PLAN LENGTH", fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 1.sp)
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DAY_OPTIONS.forEach { opt ->
+                val selected = tt.days == opt
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            if (selected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                        .clickable { viewModel.setTimeTableDays(opt) }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .testTag("timetable_days_$opt")
+                ) {
+                    Text(
+                        text = if (opt == 1) "1 day" else "$opt days",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (selected) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // ---- Per-subject plan ----
-        Text("SUBJECT DURATION & REST", fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 1.sp)
+        Text("SUBJECT DURATION, SESSIONS & REST", fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 1.sp)
         Spacer(modifier = Modifier.height(6.dp))
 
         if (subjects.isEmpty()) {
@@ -147,8 +186,9 @@ fun TimeTableScreen(
                     courseName = courseName,
                     subjectName = subjectName,
                     cfg = cfg,
-                    onDuration = { viewModel.setSubjectPlan(subjectId, it, cfg.restMinutes) },
-                    onRest = { viewModel.setSubjectPlan(subjectId, cfg.durationMinutes, it) }
+                    onDuration = { viewModel.setSubjectPlan(subjectId, it, cfg.restMinutes, cfg.sessionsPerDay) },
+                    onRest = { viewModel.setSubjectPlan(subjectId, cfg.durationMinutes, it, cfg.sessionsPerDay) },
+                    onSessions = { viewModel.setSubjectPlan(subjectId, cfg.durationMinutes, cfg.restMinutes, it) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -166,7 +206,7 @@ fun TimeTableScreen(
         ) {
             Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Generate 7-day plan")
+            Text("Generate ${tt.days}-day plan")
         }
 
         Spacer(modifier = Modifier.height(18.dp))
@@ -199,6 +239,18 @@ fun TimeTableScreen(
 
         Spacer(modifier = Modifier.height(30.dp))
     }
+
+    // Shown when the plan could not be built (e.g. not enough time in the day).
+    if (alertMessage != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissTimeTableAlert() },
+            title = { Text("Time table not generated", fontWeight = FontWeight.Bold) },
+            text = { Text(alertMessage) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissTimeTableAlert() }) { Text("OK") }
+            }
+        )
+    }
 }
 
 @Composable
@@ -229,7 +281,8 @@ private fun SubjectPlanCard(
     subjectName: String,
     cfg: SubjectPlanSettings,
     onDuration: (Int) -> Unit,
-    onRest: (Int) -> Unit
+    onRest: (Int) -> Unit,
+    onSessions: (Int) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -265,7 +318,36 @@ private fun SubjectPlanCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            Text("Rest after this subject", fontSize = 13.sp)
+            // Sessions per day: single / double / triple
+            Text("Sessions per day", fontSize = 13.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                SESSION_OPTIONS.forEach { (count, label) ->
+                    val selected = cfg.sessionsPerDay == count
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surface
+                            )
+                            .clickable { onSessions(count) }
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                            .testTag("subject_sessions_${subjectName}_$count")
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 12.sp,
+                            color = if (selected) MaterialTheme.colorScheme.onPrimary
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text("Rest after each session", fontSize = 13.sp)
             Spacer(modifier = Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 REST_OPTIONS.forEach { opt ->

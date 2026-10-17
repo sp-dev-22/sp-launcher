@@ -8,14 +8,19 @@ a study planner, and a card-based study reminder system.
 
 ## Features
 
-- **Home** — clock/date, the Alerts widget (custom tags + optional reminders), a tasks
-  checklist, a "study due" card, a study-cards progress line, and favourite-app pills.
+- **Home** — a 12-hour clock (e.g. `8:19 PM`) with date, the Alerts widget (custom tags +
+  optional reminders), a tasks checklist, a single **Study Manager Status** card (progress +
+  tasks due over the next 7 days), and favourite-app pills.
 - **App Drawer** — search, launch, and long-press actions (favourite, app info, uninstall).
 - **Study Manager** — a Course › Subject › Topic › Class tree, with deadlines, reminders,
-  drag-and-drop reordering, and JSON / text / PDF export.
-- **Quick Time Table** — set a daily study window and a duration + rest per subject, and the
-  app lays out the next 7 days from your un-completed classes, writing each session's
-  reminder and deadline onto the real classes.
+  drag-and-drop reordering, and JSON / text / PDF export. Completing a task clears its
+  Reminder & Deadline automatically, and a **Clean** button clears every task's Reminder &
+  Deadline in one tap.
+- **Quick Time Table** — set a daily study window and, per subject, its duration, rest and
+  sessions per day (single / double / triple), pick a 1, 3 or 7 day plan, and the app lays it
+  out from your un-completed classes, writing each session's reminder and deadline onto the
+  real classes. If the day is too short for every session, nothing is generated and the app
+  shows the exact calculation (available vs. needed minutes).
 - **Study Popups** — card reminders delivered as notifications through the day: the front of
   the card, a "Show" button to reveal the back, then True/False. Correct cards are mastered;
   wrong cards come back after 1, 3, 5 and 7 days. Cards are imported from JSON files (one or

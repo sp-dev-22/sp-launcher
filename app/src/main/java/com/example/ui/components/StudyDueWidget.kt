@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.StudyDueItem
+import com.example.data.model.StudyProgress
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -46,20 +47,24 @@ private const val DAY_COUNT = 7
 private data class DayPage(val label: String, val items: List<StudyDueItem>)
 
 /**
- * Home card showing Study Manager tasks due over the next 7 days.
+ * Home card: "STUDY MANAGER STATUS".
  *
- * One page per day (Today, Tomorrow, then the following days) - swipe left/right to move
- * between days, exactly like the Notes widget. Overdue tasks are shown on the Today page.
- * Each page lists up to [MAX_ITEMS_PER_DAY] tasks, then a "+ N more" line.
+ * This single card replaces the old two-card setup (a due-list widget plus a separate progress
+ * widget) so the home screen stays tidy. It shows the overall Study Manager progress line and,
+ * below it, the tasks due over the next 7 days as one page per day (Today, Tomorrow, then the
+ * following days) — swipe left/right to move between days, exactly like the Notes widget.
+ * Overdue tasks are shown on the Today page. Each page lists up to [MAX_ITEMS_PER_DAY] tasks,
+ * then a "+ N more" line.
  */
 @Composable
 fun StudyDueWidget(
     items: List<StudyDueItem>,
+    progress: StudyProgress,
     isDarkTheme: Boolean,
     onOpenStudyManager: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (items.isEmpty()) return
+    if (items.isEmpty() && progress.total == 0) return
 
     val pages = remember(items) { buildDayPages(items) }
     val pagerState = rememberPagerState(pageCount = { pages.size })
@@ -88,7 +93,7 @@ fun StudyDueWidget(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "STUDY · NEXT 7 DAYS",
+                    text = "STUDY MANAGER STATUS",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
@@ -112,82 +117,110 @@ fun StudyDueWidget(
                 }
             }
 
+            if (progress.total > 0) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "${progress.completed}/${progress.total} tasks ✅  [${progress.percent}%]",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.testTag("study_status_progress")
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("study_due_pager")
-            ) { page ->
-                val day = pages[page]
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = day.label,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
-                        ),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    if (day.items.isEmpty()) {
+            if (items.isEmpty()) {
+                Text(
+                    text = "Nothing due in the next 7 days",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
+                    modifier = Modifier.padding(vertical = 6.dp)
+                )
+            } else {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("study_due_pager")
+                ) { page ->
+                    val day = pages[page]
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "Nothing due",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
-                            modifier = Modifier.padding(vertical = 6.dp)
+                            text = day.label,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = MaterialTheme.colorScheme.primary
                         )
-                    } else {
-                        day.items.take(MAX_ITEMS_PER_DAY).forEach { item ->
-                            DueRow(item)
-                        }
-                        if (dueToday > 0) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Color(0xFF2196F3).copy(alpha = 0.16f))
-                                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                                        .testTag("study_due_today")
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        if (day.items.isEmpty()) {
+                            Text(
+                                text = "Nothing due",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
+                        } else {
+                            day.items.take(MAX_ITEMS_PER_DAY).forEach { item ->
+                                DueRow(item)
+                            }
+                            if (day.items.size > MAX_ITEMS_PER_DAY) {
+                                Text(
+                                    text = "+ ${day.items.size - MAX_ITEMS_PER_DAY} more",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f),
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                            if (dueToday > 0) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    horizontalArrangement = Arrangement.End
                                 ) {
-                                    Text(
-                                        text = "$dueToday due today",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF2196F3)
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color(0xFF2196F3).copy(alpha = 0.16f))
+                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            .testTag("study_due_today")
+                                    ) {
+                                        Text(
+                                            text = "$dueToday due today",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF2196F3)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            if (pages.size > 1) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    repeat(pages.size) { index ->
-                        val selected = pagerState.currentPage == index
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 3.dp)
-                                .size(if (selected) 6.dp else 4.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (selected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f)
-                                )
-                        )
+                if (pages.size > 1) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        repeat(pages.size) { index ->
+                            val selected = pagerState.currentPage == index
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 3.dp)
+                                    .size(if (selected) 6.dp else 4.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f)
+                                    )
+                            )
+                        }
                     }
                 }
             }

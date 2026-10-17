@@ -344,10 +344,34 @@ class LauncherPreferences(context: Context) {
                             val completed = !clazz.isCompleted
                             clazz.copy(
                                 isCompleted = completed,
-                                completedAtMillis = if (completed) System.currentTimeMillis() else null
+                                completedAtMillis = if (completed) System.currentTimeMillis() else null,
+                                // Completing a task auto-clears its Reminder and Deadline so the
+                                // notification/timer does not linger for something already done.
+                                deadlineMillis = if (completed) null else clazz.deadlineMillis,
+                                alertMillis = if (completed) null else clazz.alertMillis
                             )
                         } else clazz
                     })
+                })
+            })
+        })
+    }
+
+    /**
+     * Clears the Reminder and Deadline of every study task — both topic-level and class-level —
+     * without touching completion marks. Backs the "Clean" button in Study Manager.
+     */
+    fun clearAllStudySchedules() {
+        saveStudyCourses(_studyCourses.value.map { course ->
+            course.copy(subjects = course.subjects.map { subject ->
+                subject.copy(topics = subject.topics.map { topic ->
+                    topic.copy(
+                        deadlineMillis = null,
+                        alertMillis = null,
+                        classes = topic.classes.map { clazz ->
+                            clazz.copy(deadlineMillis = null, alertMillis = null)
+                        }
+                    )
                 })
             })
         })
@@ -621,11 +645,13 @@ class LauncherPreferences(context: Context) {
     private fun timeTableToJson(s: TimeTableSettings): JSONObject = JSONObject().apply {
         put("windowStart", s.windowStartMinutes)
         put("windowEnd", s.windowEndMinutes)
+        put("days", s.days)
         val ss = JSONObject()
         for ((id, v) in s.subjectSettings) {
             ss.put(id, JSONObject().apply {
                 put("duration", v.durationMinutes)
                 put("rest", v.restMinutes)
+                put("sessions", v.sessionsPerDay)
             })
         }
         put("subjectSettings", ss)
@@ -664,7 +690,8 @@ class LauncherPreferences(context: Context) {
                     val v = ssObj.optJSONObject(k) ?: continue
                     subjectSettings[k] = SubjectPlanSettings(
                         durationMinutes = v.optInt("duration", 45),
-                        restMinutes = v.optInt("rest", 10)
+                        restMinutes = v.optInt("rest", 10),
+                        sessionsPerDay = v.optInt("sessions", 1)
                     )
                 }
             }
@@ -694,6 +721,7 @@ class LauncherPreferences(context: Context) {
             TimeTableSettings(
                 windowStartMinutes = obj.optInt("windowStart", 9 * 60),
                 windowEndMinutes = obj.optInt("windowEnd", 21 * 60),
+                days = obj.optInt("days", 7),
                 subjectSettings = subjectSettings,
                 entries = entries,
                 generatedClassIds = ids

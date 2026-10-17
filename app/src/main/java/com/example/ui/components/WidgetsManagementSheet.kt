@@ -144,7 +144,7 @@ fun WidgetsManagementSheet(
                 ToggleRow("Show Date", showDate, onToggleShowDate)
                 ToggleRow("Show Alerts Widget", showAlerts, onToggleShowAlerts)
                 ToggleRow("Show Tasks Checklist", showTasks, onToggleShowTasks)
-                ToggleRow("Show Study Due (Next 7 days)", showStudyDue, onToggleShowStudyDue)
+                ToggleRow("Show Study Manager Status", showStudyDue, onToggleShowStudyDue)
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
