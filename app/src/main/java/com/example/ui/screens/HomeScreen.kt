@@ -30,8 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.AlertItem
 import com.example.data.model.AppInfo
-import com.example.data.model.CardStats
 import com.example.data.model.StudyDueItem
+import com.example.data.model.StudyProgress
 import com.example.data.model.TaskItem
 import com.example.ui.components.AlertsWidget
 import com.example.ui.components.AppFavoriteChip
@@ -51,7 +51,7 @@ fun HomeScreen(
     tasks: List<TaskItem>,
     showStudyDue: Boolean,
     studyDueItems: List<StudyDueItem>,
-    cardsStats: CardStats,
+    studyProgress: StudyProgress,
     isDarkTheme: Boolean,
     onAppClick: (AppInfo) -> Unit,
     onAppLongClick: (AppInfo) -> Unit,
@@ -59,7 +59,6 @@ fun HomeScreen(
     onAddTask: (String) -> Unit,
     onOpenWidgetsManagement: () -> Unit,
     onOpenStudyManager: () -> Unit,
-    onOpenCards: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -97,12 +96,12 @@ fun HomeScreen(
                 )
             }
 
-            // Study cards progress
-            if (cardsStats.total > 0) {
+            // Study Manager progress
+            if (studyProgress.total > 0) {
                 Spacer(modifier = Modifier.height(8.dp))
-                CardsProgressCard(
-                    stats = cardsStats,
-                    onClick = onOpenCards,
+                StudyProgressCard(
+                    stats = studyProgress,
+                    onClick = onOpenStudyManager,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -178,18 +177,18 @@ fun HomeScreen(
 }
 
 @Composable
-private fun CardsProgressCard(stats: CardStats, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun StudyProgressCard(stats: StudyProgress, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .clickable { onClick() }
-            .testTag("cards_progress_card"),
+            .testTag("study_progress_card"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
             Text(
-                text = "STUDY CARDS",
+                text = "STUDY MANAGER",
                 fontWeight = FontWeight.Bold,
                 fontSize = 11.sp,
                 letterSpacing = 1.sp,
@@ -197,8 +196,9 @@ private fun CardsProgressCard(stats: CardStats, onClick: () -> Unit, modifier: M
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "${stats.mastered} of ${stats.total} mastered · ${stats.due} due · ${stats.masteredToday} today",
-                fontSize = 13.sp,
+                text = "${stats.completed}/${stats.total} ✅  [${stats.percent}%]",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onBackground
             )
         }
