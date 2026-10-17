@@ -38,3 +38,11 @@ data class CardStats(
     val due: Int = 0,
     val masteredToday: Int = 0
 )
+
+/** Study Manager progress: completed classes out of all classes. */
+data class StudyProgress(
+    val completed: Int = 0,
+    val total: Int = 0
+) {
+    val percent: Int get() = if (total == 0) 0 else (completed * 100) / total
+}
