@@ -37,8 +37,8 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-/** How many tasks to list on a day's page before the "+ N more" line. */
-private const val MAX_ITEMS_PER_DAY = 7
+/** How many tasks to list on a day's page (keeps the card from looking cluttered). */
+private const val MAX_ITEMS_PER_DAY = 3
 
 /** The 7 day-pages shown by the widget: Today .. Today + 6. */
 private const val DAY_COUNT = 7
@@ -64,6 +64,10 @@ fun StudyDueWidget(
     val pages = remember(items) { buildDayPages(items) }
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val overdueCount = items.count { it.isOverdue }
+    val dueToday = remember(items) {
+        val today = startOfDay(System.currentTimeMillis())
+        items.count { !it.isOverdue && startOfDay(it.deadlineMillis) == today }
+    }
 
     Card(
         modifier = modifier
@@ -140,16 +144,26 @@ fun StudyDueWidget(
                         day.items.take(MAX_ITEMS_PER_DAY).forEach { item ->
                             DueRow(item)
                         }
-                        if (day.items.size > MAX_ITEMS_PER_DAY) {
-                            Text(
-                                text = "+ ${day.items.size - MAX_ITEMS_PER_DAY} more",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .padding(top = 4.dp)
-                                    .clickable { onOpenStudyManager() }
-                                    .testTag("study_due_more")
-                            )
+                        if (dueToday > 0) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFF2196F3).copy(alpha = 0.16f))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        .testTag("study_due_today")
+                                ) {
+                                    Text(
+                                        text = "$dueToday due today",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF2196F3)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
