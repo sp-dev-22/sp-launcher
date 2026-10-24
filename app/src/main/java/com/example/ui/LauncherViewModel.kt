@@ -20,6 +20,7 @@ import com.example.data.model.SubjectPlanSettings
 import com.example.data.model.TimeTableSettings
 import com.example.data.model.StudyPopupSettings
 import com.example.service.AlertReminderScheduler
+import com.example.service.TaskReminderScheduler
 import com.example.service.StudyPopupScheduler
 import com.example.service.StudyReminderScheduler
 import com.example.util.CardFileParser
@@ -176,6 +177,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         // Re-arm any pending Alerts and Study Manager reminders on launch.
         rescheduleAlertReminders()
         rescheduleStudyReminders()
+        rescheduleTaskReminders()
         StudyPopupScheduler.reschedule(application, preferences.popupSettings.value)
     }
 
@@ -264,14 +266,22 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun toggleTask(id: String) {
         preferences.toggleTask(id)
+        rescheduleTaskReminders()
     }
 
     fun removeTask(id: String) {
+        TaskReminderScheduler.cancel(getApplication<Application>(), id)
         preferences.removeTask(id)
+        rescheduleTaskReminders()
     }
 
     fun updateTask(id: String, text: String) {
         preferences.updateTask(id, text)
+    }
+
+    fun updateTaskItem(task: TaskItem) {
+        preferences.updateTaskItem(task)
+        rescheduleTaskReminders()
     }
 
     fun moveTask(id: String, direction: Int) {
@@ -594,6 +604,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private fun rescheduleAlertReminders() {
         AlertReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.alerts.value)
+    }
+
+    private fun rescheduleTaskReminders() {
+        TaskReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.tasks.value)
     }
 
     // ---------------------------------------------------------------------

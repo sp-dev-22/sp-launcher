@@ -12,7 +12,9 @@ import com.example.data.model.StudyClass
 import com.example.data.model.StudyCourse
 import com.example.data.model.StudySubject
 import com.example.data.model.StudyTopic
+import com.example.data.model.RepeatRule
 import com.example.data.model.TaskItem
+import com.example.data.model.TaskPriority
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -144,6 +146,11 @@ class LauncherPreferences(context: Context) {
                 put("id", item.id)
                 put("text", item.text)
                 put("isCompleted", item.isCompleted)
+                item.dueMillis?.let { put("dueMillis", it) }
+                item.reminderMillis?.let { put("reminderMillis", it) }
+                put("repeat", item.repeat.name)
+                put("priority", item.priority.name)
+                item.completedAtMillis?.let { put("completedAtMillis", it) }
             }
             array.put(obj)
         }
@@ -159,8 +166,15 @@ class LauncherPreferences(context: Context) {
     }
 
     fun toggleTask(id: String) {
+        val now = System.currentTimeMillis()
         val current = _tasks.value.map {
-            if (it.id == id) it.copy(isCompleted = !it.isCompleted) else it
+            if (it.id == id) {
+                val completing = !it.isCompleted
+                it.copy(
+                    isCompleted = completing,
+                    completedAtMillis = if (completing) now else null
+                )
+            } else it
         }
         saveTasks(current)
     }
@@ -173,6 +187,11 @@ class LauncherPreferences(context: Context) {
     fun updateTask(id: String, text: String) {
         if (text.isBlank()) return
         saveTasks(_tasks.value.map { if (it.id == id) it.copy(text = text.trim()) else it })
+    }
+
+    /** Replaces a task wholesale (task editor: text + due + reminder + repeat + priority). */
+    fun updateTaskItem(task: TaskItem) {
+        saveTasks(_tasks.value.map { if (it.id == task.id) task else it })
     }
 
     fun moveTask(id: String, direction: Int) {
@@ -193,6 +212,7 @@ class LauncherPreferences(context: Context) {
                 put("content", item.content)
                 put("category", item.category)
                 item.reminderMillis?.let { put("reminderMillis", it) }
+                put("repeat", item.repeat.name)
             }
             array.put(obj)
         }
@@ -253,7 +273,14 @@ class LauncherPreferences(context: Context) {
                     TaskItem(
                         id = obj.getString("id"),
                         text = obj.getString("text"),
-                        isCompleted = obj.getBoolean("isCompleted")
+                        isCompleted = obj.getBoolean("isCompleted"),
+                        dueMillis = if (obj.has("dueMillis")) obj.optLong("dueMillis") else null,
+                        reminderMillis = if (obj.has("reminderMillis")) obj.optLong("reminderMillis") else null,
+                        repeat = runCatching { RepeatRule.valueOf(obj.optString("repeat", "NONE")) }
+                            .getOrDefault(RepeatRule.NONE),
+                        priority = runCatching { TaskPriority.valueOf(obj.optString("priority", "NONE")) }
+                            .getOrDefault(TaskPriority.NONE),
+                        completedAtMillis = if (obj.has("completedAtMillis")) obj.optLong("completedAtMillis") else null
                     )
                 )
             }
@@ -279,7 +306,9 @@ class LauncherPreferences(context: Context) {
                         title = obj.getString("title"),
                         content = obj.getString("content"),
                         category = obj.optString("category", ""),
-                        reminderMillis = if (obj.has("reminderMillis")) obj.optLong("reminderMillis") else null
+                        reminderMillis = if (obj.has("reminderMillis")) obj.optLong("reminderMillis") else null,
+                        repeat = runCatching { RepeatRule.valueOf(obj.optString("repeat", "NONE")) }
+                            .getOrDefault(RepeatRule.NONE)
                     )
                 )
             }
@@ -839,7 +868,7 @@ class LauncherPreferences(context: Context) {
         }
         val root = JSONObject()
         root.put("app", "SP Launcher")
-        root.put("formatVersion", 2)
+        root.put("formatVersion", 3)
         root.put("exportedAt", System.currentTimeMillis())
         root.put("prefs", data)
         return root.toString(2)

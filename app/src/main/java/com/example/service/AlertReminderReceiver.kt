@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import com.example.MainActivity
 import com.example.R
 import com.example.data.repository.LauncherPreferences
+import com.example.util.RepeatSchedule
 
 /**
  * Receives the alarms scheduled by [AlertReminderScheduler] and shows the reminder
@@ -74,6 +75,17 @@ class AlertReminderReceiver : BroadcastReceiver() {
             NotificationManagerCompat.from(context).notify("alert-$id".hashCode(), notification)
         } catch (_: SecurityException) {
             // Permission revoked between the check and the notify call — nothing to do.
+        }
+
+        // A repeating alert re-arms itself for the next occurrence.
+        val prefs = LauncherPreferences(context)
+        val alert = prefs.alerts.value.firstOrNull { it.id == id }
+        if (alert != null) {
+            val next = RepeatSchedule.next(alert.repeat, System.currentTimeMillis())
+            if (next != null) {
+                prefs.updateAlert(alert.copy(reminderMillis = next))
+                AlertReminderScheduler.rescheduleAll(context, prefs.alerts.value)
+            }
         }
     }
 

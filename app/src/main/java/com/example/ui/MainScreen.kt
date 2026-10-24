@@ -239,7 +239,7 @@ fun MainScreen(
                             onMoveAlert = { id, dir -> viewModel.moveAlert(id, dir) },
                             onAddTask = { viewModel.addTask(it) },
                             onRemoveTask = { viewModel.removeTask(it) },
-                            onEditTask = { id, text -> viewModel.updateTask(id, text) },
+                            onEditTaskItem = { task -> viewModel.updateTaskItem(task) },
                             onMoveTask = { id, dir -> viewModel.moveTask(id, dir) },
             onDismiss = { viewModel.setShowWidgetsDialog(false) }
         )

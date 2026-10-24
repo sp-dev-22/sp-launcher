@@ -14,6 +14,7 @@ class BootReceiver : BroadcastReceiver() {
                 val prefs = LauncherPreferences(context)
                 StudyReminderScheduler.rescheduleAll(context, prefs.studyCourses.value)
                 AlertReminderScheduler.rescheduleAll(context, prefs.alerts.value)
+                TaskReminderScheduler.rescheduleAll(context, prefs.tasks.value)
                 StudyPopupScheduler.reschedule(context, prefs.popupSettings.value)
             }
         }

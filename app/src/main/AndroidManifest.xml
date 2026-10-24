@@ -51,6 +51,11 @@
             android:name=".service.AlertReminderReceiver"
             android:exported="false" />
 
+        <!-- Fires task reminder notifications (Done / Snooze) -->
+        <receiver
+            android:name=".service.TaskReminderReceiver"
+            android:exported="false" />
+
         <!-- Delivers the Study Popups (MCQ + flashcards) and their answers -->
         <receiver
             android:name=".service.StudyPopupReceiver"

@@ -46,6 +46,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.TaskItem
+import com.example.data.model.TaskPriority
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Home-screen checklist. Tasks are now left/right swipeable (one card per task, with page dots)
@@ -188,21 +192,43 @@ fun TasksWidget(
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        Text(
-                            text = task.text,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
-                                fontSize = 14.sp
-                            ),
-                            color = if (task.isCompleted) {
-                                MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
-                            } else {
-                                MaterialTheme.colorScheme.onBackground
-                            },
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = task.text,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
+                                    fontSize = 14.sp
+                                ),
+                                color = if (task.isCompleted) {
+                                    MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
+                                } else {
+                                    MaterialTheme.colorScheme.onBackground
+                                },
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (task.priority != TaskPriority.NONE || task.dueMillis != null) {
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (task.priority != TaskPriority.NONE) {
+                                        PriorityChip(task.priority)
+                                        if (task.dueMillis != null) Spacer(modifier = Modifier.width(8.dp))
+                                    }
+                                    task.dueMillis?.let { due ->
+                                        Text(
+                                            text = dueLabel(due, task.isCompleted),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (!task.isCompleted && due < System.currentTimeMillis()) {
+                                                Color(0xFFE53935)
+                                            } else {
+                                                MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -240,5 +266,28 @@ fun TasksWidget(
                 )
             }
         }
+    }
+}
+
+private fun dueLabel(dueMillis: Long, isCompleted: Boolean): String {
+    val text = SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(dueMillis))
+    return if (!isCompleted && dueMillis < System.currentTimeMillis()) "Overdue \u00b7 $text" else "Due $text"
+}
+
+@Composable
+private fun PriorityChip(priority: TaskPriority) {
+    val (label, color) = when (priority) {
+        TaskPriority.HIGH -> "HIGH" to Color(0xFFE53935)
+        TaskPriority.MEDIUM -> "MED" to Color(0xFFF9A825)
+        TaskPriority.LOW -> "LOW" to Color(0xFF43A047)
+        TaskPriority.NONE -> return
+    }
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(color.copy(alpha = 0.18f))
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Text(text = label, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = color)
     }
 }
