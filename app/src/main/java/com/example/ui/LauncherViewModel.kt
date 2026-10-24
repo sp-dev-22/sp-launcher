@@ -185,7 +185,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         refreshAutoNightMode()
     }
 
+    private var lastAppsLoadMillis = 0L
+
+    /**
+     * Reloads the app list, but at most once every few seconds. onResume fires on every return
+     * to the launcher (Home press, unlock, closing an app), and a full package-manager scan each
+     * time is wasteful and can make the launcher feel sluggish.
+     */
+    fun refreshApps() {
+        val now = System.currentTimeMillis()
+        if (_installedApps.value.isNotEmpty() && now - lastAppsLoadMillis < 5_000L) return
+        loadApps()
+    }
+
     fun loadApps() {
+        lastAppsLoadMillis = System.currentTimeMillis()
         viewModelScope.launch {
             val apps = appRepository.getInstalledApps()
             _installedApps.value = apps
@@ -655,6 +669,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     } catch (_: Exception) { null }
 
     private var studyRescheduleJob: Job? = null
+    private var alertRescheduleJob: Job? = null
+    private var taskRescheduleJob: Job? = null
 
     /**
      * (Re)arms the Study Manager alarms. This walks every task and touches the AlarmManager, so
@@ -669,12 +685,22 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /** Same as [rescheduleStudyReminders]: off the main thread, and debounced. */
     private fun rescheduleAlertReminders() {
-        AlertReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.alerts.value)
+        alertRescheduleJob?.cancel()
+        alertRescheduleJob = viewModelScope.launch(Dispatchers.Default) {
+            delay(150)
+            AlertReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.alerts.value)
+        }
     }
 
+    /** Same as [rescheduleStudyReminders]: off the main thread, and debounced. */
     private fun rescheduleTaskReminders() {
-        TaskReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.tasks.value)
+        taskRescheduleJob?.cancel()
+        taskRescheduleJob = viewModelScope.launch(Dispatchers.Default) {
+            delay(150)
+            TaskReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.tasks.value)
+        }
     }
 
     // ---------------------------------------------------------------------
