@@ -39,6 +39,13 @@ class LauncherPreferences(context: Context) {
     private val _nightEndMinutes = MutableStateFlow(prefs.getInt(KEY_NIGHT_END, 7 * 60))
     val nightEndMinutes: StateFlow<Int> = _nightEndMinutes.asStateFlow()
 
+    // Hidden apps (kept out of the drawer) and the vault PIN (entered as a time).
+    private val _hiddenApps = MutableStateFlow(prefs.getStringSet(KEY_HIDDEN_APPS, emptySet()) ?: emptySet())
+    val hiddenApps: StateFlow<Set<String>> = _hiddenApps.asStateFlow()
+
+    private val _vaultPin = MutableStateFlow(prefs.getString(KEY_VAULT_PIN, "1234") ?: "1234")
+    val vaultPin: StateFlow<String> = _vaultPin.asStateFlow()
+
     // Selected colour theme key (see LauncherTheme): default / pink / green / saffron / seattle / ocean / lavender
     private val _themeKey = MutableStateFlow(prefs.getString(KEY_THEME, "default") ?: "default")
     val themeKey: StateFlow<String> = _themeKey.asStateFlow()
@@ -96,6 +103,18 @@ class LauncherPreferences(context: Context) {
         prefs.edit().putInt(KEY_NIGHT_START, startMinutes).putInt(KEY_NIGHT_END, endMinutes).apply()
         _nightStartMinutes.value = startMinutes
         _nightEndMinutes.value = endMinutes
+    }
+
+    fun setAppHidden(packageName: String, hidden: Boolean) {
+        val current = _hiddenApps.value.toMutableSet()
+        if (hidden) current.add(packageName) else current.remove(packageName)
+        prefs.edit().putStringSet(KEY_HIDDEN_APPS, current).apply()
+        _hiddenApps.value = current
+    }
+
+    fun setVaultPin(pin: String) {
+        prefs.edit().putString(KEY_VAULT_PIN, pin).apply()
+        _vaultPin.value = pin
     }
 
     fun setShowTime(enabled: Boolean) {
@@ -1008,6 +1027,8 @@ class LauncherPreferences(context: Context) {
         _autoNightMode.value = prefs.getBoolean(KEY_AUTO_NIGHT, false)
         _nightStartMinutes.value = prefs.getInt(KEY_NIGHT_START, 19 * 60)
         _nightEndMinutes.value = prefs.getInt(KEY_NIGHT_END, 7 * 60)
+        _hiddenApps.value = prefs.getStringSet(KEY_HIDDEN_APPS, emptySet()) ?: emptySet()
+        _vaultPin.value = prefs.getString(KEY_VAULT_PIN, "1234") ?: "1234"
         _favorites.value = loadFavorites()
         _showTime.value = prefs.getBoolean(KEY_SHOW_TIME, true)
         _showDate.value = prefs.getBoolean(KEY_SHOW_DATE, true)
@@ -1028,6 +1049,8 @@ class LauncherPreferences(context: Context) {
         private const val KEY_AUTO_NIGHT = "auto_night"
         private const val KEY_NIGHT_START = "night_start_minutes"
         private const val KEY_NIGHT_END = "night_end_minutes"
+        private const val KEY_HIDDEN_APPS = "hidden_apps"
+        private const val KEY_VAULT_PIN = "vault_pin"
         private const val KEY_FAVORITES = "favorite_packages"
         private const val KEY_SHOW_TIME = "show_time"
         private const val KEY_SHOW_DATE = "show_date"

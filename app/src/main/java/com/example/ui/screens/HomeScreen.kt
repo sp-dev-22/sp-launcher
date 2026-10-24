@@ -54,6 +54,8 @@ fun HomeScreen(
     onOpenWidgetsManagement: () -> Unit,
     onOpenStudyManager: () -> Unit,
     onOpenCalendar: () -> Unit,
+    onTimeClick: () -> Unit,
+    clockOverrideMillis: Long?,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -78,6 +80,8 @@ fun HomeScreen(
                 showTime = showTime,
                 showDate = showDate,
                 onDateClick = onOpenCalendar,
+                onTimeClick = onTimeClick,
+                overrideMillis = clockOverrideMillis,
                 modifier = Modifier.fillMaxWidth()
             )
 

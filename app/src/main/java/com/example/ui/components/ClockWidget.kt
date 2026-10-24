@@ -1,8 +1,5 @@
 package com.example.ui.components
 
-import android.content.Context
-import android.content.Intent
-import android.provider.AlarmClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,7 +16,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -39,11 +35,12 @@ fun ClockWidget(
     showTime: Boolean,
     showDate: Boolean,
     onDateClick: () -> Unit,
+    onTimeClick: () -> Unit,
+    overrideMillis: Long?,
     modifier: Modifier = Modifier
 ) {
     if (!showTime && !showDate) return
 
-    val context = LocalContext.current
     var currentTime by remember { mutableStateOf(Date()) }
 
     LaunchedEffect(Unit) {
@@ -57,7 +54,8 @@ fun ClockWidget(
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val dateFormat = remember { SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()) }
 
-    val formattedTime = timeFormat.format(currentTime)
+    // A "set time" decoy may pin the clock to a different time for a few seconds.
+    val formattedTime = timeFormat.format(Date(overrideMillis ?: currentTime.time))
     val formattedDate = dateFormat.format(currentTime)
 
     Column(
@@ -82,7 +80,7 @@ fun ClockWidget(
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { openClockApp(context) }
+                        .clickable { onTimeClick() }
                         .testTag("clock_time_text")
                 )
                 Text(
@@ -107,7 +105,7 @@ fun ClockWidget(
                 color = MaterialTheme.colorScheme.onBackground,
                 letterSpacing = (-1).sp,
                 modifier = Modifier
-                    .clickable { openClockApp(context) }
+                    .clickable { onTimeClick() }
                     .testTag("clock_time_text")
             )
         } else {
@@ -126,21 +124,4 @@ fun ClockWidget(
     }
 }
 
-private fun openClockApp(context: Context) {
-    try {
-        val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        context.startActivity(intent)
-    } catch (_: Exception) {
-        try {
-            val clockIntent = context.packageManager.getLaunchIntentForPackage("com.google.android.deskclock")
-                ?: context.packageManager.getLaunchIntentForPackage("com.android.deskclock")
-            clockIntent?.let {
-                it.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                context.startActivity(it)
-            }
-        } catch (_: Exception) {}
-    }
-}
 

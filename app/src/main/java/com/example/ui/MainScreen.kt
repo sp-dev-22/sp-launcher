@@ -26,12 +26,14 @@ import com.example.ui.screens.BackupRestoreScreen
 import com.example.ui.screens.CalendarScreen
 import com.example.ui.screens.CardsScreen
 import com.example.ui.screens.DrawerScreen
+import com.example.ui.screens.HiddenAppsScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StudyManagerScreen
 import com.example.ui.screens.SearchScreen
 import com.example.ui.screens.StatsScreen
 import com.example.ui.screens.StudyPopupsScreen
+import com.example.ui.screens.TimeGateScreen
 import com.example.ui.screens.TimeTableScreen
 import com.example.ui.theme.LauncherTheme
 import kotlinx.coroutines.delay
@@ -82,6 +84,10 @@ fun MainScreen(
     val showCalendar by viewModel.showCalendar.collectAsState()
     val showStats by viewModel.showStats.collectAsState()
     val showSearch by viewModel.showSearch.collectAsState()
+    val showTimeGate by viewModel.showTimeGate.collectAsState()
+    val showHiddenApps by viewModel.showHiddenApps.collectAsState()
+    val clockOverride by viewModel.clockOverride.collectAsState()
+    val drawerApps by viewModel.drawerApps.collectAsState()
     val showStudyPopups by viewModel.showStudyPopups.collectAsState()
     val showCards by viewModel.showCards.collectAsState()
     val studyProgress by viewModel.studyProgress.collectAsState()
@@ -91,9 +97,11 @@ fun MainScreen(
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
-        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar || showStats || showSearch
+        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar || showStats || showSearch || showTimeGate || showHiddenApps
     ) {
         when {
+            showTimeGate -> viewModel.setShowTimeGate(false)
+            showHiddenApps -> viewModel.setShowHiddenApps(false)
             showCards -> viewModel.setShowCards(false)
             showCalendar -> viewModel.setShowCalendar(false)
             showStats -> viewModel.setShowStats(false)
@@ -159,13 +167,15 @@ fun MainScreen(
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             onOpenCalendar = { viewModel.setShowCalendar(true) },
+                            onTimeClick = { viewModel.setShowTimeGate(true) },
+                            clockOverrideMillis = clockOverride,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
                     2 -> {
                         // Right Page: App Drawer
                         DrawerScreen(
-                            apps = allApps,
+                            apps = drawerApps,
                             onOpenSearch = { viewModel.setShowSearch(true) },
                             isDarkTheme = isDarkTheme,
                             onAppClick = { app -> viewModel.launchApp(app) },
@@ -249,6 +259,20 @@ fun MainScreen(
                 SearchScreen(
                     viewModel = viewModel,
                     onBack = { viewModel.setShowSearch(false) }
+                )
+            }
+
+            // Secret "set time" door -> hidden apps (the vault)
+            if (showTimeGate) {
+                TimeGateScreen(
+                    viewModel = viewModel,
+                    onBack = { viewModel.setShowTimeGate(false) }
+                )
+            }
+            if (showHiddenApps) {
+                HiddenAppsScreen(
+                    viewModel = viewModel,
+                    onBack = { viewModel.setShowHiddenApps(false) }
                 )
             }
 

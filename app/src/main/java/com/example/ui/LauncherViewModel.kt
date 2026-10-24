@@ -66,6 +66,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val timeTable = preferences.timeTable
     val flashcardBank = preferences.flashcardBank
     val popupSettings = preferences.popupSettings
+    val hiddenApps = preferences.hiddenApps
+    val vaultPin = preferences.vaultPin
 
     // Study Manager tree
     val studyCourses: StateFlow<List<StudyCourse>> = preferences.studyCourses
@@ -133,6 +135,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showSearch = MutableStateFlow(false)
     val showSearch: StateFlow<Boolean> = _showSearch.asStateFlow()
 
+    private val _showTimeGate = MutableStateFlow(false)
+    val showTimeGate: StateFlow<Boolean> = _showTimeGate.asStateFlow()
+
+    private val _showHiddenApps = MutableStateFlow(false)
+    val showHiddenApps: StateFlow<Boolean> = _showHiddenApps.asStateFlow()
+
+    // When set, the Home clock shows this time instead of the device time (the decoy).
+    private val _clockOverride = MutableStateFlow<Long?>(null)
+    val clockOverride: StateFlow<Long?> = _clockOverride.asStateFlow()
+    private var clockOverrideJob: Job? = null
+
     /** A message to show when a time table could not be generated (e.g. not enough time). */
     private val _timeTableAlert = MutableStateFlow<String?>(null)
     val timeTableAlert: StateFlow<String?> = _timeTableAlert.asStateFlow()
@@ -175,6 +188,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         combine(_installedApps, _searchQuery) { apps, query ->
             if (query.isBlank()) apps
             else apps.filter { it.label.contains(query, ignoreCase = true) }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // What the drawer and search actually show (hidden apps removed).
+    val drawerApps: StateFlow<List<AppInfo>> =
+        combine(_installedApps, preferences.hiddenApps) { apps, hidden ->
+            if (hidden.isEmpty()) apps else apps.filter { it.packageName !in hidden }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Favorite apps for the Home Screen
@@ -413,6 +432,44 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowSearch(show: Boolean) {
         _showSearch.value = show
+    }
+
+    fun setShowTimeGate(show: Boolean) {
+        _showTimeGate.value = show
+    }
+
+    fun setShowHiddenApps(show: Boolean) {
+        _showHiddenApps.value = show
+    }
+
+    // ---- hidden apps / vault ----
+
+    fun setAppHidden(packageName: String, hidden: Boolean) {
+        preferences.setAppHidden(packageName, hidden)
+    }
+
+    fun setVaultPin(pin: String) {
+        preferences.setVaultPin(pin)
+    }
+
+    /** True when the hour/minute typed on the decoy "set time" screen is the vault PIN. */
+    fun checkVaultPin(hour: Int, minute: Int): Boolean =
+        "%02d%02d".format(hour, minute) == preferences.vaultPin.value
+
+    /** Pins the Home clock to [hour]:[minute] for 30 seconds (the decoy), then it reverts. */
+    fun setClockOverride(hour: Int, minute: Int) {
+        val cal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, hour)
+            set(java.util.Calendar.MINUTE, minute)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        _clockOverride.value = cal.timeInMillis
+        clockOverrideJob?.cancel()
+        clockOverrideJob = viewModelScope.launch {
+            delay(30_000)
+            _clockOverride.value = null
+        }
     }
 
     fun setShowStudyPopups(show: Boolean) {

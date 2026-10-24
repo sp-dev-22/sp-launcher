@@ -48,7 +48,7 @@ fun SearchScreen(
     viewModel: LauncherViewModel,
     onBack: () -> Unit
 ) {
-    val apps by viewModel.installedApps.collectAsState()
+    val apps by viewModel.drawerApps.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
     val alerts by viewModel.alerts.collectAsState()
     val courses by viewModel.studyCourses.collectAsState()
