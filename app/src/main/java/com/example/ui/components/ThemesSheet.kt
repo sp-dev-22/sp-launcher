@@ -26,23 +26,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import android.app.TimePickerDialog
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.LauncherTheme
 import com.example.ui.theme.previewColorFor
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThemesSheet(
     currentTheme: LauncherTheme,
     isDarkTheme: Boolean,
+    autoNightEnabled: Boolean,
+    nightStartMinutes: Int,
+    nightEndMinutes: Int,
     onSelectTheme: (LauncherTheme) -> Unit,
     onToggleNightMode: (Boolean) -> Unit,
+    onToggleAutoNight: (Boolean) -> Unit,
+    onSetNightWindow: (Int, Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val context = LocalContext.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -72,6 +84,50 @@ fun ThemesSheet(
             ) {
                 Text("Night Mode", style = MaterialTheme.typography.bodyLarge)
                 Switch(checked = isDarkTheme, onCheckedChange = onToggleNightMode)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Auto night mode", style = MaterialTheme.typography.bodyLarge)
+                Switch(checked = autoNightEnabled, onCheckedChange = onToggleAutoNight)
+            }
+
+            if (autoNightEnabled) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Night from", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = formatMinutes(nightStartMinutes),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { pickTime(context, nightStartMinutes) { onSetNightWindow(it, nightEndMinutes) } }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Night until", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = formatMinutes(nightEndMinutes),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { pickTime(context, nightEndMinutes) { onSetNightWindow(nightStartMinutes, it) } }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
@@ -107,4 +163,22 @@ fun ThemesSheet(
             }
         }
     }
+}
+
+private fun formatMinutes(minutes: Int): String {
+    val cal = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, minutes / 60)
+        set(Calendar.MINUTE, minutes % 60)
+    }
+    return SimpleDateFormat("hh:mm a", Locale.getDefault()).format(cal.time)
+}
+
+private fun pickTime(context: Context, initialMinutes: Int, onPicked: (Int) -> Unit) {
+    TimePickerDialog(
+        context,
+        { _, hour, minute -> onPicked(hour * 60 + minute) },
+        initialMinutes / 60,
+        initialMinutes % 60,
+        false
+    ).show()
 }

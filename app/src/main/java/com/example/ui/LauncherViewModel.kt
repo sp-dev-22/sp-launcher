@@ -60,6 +60,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val themeKey = preferences.themeKey
     val alerts = preferences.alerts
     val tasks = preferences.tasks
+    val autoNightMode = preferences.autoNightMode
+    val nightStartMinutes = preferences.nightStartMinutes
+    val nightEndMinutes = preferences.nightEndMinutes
     val timeTable = preferences.timeTable
     val flashcardBank = preferences.flashcardBank
     val popupSettings = preferences.popupSettings
@@ -179,6 +182,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         rescheduleStudyReminders()
         rescheduleTaskReminders()
         StudyPopupScheduler.reschedule(application, preferences.popupSettings.value)
+        refreshAutoNightMode()
     }
 
     fun loadApps() {
@@ -218,6 +222,30 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setNightMode(enabled: Boolean) {
         preferences.setNightMode(enabled)
+    }
+
+    fun setAutoNightMode(enabled: Boolean) {
+        preferences.setAutoNightMode(enabled)
+        refreshAutoNightMode()
+    }
+
+    fun setNightWindow(startMinutes: Int, endMinutes: Int) {
+        preferences.setNightWindow(startMinutes, endMinutes)
+        refreshAutoNightMode()
+    }
+
+    /** Applies the auto night schedule. Does nothing when auto night is off. */
+    fun refreshAutoNightMode() {
+        if (!preferences.autoNightMode.value) return
+        setNightMode(isNightNow())
+    }
+
+    private fun isNightNow(): Boolean {
+        val now = java.util.Calendar.getInstance()
+        val minutes = now.get(java.util.Calendar.HOUR_OF_DAY) * 60 + now.get(java.util.Calendar.MINUTE)
+        val start = preferences.nightStartMinutes.value
+        val end = preferences.nightEndMinutes.value
+        return if (start <= end) minutes in start until end else (minutes >= start || minutes < end)
     }
 
     fun setShowTime(enabled: Boolean) {
@@ -270,9 +298,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun removeTask(id: String) {
+        val index = preferences.tasks.value.indexOfFirst { it.id == id }
+        val removed = if (index >= 0) preferences.tasks.value[index] else null
         TaskReminderScheduler.cancel(getApplication<Application>(), id)
         preferences.removeTask(id)
         rescheduleTaskReminders()
+        if (removed != null) offerUndo("Task deleted") { preferences.restoreTask(removed, index) }
     }
 
     fun updateTask(id: String, text: String) {
@@ -301,13 +332,24 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun removeAlert(id: String) {
+        val index = preferences.alerts.value.indexOfFirst { it.id == id }
+        val removed = if (index >= 0) preferences.alerts.value[index] else null
         AlertReminderScheduler.cancel(getApplication(), id)
         preferences.removeAlert(id)
         rescheduleAlertReminders()
+        if (removed != null) offerUndo("Note deleted") { preferences.restoreAlert(removed, index) }
     }
 
     fun moveAlert(id: String, direction: Int) {
         preferences.moveAlert(id, direction)
+    }
+
+    fun setAlertPinned(id: String, pinned: Boolean) {
+        preferences.setAlertPinned(id, pinned)
+    }
+
+    fun setAlertArchived(id: String, archived: Boolean) {
+        preferences.setAlertArchived(id, archived)
     }
 
     fun selectAppForActions(app: AppInfo?) {
@@ -390,23 +432,45 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun deleteStudyCourse(courseId: String) {
+        val index = preferences.studyCourses.value.indexOfFirst { it.id == courseId }
+        val removed = if (index >= 0) preferences.studyCourses.value[index] else null
         preferences.deleteStudyCourse(courseId)
         rescheduleStudyReminders()
+        if (removed != null) offerUndo("Course deleted") { preferences.restoreStudyCourse(removed, index) }
     }
 
     fun deleteStudySubject(courseId: String, subjectId: String) {
+        val course = preferences.studyCourses.value.firstOrNull { it.id == courseId }
+        val index = course?.subjects?.indexOfFirst { it.id == subjectId } ?: -1
+        val removed = if (index >= 0) course?.subjects?.get(index) else null
         preferences.deleteStudySubject(courseId, subjectId)
         rescheduleStudyReminders()
+        if (removed != null) offerUndo("Subject deleted") { preferences.restoreStudySubject(courseId, removed, index) }
     }
 
     fun deleteStudyTopic(courseId: String, subjectId: String, topicId: String) {
+        val subject = preferences.studyCourses.value.firstOrNull { it.id == courseId }
+            ?.subjects?.firstOrNull { it.id == subjectId }
+        val index = subject?.topics?.indexOfFirst { it.id == topicId } ?: -1
+        val removed = if (index >= 0) subject?.topics?.get(index) else null
         preferences.deleteStudyTopic(courseId, subjectId, topicId)
         rescheduleStudyReminders()
+        if (removed != null) offerUndo("Topic deleted") {
+            preferences.restoreStudyTopic(courseId, subjectId, removed, index)
+        }
     }
 
     fun deleteStudyClass(courseId: String, subjectId: String, topicId: String, classId: String) {
+        val topic = preferences.studyCourses.value.firstOrNull { it.id == courseId }
+            ?.subjects?.firstOrNull { it.id == subjectId }
+            ?.topics?.firstOrNull { it.id == topicId }
+        val index = topic?.classes?.indexOfFirst { it.id == classId } ?: -1
+        val removed = if (index >= 0) topic?.classes?.get(index) else null
         preferences.deleteStudyClass(courseId, subjectId, topicId, classId)
         rescheduleStudyReminders()
+        if (removed != null) offerUndo("Class deleted") {
+            preferences.restoreStudyClass(courseId, subjectId, topicId, removed, index)
+        }
     }
 
     // ---- Drag & drop reordering (moves an item among its siblings) ----
@@ -565,7 +629,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun deleteCard(id: String) {
+        val index = preferences.flashcardBank.value.indexOfFirst { it.id == id }
+        val removed = if (index >= 0) preferences.flashcardBank.value[index] else null
         preferences.deleteCard(id)
+        if (removed != null) offerUndo("Card deleted") { preferences.restoreCard(removed, index) }
     }
 
     /** Turns a whole deck on or off for the popups. */
@@ -608,6 +675,32 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private fun rescheduleTaskReminders() {
         TaskReminderScheduler.rescheduleAll(getApplication<Application>(), preferences.tasks.value)
+    }
+
+    // ---------------------------------------------------------------------
+    // Undo (delete-undo snackbar)
+    // ---------------------------------------------------------------------
+
+    private val _undoMessage = MutableStateFlow<String?>(null)
+    val undoMessage: StateFlow<String?> = _undoMessage.asStateFlow()
+    private var lastUndo: (() -> Unit)? = null
+
+    private fun offerUndo(message: String, restore: () -> Unit) {
+        lastUndo = restore
+        // null then the message, so the bar re-shows even when the text is identical.
+        _undoMessage.value = null
+        _undoMessage.value = message
+    }
+
+    fun performUndo() {
+        lastUndo?.invoke()
+        lastUndo = null
+        _undoMessage.value = null
+    }
+
+    fun clearUndo() {
+        lastUndo = null
+        _undoMessage.value = null
     }
 
     // ---------------------------------------------------------------------

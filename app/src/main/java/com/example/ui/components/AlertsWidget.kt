@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.PushPin
 import com.example.data.model.AlertItem
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -51,7 +52,9 @@ fun AlertsWidget(
     onManage: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (items.isEmpty()) {
+    // Archived notes are hidden here; pinned ones float to the top.
+    val visible = items.filter { !it.archived }.sortedByDescending { it.pinned }
+    if (visible.isEmpty()) {
         Card(
             modifier = modifier
                 .fillMaxWidth()
@@ -85,7 +88,7 @@ fun AlertsWidget(
         return
     }
 
-    val pagerState = rememberPagerState(pageCount = { items.size })
+    val pagerState = rememberPagerState(pageCount = { visible.size })
 
     Column(
         modifier = modifier
@@ -94,7 +97,7 @@ fun AlertsWidget(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth()) { page ->
-            val item = items[page]
+            val item = visible[page]
             val chipBg = tagChipBackground(item.category, isDarkTheme)
             val chipFg = tagChipForeground(item.category, isDarkTheme)
 
@@ -126,6 +129,16 @@ fun AlertsWidget(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
+
+                        if (item.pinned) {
+                            Icon(
+                                imageVector = Icons.Default.PushPin,
+                                contentDescription = "Pinned",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
 
                         if (item.category.isNotBlank()) {
                             Spacer(modifier = Modifier.width(8.dp))
@@ -177,13 +190,13 @@ fun AlertsWidget(
             }
         }
 
-        if (items.size > 1) {
+        if (visible.size > 1) {
             Spacer(modifier = Modifier.height(4.dp))
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                repeat(items.size) { index ->
+                repeat(visible.size) { index ->
                     val selected = pagerState.currentPage == index
                     Box(
                         modifier = Modifier

@@ -22,7 +22,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -81,6 +84,8 @@ fun WidgetsManagementSheet(
     onEditAlert: (AlertItem) -> Unit,
     onRemoveAlert: (String) -> Unit,
     onMoveAlert: (String, Int) -> Unit,
+    onPinAlert: (String, Boolean) -> Unit,
+    onArchiveAlert: (String, Boolean) -> Unit,
     onAddTask: (String) -> Unit,
     onRemoveTask: (String) -> Unit,
     onEditTaskItem: (TaskItem) -> Unit,
@@ -160,7 +165,7 @@ fun WidgetsManagementSheet(
             }
 
             // Existing alerts — tap a card to edit it
-            items(alerts, key = { it.id }) { alert ->
+            items(alerts.filter { !it.archived }, key = { it.id }) { alert ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -231,6 +236,29 @@ fun WidgetsManagementSheet(
                             }
                         }
 
+                        IconButton(
+                            onClick = { onPinAlert(alert.id, !alert.pinned) },
+                            modifier = Modifier.size(34.dp).testTag("alert_pin_${alert.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PushPin,
+                                contentDescription = if (alert.pinned) "Unpin" else "Pin",
+                                tint = if (alert.pinned) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { onArchiveAlert(alert.id, true) },
+                            modifier = Modifier.size(34.dp).testTag("alert_archive_${alert.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Archive,
+                                contentDescription = "Archive",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit Alert",
@@ -244,6 +272,54 @@ fun WidgetsManagementSheet(
                                 contentDescription = "Delete Alert",
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Archived notes — kept, just out of the way
+            val archivedAlerts = alerts.filter { it.archived }
+            if (archivedAlerts.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "ARCHIVED (${archivedAlerts.size})",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+                items(archivedAlerts, key = { "arch-" + it.id }) { alert ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = alert.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                            )
+                            if (alert.content.isNotBlank()) {
+                                Text(
+                                    text = alert.content,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = { onArchiveAlert(alert.id, false) },
+                            modifier = Modifier.size(34.dp).testTag("alert_unarchive_${alert.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Unarchive,
+                                contentDescription = "Unarchive",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
