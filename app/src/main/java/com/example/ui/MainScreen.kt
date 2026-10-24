@@ -29,6 +29,7 @@ import com.example.ui.screens.DrawerScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StudyManagerScreen
+import com.example.ui.screens.SearchScreen
 import com.example.ui.screens.StatsScreen
 import com.example.ui.screens.StudyPopupsScreen
 import com.example.ui.screens.TimeTableScreen
@@ -55,8 +56,6 @@ fun MainScreen(
 
     val isDarkTheme by viewModel.isNightMode.collectAsState()
     val allApps by viewModel.installedApps.collectAsState()
-    val filteredApps by viewModel.filteredApps.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
     val favoriteAppInfos by viewModel.favoriteAppInfos.collectAsState()
     val favoritePackages by viewModel.favorites.collectAsState()
 
@@ -82,6 +81,7 @@ fun MainScreen(
     val showTimeTable by viewModel.showTimeTable.collectAsState()
     val showCalendar by viewModel.showCalendar.collectAsState()
     val showStats by viewModel.showStats.collectAsState()
+    val showSearch by viewModel.showSearch.collectAsState()
     val showStudyPopups by viewModel.showStudyPopups.collectAsState()
     val showCards by viewModel.showCards.collectAsState()
     val studyProgress by viewModel.studyProgress.collectAsState()
@@ -91,12 +91,13 @@ fun MainScreen(
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
-        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar || showStats
+        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar || showStats || showSearch
     ) {
         when {
             showCards -> viewModel.setShowCards(false)
             showCalendar -> viewModel.setShowCalendar(false)
             showStats -> viewModel.setShowStats(false)
+            showSearch -> viewModel.setShowSearch(false)
             showStudyPopups -> viewModel.setShowStudyPopups(false)
             showTimeTable -> viewModel.setShowTimeTable(false)
             showStudyManager -> viewModel.setShowStudyManager(false)
@@ -164,9 +165,8 @@ fun MainScreen(
                     2 -> {
                         // Right Page: App Drawer
                         DrawerScreen(
-                            apps = filteredApps,
-                            searchQuery = searchQuery,
-                            onSearchQueryChange = { query -> viewModel.setSearchQuery(query) },
+                            apps = allApps,
+                            onOpenSearch = { viewModel.setShowSearch(true) },
                             isDarkTheme = isDarkTheme,
                             onAppClick = { app -> viewModel.launchApp(app) },
                             onAppLongClick = { app -> viewModel.selectAppForActions(app) },
@@ -241,6 +241,14 @@ fun MainScreen(
                 StatsScreen(
                     viewModel = viewModel,
                     onBack = { viewModel.setShowStats(false) }
+                )
+            }
+
+            // Fullscreen Universal Search
+            if (showSearch) {
+                SearchScreen(
+                    viewModel = viewModel,
+                    onBack = { viewModel.setShowSearch(false) }
                 )
             }
 

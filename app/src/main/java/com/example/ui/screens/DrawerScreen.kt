@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -39,8 +40,7 @@ import com.example.ui.components.AppDrawerItem
 @Composable
 fun DrawerScreen(
     apps: List<AppInfo>,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
+    onOpenSearch: () -> Unit,
     isDarkTheme: Boolean,
     onAppClick: (AppInfo) -> Unit,
     onAppLongClick: (AppInfo) -> Unit,
@@ -63,7 +63,7 @@ fun DrawerScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (searchQuery.isNotBlank()) "No apps found for '$searchQuery'" else "No apps installed",
+                        text = "No apps installed",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                     )
@@ -86,7 +86,7 @@ fun DrawerScreen(
             }
         }
 
-        // Bottom Search Bar matching Screenshot 2
+        // Search entry - opens the universal search screen
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -101,7 +101,9 @@ fun DrawerScreen(
                     .height(54.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(searchBarColor)
-                    .padding(horizontal = 16.dp),
+                    .clickable { onOpenSearch() }
+                    .padding(horizontal = 16.dp)
+                    .testTag("drawer_search_button"),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -110,48 +112,13 @@ fun DrawerScreen(
                     tint = placeholderColor,
                     modifier = Modifier.size(22.dp)
                 )
-
                 Spacer(modifier = Modifier.width(10.dp))
-
-                TextField(
-                    value = searchQuery,
-                    onValueChange = onSearchQueryChange,
-                    placeholder = {
-                        Text(
-                            text = "Search app…",
-                            color = placeholderColor,
-                            fontSize = 15.sp
-                        )
-                    },
-                    singleLine = true,
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = MaterialTheme.colorScheme.primary,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("drawer_search_input")
+                Text(
+                    text = "Search apps, tasks, notes…",
+                    color = placeholderColor,
+                    fontSize = 15.sp,
+                    modifier = Modifier.weight(1f)
                 )
-
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(
-                        onClick = { onSearchQueryChange("") },
-                        modifier = Modifier.size(28.dp).testTag("clear_search_btn")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Clear search",
-                            tint = placeholderColor,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
             }
         }
     }

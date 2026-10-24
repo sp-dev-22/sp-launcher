@@ -130,6 +130,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showStats = MutableStateFlow(false)
     val showStats: StateFlow<Boolean> = _showStats.asStateFlow()
 
+    private val _showSearch = MutableStateFlow(false)
+    val showSearch: StateFlow<Boolean> = _showSearch.asStateFlow()
+
     /** A message to show when a time table could not be generated (e.g. not enough time). */
     private val _timeTableAlert = MutableStateFlow<String?>(null)
     val timeTableAlert: StateFlow<String?> = _timeTableAlert.asStateFlow()
@@ -406,6 +409,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowStats(show: Boolean) {
         _showStats.value = show
+    }
+
+    fun setShowSearch(show: Boolean) {
+        _showSearch.value = show
     }
 
     fun setShowStudyPopups(show: Boolean) {
