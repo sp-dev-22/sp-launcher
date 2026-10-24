@@ -236,6 +236,16 @@ fun StudyPopupsScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        Button(
+            onClick = { viewModel.setShowPractice(true) },
+            enabled = cards.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth().height(50.dp).testTag("practice_now_btn")
+        ) {
+            Text("Practice now")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         OutlinedButton(
             onClick = { viewModel.setShowCards(true) },
             enabled = cards.isNotEmpty(),

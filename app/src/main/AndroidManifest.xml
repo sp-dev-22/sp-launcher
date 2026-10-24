@@ -56,6 +56,11 @@
             android:name=".service.TaskReminderReceiver"
             android:exported="false" />
 
+        <!-- Daily auto-backup -->
+        <receiver
+            android:name=".service.AutoBackupReceiver"
+            android:exported="false" />
+
         <!-- Delivers the Study Popups (MCQ + flashcards) and their answers -->
         <receiver
             android:name=".service.StudyPopupReceiver"

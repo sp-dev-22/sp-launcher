@@ -20,9 +20,11 @@ import com.example.data.model.SubjectPlanSettings
 import com.example.data.model.TimeTableSettings
 import com.example.data.model.StudyPopupSettings
 import com.example.service.AlertReminderScheduler
+import com.example.service.AutoBackupScheduler
 import com.example.service.TaskReminderScheduler
 import com.example.service.StudyPopupScheduler
 import com.example.service.StudyReminderScheduler
+import com.example.util.AutoBackup
 import com.example.util.CardFileParser
 import com.example.util.TimeTablePlanner
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,6 +70,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val popupSettings = preferences.popupSettings
     val hiddenApps = preferences.hiddenApps
     val vaultPin = preferences.vaultPin
+    val autoBackupEnabled = preferences.autoBackupEnabled
+    val backupFolderUri = preferences.backupFolderUri
+    val lastBackupMillis = preferences.lastBackupMillis
 
     // Study Manager tree
     val studyCourses: StateFlow<List<StudyCourse>> = preferences.studyCourses
@@ -140,6 +145,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _showHiddenApps = MutableStateFlow(false)
     val showHiddenApps: StateFlow<Boolean> = _showHiddenApps.asStateFlow()
+
+    private val _showPractice = MutableStateFlow(false)
+    val showPractice: StateFlow<Boolean> = _showPractice.asStateFlow()
+
+    private val _backupMessage = MutableStateFlow<String?>(null)
+    val backupMessage: StateFlow<String?> = _backupMessage.asStateFlow()
 
     // When set, the Home clock shows this time instead of the device time (the decoy).
     private val _clockOverride = MutableStateFlow<Long?>(null)
@@ -440,6 +451,40 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowHiddenApps(show: Boolean) {
         _showHiddenApps.value = show
+    }
+
+    fun setShowPractice(show: Boolean) {
+        _showPractice.value = show
+    }
+
+    // ---- flashcards: manual practice ----
+
+    /** Grades a card from the Practice screen, using the same logic as the popups. */
+    fun markCard(id: String, correct: Boolean) {
+        val card = preferences.flashcardBank.value.firstOrNull { it.id == id } ?: return
+        preferences.updateCard(com.example.util.SpacedRepetition.apply(card, correct))
+    }
+
+    // ---- auto-backup ----
+
+    fun setAutoBackupEnabled(enabled: Boolean) {
+        preferences.setAutoBackupEnabled(enabled)
+        AutoBackupScheduler.reschedule(getApplication<Application>(), enabled)
+    }
+
+    fun setBackupFolderUri(uri: String?) {
+        preferences.setBackupFolderUri(uri)
+    }
+
+    fun clearBackupMessage() {
+        _backupMessage.value = null
+    }
+
+    fun runBackupNow() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok = AutoBackup.perform(getApplication(), preferences)
+            _backupMessage.value = if (ok) "Backup saved." else "Backup failed - choose a folder first."
+        }
     }
 
     // ---- hidden apps / vault ----

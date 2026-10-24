@@ -16,6 +16,7 @@ class BootReceiver : BroadcastReceiver() {
                 AlertReminderScheduler.rescheduleAll(context, prefs.alerts.value)
                 TaskReminderScheduler.rescheduleAll(context, prefs.tasks.value)
                 StudyPopupScheduler.reschedule(context, prefs.popupSettings.value)
+                AutoBackupScheduler.reschedule(context, prefs.autoBackupEnabled.value)
             }
         }
     }

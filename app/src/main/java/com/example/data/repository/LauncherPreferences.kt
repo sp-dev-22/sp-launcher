@@ -46,6 +46,16 @@ class LauncherPreferences(context: Context) {
     private val _vaultPin = MutableStateFlow(prefs.getString(KEY_VAULT_PIN, "1234") ?: "1234")
     val vaultPin: StateFlow<String> = _vaultPin.asStateFlow()
 
+    // Auto-backup (a daily JSON written into a folder the user picks, via SAF).
+    private val _autoBackupEnabled = MutableStateFlow(prefs.getBoolean(KEY_AUTO_BACKUP, false))
+    val autoBackupEnabled: StateFlow<Boolean> = _autoBackupEnabled.asStateFlow()
+
+    private val _backupFolderUri = MutableStateFlow(prefs.getString(KEY_BACKUP_URI, null))
+    val backupFolderUri: StateFlow<String?> = _backupFolderUri.asStateFlow()
+
+    private val _lastBackupMillis = MutableStateFlow(prefs.getLong(KEY_LAST_BACKUP, 0L))
+    val lastBackupMillis: StateFlow<Long> = _lastBackupMillis.asStateFlow()
+
     // Selected colour theme key (see LauncherTheme): default / pink / green / saffron / seattle / ocean / lavender
     private val _themeKey = MutableStateFlow(prefs.getString(KEY_THEME, "default") ?: "default")
     val themeKey: StateFlow<String> = _themeKey.asStateFlow()
@@ -115,6 +125,21 @@ class LauncherPreferences(context: Context) {
     fun setVaultPin(pin: String) {
         prefs.edit().putString(KEY_VAULT_PIN, pin).apply()
         _vaultPin.value = pin
+    }
+
+    fun setAutoBackupEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_BACKUP, enabled).apply()
+        _autoBackupEnabled.value = enabled
+    }
+
+    fun setBackupFolderUri(uri: String?) {
+        prefs.edit().putString(KEY_BACKUP_URI, uri).apply()
+        _backupFolderUri.value = uri
+    }
+
+    fun setLastBackupMillis(millis: Long) {
+        prefs.edit().putLong(KEY_LAST_BACKUP, millis).apply()
+        _lastBackupMillis.value = millis
     }
 
     fun setShowTime(enabled: Boolean) {
@@ -1029,6 +1054,9 @@ class LauncherPreferences(context: Context) {
         _nightEndMinutes.value = prefs.getInt(KEY_NIGHT_END, 7 * 60)
         _hiddenApps.value = prefs.getStringSet(KEY_HIDDEN_APPS, emptySet()) ?: emptySet()
         _vaultPin.value = prefs.getString(KEY_VAULT_PIN, "1234") ?: "1234"
+        _autoBackupEnabled.value = prefs.getBoolean(KEY_AUTO_BACKUP, false)
+        _backupFolderUri.value = prefs.getString(KEY_BACKUP_URI, null)
+        _lastBackupMillis.value = prefs.getLong(KEY_LAST_BACKUP, 0L)
         _favorites.value = loadFavorites()
         _showTime.value = prefs.getBoolean(KEY_SHOW_TIME, true)
         _showDate.value = prefs.getBoolean(KEY_SHOW_DATE, true)
@@ -1051,6 +1079,9 @@ class LauncherPreferences(context: Context) {
         private const val KEY_NIGHT_END = "night_end_minutes"
         private const val KEY_HIDDEN_APPS = "hidden_apps"
         private const val KEY_VAULT_PIN = "vault_pin"
+        private const val KEY_AUTO_BACKUP = "auto_backup"
+        private const val KEY_BACKUP_URI = "backup_folder_uri"
+        private const val KEY_LAST_BACKUP = "last_backup_millis"
         private const val KEY_FAVORITES = "favorite_packages"
         private const val KEY_SHOW_TIME = "show_time"
         private const val KEY_SHOW_DATE = "show_date"
