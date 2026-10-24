@@ -462,13 +462,19 @@ fun WidgetsManagementSheet(
                             .testTag("task_row_${task.id}")
                     )
 
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Task",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = { editingTask = task },
+                        modifier = Modifier
+                            .size(34.dp)
+                            .testTag("task_edit_${task.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Task",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                     IconButton(onClick = { onRemoveTask(task.id) }) {
                         Icon(
                             imageVector = Icons.Default.Delete,
