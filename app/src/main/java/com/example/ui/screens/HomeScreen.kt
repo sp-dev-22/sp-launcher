@@ -53,6 +53,7 @@ fun HomeScreen(
     onAddTask: (String) -> Unit,
     onOpenWidgetsManagement: () -> Unit,
     onOpenStudyManager: () -> Unit,
+    onOpenCalendar: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -76,6 +77,7 @@ fun HomeScreen(
             ClockWidget(
                 showTime = showTime,
                 showDate = showDate,
+                onDateClick = onOpenCalendar,
                 modifier = Modifier.fillMaxWidth()
             )
 

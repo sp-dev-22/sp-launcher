@@ -3,7 +3,6 @@ package com.example.ui.components
 import android.content.Context
 import android.content.Intent
 import android.provider.AlarmClock
-import android.provider.CalendarContract
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,6 +38,7 @@ import java.util.Locale
 fun ClockWidget(
     showTime: Boolean,
     showDate: Boolean,
+    onDateClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (!showTime && !showDate) return
@@ -95,7 +95,7 @@ fun ClockWidget(
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { openCalendarApp(context) }
+                        .clickable { onDateClick() }
                         .testTag("clock_date_text")
                 )
             }
@@ -119,7 +119,7 @@ fun ClockWidget(
                 ),
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 modifier = Modifier
-                    .clickable { openCalendarApp(context) }
+                    .clickable { onDateClick() }
                     .testTag("clock_date_text")
             )
         }
@@ -144,15 +144,3 @@ private fun openClockApp(context: Context) {
     }
 }
 
-private fun openCalendarApp(context: Context) {
-    try {
-        val builder = CalendarContract.CONTENT_URI.buildUpon()
-        builder.appendPath("time")
-        android.content.ContentUris.appendId(builder, System.currentTimeMillis())
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            data = builder.build()
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        context.startActivity(intent)
-    } catch (_: Exception) {}
-}
