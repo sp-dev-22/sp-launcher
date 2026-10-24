@@ -90,6 +90,8 @@ fun WidgetsManagementSheet(
     onRemoveTask: (String) -> Unit,
     onEditTaskItem: (TaskItem) -> Unit,
     onMoveTask: (String, Int) -> Unit,
+    undoMessage: String?,
+    onUndo: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -123,6 +125,7 @@ fun WidgetsManagementSheet(
             )
         }
     ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -515,6 +518,13 @@ fun WidgetsManagementSheet(
 
                 Spacer(modifier = Modifier.height(40.dp))
             }
+            }
+
+            UndoBar(
+                message = undoMessage,
+                onUndo = onUndo,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 

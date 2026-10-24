@@ -8,21 +8,19 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import com.example.ui.components.AppActionBottomSheet
 import com.example.ui.components.FavoritesScreen
 import com.example.ui.components.ThemesSheet
+import com.example.ui.components.UndoBar
 import com.example.ui.components.WidgetsManagementSheet
 import com.example.ui.screens.BackupRestoreScreen
 import com.example.ui.screens.CalendarScreen
@@ -31,6 +29,7 @@ import com.example.ui.screens.DrawerScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StudyManagerScreen
+import com.example.ui.screens.StatsScreen
 import com.example.ui.screens.StudyPopupsScreen
 import com.example.ui.screens.TimeTableScreen
 import com.example.ui.theme.LauncherTheme
@@ -44,21 +43,7 @@ fun MainScreen(
 ) {
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
     val undoMessage by viewModel.undoMessage.collectAsState()
-
-    // Show the "deleted - undo" bar whenever the ViewModel offers one.
-    LaunchedEffect(undoMessage) {
-        val message = undoMessage
-        if (message != null) {
-            val result = snackbarHostState.showSnackbar(
-                message = message,
-                actionLabel = "Undo",
-                duration = SnackbarDuration.Short
-            )
-            if (result == SnackbarResult.ActionPerformed) viewModel.performUndo() else viewModel.clearUndo()
-        }
-    }
 
     // Keep auto night mode in step with the clock.
     LaunchedEffect(Unit) {
@@ -96,6 +81,7 @@ fun MainScreen(
     val showBackupRestore by viewModel.showBackupRestore.collectAsState()
     val showTimeTable by viewModel.showTimeTable.collectAsState()
     val showCalendar by viewModel.showCalendar.collectAsState()
+    val showStats by viewModel.showStats.collectAsState()
     val showStudyPopups by viewModel.showStudyPopups.collectAsState()
     val showCards by viewModel.showCards.collectAsState()
     val studyProgress by viewModel.studyProgress.collectAsState()
@@ -105,11 +91,12 @@ fun MainScreen(
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
-        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar
+        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar || showStats
     ) {
         when {
             showCards -> viewModel.setShowCards(false)
             showCalendar -> viewModel.setShowCalendar(false)
+            showStats -> viewModel.setShowStats(false)
             showStudyPopups -> viewModel.setShowStudyPopups(false)
             showTimeTable -> viewModel.setShowTimeTable(false)
             showStudyManager -> viewModel.setShowStudyManager(false)
@@ -123,8 +110,7 @@ fun MainScreen(
         modifier = Modifier
             .fillMaxSize()
             .testTag("launcher_main_scaffold"),
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -143,6 +129,7 @@ fun MainScreen(
                             onOpenThemes = { viewModel.setShowThemesSheet(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             onOpenStudyPopups = { viewModel.setShowStudyPopups(true) },
+                            onOpenStats = { viewModel.setShowStats(true) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onOpenFavorites = { viewModel.setShowAddFavoritesScreen(true) },
                             onOpenBackupRestore = { viewModel.setShowBackupRestore(true) },
@@ -248,6 +235,21 @@ fun MainScreen(
                     onBack = { viewModel.setShowCalendar(false) }
                 )
             }
+
+            // Fullscreen Study Stats
+            if (showStats) {
+                StatsScreen(
+                    viewModel = viewModel,
+                    onBack = { viewModel.setShowStats(false) }
+                )
+            }
+
+            // Delete-undo bar (drawn here; the sheet draws its own copy so it stays reachable)
+            UndoBar(
+                message = undoMessage,
+                onUndo = { viewModel.performUndo() },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 
@@ -289,6 +291,8 @@ fun MainScreen(
                             onRemoveTask = { viewModel.removeTask(it) },
                             onEditTaskItem = { task -> viewModel.updateTaskItem(task) },
                             onMoveTask = { id, dir -> viewModel.moveTask(id, dir) },
+                            undoMessage = undoMessage,
+                            onUndo = { viewModel.performUndo() },
             onDismiss = { viewModel.setShowWidgetsDialog(false) }
         )
     }

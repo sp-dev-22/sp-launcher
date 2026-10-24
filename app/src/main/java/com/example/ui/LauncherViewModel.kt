@@ -127,6 +127,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showCalendar = MutableStateFlow(false)
     val showCalendar: StateFlow<Boolean> = _showCalendar.asStateFlow()
 
+    private val _showStats = MutableStateFlow(false)
+    val showStats: StateFlow<Boolean> = _showStats.asStateFlow()
+
     /** A message to show when a time table could not be generated (e.g. not enough time). */
     private val _timeTableAlert = MutableStateFlow<String?>(null)
     val timeTableAlert: StateFlow<String?> = _timeTableAlert.asStateFlow()
@@ -399,6 +402,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowCalendar(show: Boolean) {
         _showCalendar.value = show
+    }
+
+    fun setShowStats(show: Boolean) {
+        _showStats.value = show
     }
 
     fun setShowStudyPopups(show: Boolean) {
@@ -717,21 +724,32 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _undoMessage = MutableStateFlow<String?>(null)
     val undoMessage: StateFlow<String?> = _undoMessage.asStateFlow()
     private var lastUndo: (() -> Unit)? = null
+    private var undoTimerJob: Job? = null
 
     private fun offerUndo(message: String, restore: () -> Unit) {
         lastUndo = restore
         // null then the message, so the bar re-shows even when the text is identical.
         _undoMessage.value = null
         _undoMessage.value = message
+        // The bar hides itself after a few seconds. The timer lives here (not in the UI) so it
+        // behaves the same whether the bar is drawn on the main screen or inside the sheet.
+        undoTimerJob?.cancel()
+        undoTimerJob = viewModelScope.launch {
+            delay(4_000)
+            lastUndo = null
+            _undoMessage.value = null
+        }
     }
 
     fun performUndo() {
+        undoTimerJob?.cancel()
         lastUndo?.invoke()
         lastUndo = null
         _undoMessage.value = null
     }
 
     fun clearUndo() {
+        undoTimerJob?.cancel()
         lastUndo = null
         _undoMessage.value = null
     }

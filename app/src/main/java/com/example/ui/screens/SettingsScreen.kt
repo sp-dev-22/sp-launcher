@@ -44,6 +44,7 @@ fun SettingsScreen(
     onOpenThemes: () -> Unit,
     onOpenStudyManager: () -> Unit,
     onOpenStudyPopups: () -> Unit,
+    onOpenStats: () -> Unit,
     onOpenWidgetsManagement: () -> Unit,
     onOpenFavorites: () -> Unit,
     onOpenBackupRestore: () -> Unit,
@@ -133,6 +134,24 @@ fun SettingsScreen(
             },
             onClick = onOpenStudyPopups,
             testTag = "settings_study_popups"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 2c. Study Stats (progress, weekly activity & streak)
+        SettingsItemRow(
+            title = "Study Stats",
+            subtitle = "Progress, weekly activity & your streak",
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Checklist,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            onClick = onOpenStats,
+            testTag = "settings_study_stats"
         )
 
         Spacer(modifier = Modifier.height(16.dp))
