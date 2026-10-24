@@ -8,9 +8,15 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -27,6 +33,7 @@ import com.example.ui.screens.StudyManagerScreen
 import com.example.ui.screens.StudyPopupsScreen
 import com.example.ui.screens.TimeTableScreen
 import com.example.ui.theme.LauncherTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -36,6 +43,29 @@ fun MainScreen(
 ) {
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val undoMessage by viewModel.undoMessage.collectAsState()
+
+    // Show the "deleted - undo" bar whenever the ViewModel offers one.
+    LaunchedEffect(undoMessage) {
+        val message = undoMessage
+        if (message != null) {
+            val result = snackbarHostState.showSnackbar(
+                message = message,
+                actionLabel = "Undo",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.performUndo() else viewModel.clearUndo()
+        }
+    }
+
+    // Keep auto night mode in step with the clock.
+    LaunchedEffect(Unit) {
+        while (true) {
+            viewModel.refreshAutoNightMode()
+            delay(60_000L)
+        }
+    }
 
     val isDarkTheme by viewModel.isNightMode.collectAsState()
     val allApps by viewModel.installedApps.collectAsState()
@@ -67,6 +97,9 @@ fun MainScreen(
     val showStudyPopups by viewModel.showStudyPopups.collectAsState()
     val showCards by viewModel.showCards.collectAsState()
     val studyProgress by viewModel.studyProgress.collectAsState()
+    val autoNight by viewModel.autoNightMode.collectAsState()
+    val nightStart by viewModel.nightStartMinutes.collectAsState()
+    val nightEnd by viewModel.nightEndMinutes.collectAsState()
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
@@ -87,7 +120,8 @@ fun MainScreen(
         modifier = Modifier
             .fillMaxSize()
             .testTag("launcher_main_scaffold"),
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -237,9 +271,11 @@ fun MainScreen(
                             onEditAlert = { viewModel.updateAlert(it) },
                             onRemoveAlert = { viewModel.removeAlert(it) },
                             onMoveAlert = { id, dir -> viewModel.moveAlert(id, dir) },
+                            onPinAlert = { id, pinned -> viewModel.setAlertPinned(id, pinned) },
+                            onArchiveAlert = { id, archived -> viewModel.setAlertArchived(id, archived) },
                             onAddTask = { viewModel.addTask(it) },
                             onRemoveTask = { viewModel.removeTask(it) },
-                            onEditTask = { id, text -> viewModel.updateTask(id, text) },
+                            onEditTaskItem = { task -> viewModel.updateTaskItem(task) },
                             onMoveTask = { id, dir -> viewModel.moveTask(id, dir) },
             onDismiss = { viewModel.setShowWidgetsDialog(false) }
         )
@@ -250,8 +286,13 @@ fun MainScreen(
         ThemesSheet(
             currentTheme = LauncherTheme.fromKey(themeKey),
             isDarkTheme = isDarkTheme,
+            autoNightEnabled = autoNight,
+            nightStartMinutes = nightStart,
+            nightEndMinutes = nightEnd,
             onSelectTheme = { viewModel.setTheme(it.key) },
             onToggleNightMode = { viewModel.setNightMode(it) },
+            onToggleAutoNight = { viewModel.setAutoNightMode(it) },
+            onSetNightWindow = { s, e -> viewModel.setNightWindow(s, e) },
             onDismiss = { viewModel.setShowThemesSheet(false) }
         )
     }

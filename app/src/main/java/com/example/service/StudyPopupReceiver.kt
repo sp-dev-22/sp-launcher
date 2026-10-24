@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import com.example.R
 import com.example.data.model.FlashcardItem
 import com.example.data.repository.LauncherPreferences
+import com.example.util.SpacedRepetition
 
 /**
  * Delivers the Study Popups (cards) and handles the answers — plain action buttons only,
@@ -60,8 +61,7 @@ class StudyPopupReceiver : BroadcastReceiver() {
         StudyPopupScheduler.reschedule(context, settings)
     }
 
-    private fun isDue(card: FlashcardItem): Boolean =
-        card.nextDueMillis == null || card.nextDueMillis <= System.currentTimeMillis()
+    private fun isDue(card: FlashcardItem): Boolean = SpacedRepetition.isDue(card)
 
     // ------------------------------------------------------------ cards
 
@@ -106,19 +106,7 @@ class StudyPopupReceiver : BroadcastReceiver() {
         val card = prefs.flashcardBank.value.firstOrNull { it.id == id }
             ?: prefs.flashcardBank.value.firstOrNull { !it.locked }
             ?: return
-        val updated = if (correct) {
-            card.copy(locked = true, masteredAtMillis = System.currentTimeMillis())
-        } else {
-            val stage = card.repeatStage + 1
-            if (stage > REPEAT_DAYS.size) {
-                card.copy(locked = true, repeatStage = stage, nextDueMillis = null)
-            } else {
-                card.copy(
-                    repeatStage = stage,
-                    nextDueMillis = System.currentTimeMillis() + REPEAT_DAYS[stage - 1] * DAY_MS
-                )
-            }
-        }
+        val updated = SpacedRepetition.apply(card, correct)
         prefs.saveFlashcardBank(prefs.flashcardBank.value.map { if (it.id == card.id) updated else it })
         NotificationManagerCompat.from(context).cancel(NOTIF_CARD)
     }
@@ -178,7 +166,5 @@ class StudyPopupReceiver : BroadcastReceiver() {
         const val ACTION_FALSE = "com.example.sp_launcher.ACTION_CARD_FALSE"
 
         private const val NOTIF_CARD = 1002
-        private const val DAY_MS = 86_400_000L
-        private val REPEAT_DAYS = listOf(1, 3, 5, 7)
     }
 }

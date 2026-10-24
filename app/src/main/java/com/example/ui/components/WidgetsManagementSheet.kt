@@ -22,7 +22,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -54,7 +57,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.AlertItem
+import com.example.data.model.RepeatRule
 import com.example.data.model.TaskItem
+import com.example.data.model.TaskPriority
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -79,9 +84,11 @@ fun WidgetsManagementSheet(
     onEditAlert: (AlertItem) -> Unit,
     onRemoveAlert: (String) -> Unit,
     onMoveAlert: (String, Int) -> Unit,
+    onPinAlert: (String, Boolean) -> Unit,
+    onArchiveAlert: (String, Boolean) -> Unit,
     onAddTask: (String) -> Unit,
     onRemoveTask: (String) -> Unit,
-    onEditTask: (String, String) -> Unit,
+    onEditTaskItem: (TaskItem) -> Unit,
     onMoveTask: (String, Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -93,6 +100,7 @@ fun WidgetsManagementSheet(
     var newAlertContent by remember { mutableStateOf("") }
     var newAlertTag by remember { mutableStateOf("") }
     var newAlertReminder by remember { mutableStateOf<Long?>(null) }
+    var newAlertRepeat by remember { mutableStateOf(RepeatRule.NONE) }
 
     var editingAlert by remember { mutableStateOf<AlertItem?>(null) }
     var editingTask by remember { mutableStateOf<TaskItem?>(null) }
@@ -157,7 +165,7 @@ fun WidgetsManagementSheet(
             }
 
             // Existing alerts — tap a card to edit it
-            items(alerts, key = { it.id }) { alert ->
+            items(alerts.filter { !it.archived }, key = { it.id }) { alert ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -228,6 +236,29 @@ fun WidgetsManagementSheet(
                             }
                         }
 
+                        IconButton(
+                            onClick = { onPinAlert(alert.id, !alert.pinned) },
+                            modifier = Modifier.size(34.dp).testTag("alert_pin_${alert.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PushPin,
+                                contentDescription = if (alert.pinned) "Unpin" else "Pin",
+                                tint = if (alert.pinned) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { onArchiveAlert(alert.id, true) },
+                            modifier = Modifier.size(34.dp).testTag("alert_archive_${alert.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Archive,
+                                contentDescription = "Archive",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit Alert",
@@ -241,6 +272,54 @@ fun WidgetsManagementSheet(
                                 contentDescription = "Delete Alert",
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Archived notes — kept, just out of the way
+            val archivedAlerts = alerts.filter { it.archived }
+            if (archivedAlerts.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "ARCHIVED (${archivedAlerts.size})",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+                items(archivedAlerts, key = { "arch-" + it.id }) { alert ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = alert.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                            )
+                            if (alert.content.isNotBlank()) {
+                                Text(
+                                    text = alert.content,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = { onArchiveAlert(alert.id, false) },
+                            modifier = Modifier.size(34.dp).testTag("alert_unarchive_${alert.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Unarchive,
+                                contentDescription = "Unarchive",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -304,6 +383,16 @@ fun WidgetsManagementSheet(
                                 TextButton(onClick = { newAlertReminder = null }) { Text("Clear") }
                             }
                         }
+                        if (newAlertReminder != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Repeat", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                ChoiceChip("Once", newAlertRepeat == RepeatRule.NONE) { newAlertRepeat = RepeatRule.NONE }
+                                ChoiceChip("Daily", newAlertRepeat == RepeatRule.DAILY) { newAlertRepeat = RepeatRule.DAILY }
+                                ChoiceChip("Weekly", newAlertRepeat == RepeatRule.WEEKLY) { newAlertRepeat = RepeatRule.WEEKLY }
+                            }
+                        }
 
                         Spacer(modifier = Modifier.height(10.dp))
 
@@ -315,13 +404,15 @@ fun WidgetsManagementSheet(
                                             title = newAlertTitle.trim(),
                                             content = newAlertContent.trim(),
                                             category = newAlertTag.trim(),
-                                            reminderMillis = newAlertReminder
+                                            reminderMillis = newAlertReminder,
+                                            repeat = if (newAlertReminder != null) newAlertRepeat else RepeatRule.NONE
                                         )
                                     )
                                     newAlertTitle = ""
                                     newAlertContent = ""
                                     newAlertTag = ""
                                     newAlertReminder = null
+                                    newAlertRepeat = RepeatRule.NONE
                                 }
                             },
                             modifier = Modifier.align(Alignment.End)
@@ -437,8 +528,8 @@ fun WidgetsManagementSheet(
     editingTask?.let { original ->
         TaskEditDialog(
             original = original,
-            onSave = { text ->
-                onEditTask(original.id, text)
+            onSave = { updated ->
+                onEditTaskItem(updated)
                 editingTask = null
             },
             onDismiss = { editingTask = null }
@@ -449,26 +540,123 @@ fun WidgetsManagementSheet(
 @Composable
 private fun TaskEditDialog(
     original: TaskItem,
-    onSave: (String) -> Unit,
+    onSave: (TaskItem) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     var text by remember { mutableStateOf(original.text) }
+    var due by remember { mutableStateOf(original.dueMillis) }
+    var reminder by remember { mutableStateOf(original.reminderMillis) }
+    var repeat by remember { mutableStateOf(original.repeat) }
+    var priority by remember { mutableStateOf(original.priority) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit Task", fontWeight = FontWeight.Bold) },
         text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text("Task") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Task") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text("Priority", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ChoiceChip("None", priority == TaskPriority.NONE) { priority = TaskPriority.NONE }
+                    ChoiceChip("Low", priority == TaskPriority.LOW) { priority = TaskPriority.LOW }
+                    ChoiceChip("Med", priority == TaskPriority.MEDIUM) { priority = TaskPriority.MEDIUM }
+                    ChoiceChip("High", priority == TaskPriority.HIGH) { priority = TaskPriority.HIGH }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text("Due date", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(
+                    text = due?.let { formatDateTime(it) } ?: "Not set",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                Row {
+                    TextButton(onClick = { showDateTimePicker(context, due) { due = it } }) {
+                        Text("Set due date")
+                    }
+                    if (due != null) {
+                        TextButton(onClick = { due = null }) { Text("Clear") }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text("Reminder (notification)", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(
+                    text = reminder?.let { formatDateTime(it) } ?: "Not set",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                Row {
+                    TextButton(onClick = { showDateTimePicker(context, reminder) { reminder = it } }) {
+                        Text("Set reminder")
+                    }
+                    if (reminder != null) {
+                        TextButton(onClick = { reminder = null }) { Text("Clear") }
+                    }
+                }
+
+                if (reminder != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Repeat", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        ChoiceChip("Once", repeat == RepeatRule.NONE) { repeat = RepeatRule.NONE }
+                        ChoiceChip("Daily", repeat == RepeatRule.DAILY) { repeat = RepeatRule.DAILY }
+                        ChoiceChip("Weekly", repeat == RepeatRule.WEEKLY) { repeat = RepeatRule.WEEKLY }
+                    }
+                }
+            }
         },
         confirmButton = {
-            TextButton(onClick = { if (text.isNotBlank()) onSave(text.trim()) }) { Text("Save") }
+            TextButton(onClick = {
+                if (text.isNotBlank()) {
+                    onSave(
+                        original.copy(
+                            text = text.trim(),
+                            dueMillis = due,
+                            reminderMillis = reminder,
+                            repeat = if (reminder != null) repeat else RepeatRule.NONE,
+                            priority = priority
+                        )
+                    )
+                }
+            }) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+}
+
+@Composable
+private fun ChoiceChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                if (selected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.surfaceVariant
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            color = if (selected) MaterialTheme.colorScheme.onPrimary
+            else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 
 @Composable
@@ -482,6 +670,7 @@ private fun AlertEditDialog(
     var content by remember { mutableStateOf(original.content) }
     var tag by remember { mutableStateOf(original.category) }
     var reminder by remember { mutableStateOf(original.reminderMillis) }
+    var repeat by remember { mutableStateOf(original.repeat) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -525,6 +714,16 @@ private fun AlertEditDialog(
                         TextButton(onClick = { reminder = null }) { Text("Clear") }
                     }
                 }
+                if (reminder != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Repeat", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        ChoiceChip("Once", repeat == RepeatRule.NONE) { repeat = RepeatRule.NONE }
+                        ChoiceChip("Daily", repeat == RepeatRule.DAILY) { repeat = RepeatRule.DAILY }
+                        ChoiceChip("Weekly", repeat == RepeatRule.WEEKLY) { repeat = RepeatRule.WEEKLY }
+                    }
+                }
             }
         },
         confirmButton = {
@@ -535,7 +734,8 @@ private fun AlertEditDialog(
                             title = title.trim(),
                             content = content.trim(),
                             category = tag.trim(),
-                            reminderMillis = reminder
+                            reminderMillis = reminder,
+                            repeat = if (reminder != null) repeat else RepeatRule.NONE
                         )
                     )
                 }

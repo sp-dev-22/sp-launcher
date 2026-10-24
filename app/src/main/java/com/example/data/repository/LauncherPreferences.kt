@@ -12,7 +12,9 @@ import com.example.data.model.StudyClass
 import com.example.data.model.StudyCourse
 import com.example.data.model.StudySubject
 import com.example.data.model.StudyTopic
+import com.example.data.model.RepeatRule
 import com.example.data.model.TaskItem
+import com.example.data.model.TaskPriority
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +28,16 @@ class LauncherPreferences(context: Context) {
 
     private val _isNightMode = MutableStateFlow(prefs.getBoolean(KEY_NIGHT_MODE, false))
     val isNightMode: StateFlow<Boolean> = _isNightMode.asStateFlow()
+
+    // Auto night mode: go dark between the window's start and end times.
+    private val _autoNightMode = MutableStateFlow(prefs.getBoolean(KEY_AUTO_NIGHT, false))
+    val autoNightMode: StateFlow<Boolean> = _autoNightMode.asStateFlow()
+
+    private val _nightStartMinutes = MutableStateFlow(prefs.getInt(KEY_NIGHT_START, 19 * 60))
+    val nightStartMinutes: StateFlow<Int> = _nightStartMinutes.asStateFlow()
+
+    private val _nightEndMinutes = MutableStateFlow(prefs.getInt(KEY_NIGHT_END, 7 * 60))
+    val nightEndMinutes: StateFlow<Int> = _nightEndMinutes.asStateFlow()
 
     // Selected colour theme key (see LauncherTheme): default / pink / green / saffron / seattle / ocean / lavender
     private val _themeKey = MutableStateFlow(prefs.getString(KEY_THEME, "default") ?: "default")
@@ -73,6 +85,17 @@ class LauncherPreferences(context: Context) {
     fun setNightMode(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_NIGHT_MODE, enabled).apply()
         _isNightMode.value = enabled
+    }
+
+    fun setAutoNightMode(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_NIGHT, enabled).apply()
+        _autoNightMode.value = enabled
+    }
+
+    fun setNightWindow(startMinutes: Int, endMinutes: Int) {
+        prefs.edit().putInt(KEY_NIGHT_START, startMinutes).putInt(KEY_NIGHT_END, endMinutes).apply()
+        _nightStartMinutes.value = startMinutes
+        _nightEndMinutes.value = endMinutes
     }
 
     fun setShowTime(enabled: Boolean) {
@@ -144,6 +167,11 @@ class LauncherPreferences(context: Context) {
                 put("id", item.id)
                 put("text", item.text)
                 put("isCompleted", item.isCompleted)
+                item.dueMillis?.let { put("dueMillis", it) }
+                item.reminderMillis?.let { put("reminderMillis", it) }
+                put("repeat", item.repeat.name)
+                put("priority", item.priority.name)
+                item.completedAtMillis?.let { put("completedAtMillis", it) }
             }
             array.put(obj)
         }
@@ -159,8 +187,15 @@ class LauncherPreferences(context: Context) {
     }
 
     fun toggleTask(id: String) {
+        val now = System.currentTimeMillis()
         val current = _tasks.value.map {
-            if (it.id == id) it.copy(isCompleted = !it.isCompleted) else it
+            if (it.id == id) {
+                val completing = !it.isCompleted
+                it.copy(
+                    isCompleted = completing,
+                    completedAtMillis = if (completing) now else null
+                )
+            } else it
         }
         saveTasks(current)
     }
@@ -173,6 +208,11 @@ class LauncherPreferences(context: Context) {
     fun updateTask(id: String, text: String) {
         if (text.isBlank()) return
         saveTasks(_tasks.value.map { if (it.id == id) it.copy(text = text.trim()) else it })
+    }
+
+    /** Replaces a task wholesale (task editor: text + due + reminder + repeat + priority). */
+    fun updateTaskItem(task: TaskItem) {
+        saveTasks(_tasks.value.map { if (it.id == task.id) task else it })
     }
 
     fun moveTask(id: String, direction: Int) {
@@ -193,6 +233,9 @@ class LauncherPreferences(context: Context) {
                 put("content", item.content)
                 put("category", item.category)
                 item.reminderMillis?.let { put("reminderMillis", it) }
+                put("repeat", item.repeat.name)
+                put("pinned", item.pinned)
+                put("archived", item.archived)
             }
             array.put(obj)
         }
@@ -225,6 +268,14 @@ class LauncherPreferences(context: Context) {
         saveAlerts(list)
     }
 
+    fun setAlertPinned(id: String, pinned: Boolean) {
+        saveAlerts(_alerts.value.map { if (it.id == id) it.copy(pinned = pinned) else it })
+    }
+
+    fun setAlertArchived(id: String, archived: Boolean) {
+        saveAlerts(_alerts.value.map { if (it.id == id) it.copy(archived = archived) else it })
+    }
+
     private fun loadFavorites(): List<String> {
         val raw = prefs.getString(KEY_FAVORITES, null) ?: return emptyList()
         return try {
@@ -253,7 +304,14 @@ class LauncherPreferences(context: Context) {
                     TaskItem(
                         id = obj.getString("id"),
                         text = obj.getString("text"),
-                        isCompleted = obj.getBoolean("isCompleted")
+                        isCompleted = obj.getBoolean("isCompleted"),
+                        dueMillis = if (obj.has("dueMillis")) obj.optLong("dueMillis") else null,
+                        reminderMillis = if (obj.has("reminderMillis")) obj.optLong("reminderMillis") else null,
+                        repeat = runCatching { RepeatRule.valueOf(obj.optString("repeat", "NONE")) }
+                            .getOrDefault(RepeatRule.NONE),
+                        priority = runCatching { TaskPriority.valueOf(obj.optString("priority", "NONE")) }
+                            .getOrDefault(TaskPriority.NONE),
+                        completedAtMillis = if (obj.has("completedAtMillis")) obj.optLong("completedAtMillis") else null
                     )
                 )
             }
@@ -279,7 +337,11 @@ class LauncherPreferences(context: Context) {
                         title = obj.getString("title"),
                         content = obj.getString("content"),
                         category = obj.optString("category", ""),
-                        reminderMillis = if (obj.has("reminderMillis")) obj.optLong("reminderMillis") else null
+                        reminderMillis = if (obj.has("reminderMillis")) obj.optLong("reminderMillis") else null,
+                        repeat = runCatching { RepeatRule.valueOf(obj.optString("repeat", "NONE")) }
+                            .getOrDefault(RepeatRule.NONE),
+                        pinned = obj.optBoolean("pinned", false),
+                        archived = obj.optBoolean("archived", false)
                     )
                 )
             }
@@ -815,6 +877,70 @@ class LauncherPreferences(context: Context) {
     }
 
     // ---------------------------------------------------------------------
+    // Undo / restore (backs the delete-undo snackbar)
+    // ---------------------------------------------------------------------
+
+    fun restoreTask(task: TaskItem, index: Int) {
+        val list = _tasks.value.toMutableList()
+        list.add(index.coerceIn(0, list.size), task)
+        saveTasks(list)
+    }
+
+    fun restoreAlert(alert: AlertItem, index: Int) {
+        val list = _alerts.value.toMutableList()
+        list.add(index.coerceIn(0, list.size), alert)
+        saveAlerts(list)
+    }
+
+    fun restoreCard(card: FlashcardItem, index: Int) {
+        val list = _flashcardBank.value.toMutableList()
+        list.add(index.coerceIn(0, list.size), card)
+        saveFlashcardBank(list)
+    }
+
+    fun restoreStudyCourse(course: StudyCourse, index: Int) {
+        val list = _studyCourses.value.toMutableList()
+        list.add(index.coerceIn(0, list.size), course)
+        saveStudyCourses(list)
+    }
+
+    fun restoreStudySubject(courseId: String, subject: StudySubject, index: Int) {
+        saveStudyCourses(_studyCourses.value.map { course ->
+            if (course.id == courseId) {
+                val subjects = course.subjects.toMutableList()
+                subjects.add(index.coerceIn(0, subjects.size), subject)
+                course.copy(subjects = subjects)
+            } else course
+        })
+    }
+
+    fun restoreStudyTopic(courseId: String, subjectId: String, topic: StudyTopic, index: Int) {
+        saveStudyCourses(_studyCourses.value.map { course ->
+            if (course.id != courseId) course else course.copy(subjects = course.subjects.map { subject ->
+                if (subject.id != subjectId) subject else {
+                    val topics = subject.topics.toMutableList()
+                    topics.add(index.coerceIn(0, topics.size), topic)
+                    subject.copy(topics = topics)
+                }
+            })
+        })
+    }
+
+    fun restoreStudyClass(courseId: String, subjectId: String, topicId: String, clazz: StudyClass, index: Int) {
+        saveStudyCourses(_studyCourses.value.map { course ->
+            if (course.id != courseId) course else course.copy(subjects = course.subjects.map { subject ->
+                if (subject.id != subjectId) subject else subject.copy(topics = subject.topics.map { topic ->
+                    if (topic.id != topicId) topic else {
+                        val classes = topic.classes.toMutableList()
+                        classes.add(index.coerceIn(0, classes.size), clazz)
+                        topic.copy(classes = classes)
+                    }
+                })
+            })
+        })
+    }
+
+    // ---------------------------------------------------------------------
     // Backup & Restore (whole-app export / import)
     // ---------------------------------------------------------------------
 
@@ -839,7 +965,7 @@ class LauncherPreferences(context: Context) {
         }
         val root = JSONObject()
         root.put("app", "SP Launcher")
-        root.put("formatVersion", 2)
+        root.put("formatVersion", 3)
         root.put("exportedAt", System.currentTimeMillis())
         root.put("prefs", data)
         return root.toString(2)
@@ -879,6 +1005,9 @@ class LauncherPreferences(context: Context) {
     /** Re-reads every preference into its StateFlow after a bulk import. */
     private fun reloadAll() {
         _isNightMode.value = prefs.getBoolean(KEY_NIGHT_MODE, false)
+        _autoNightMode.value = prefs.getBoolean(KEY_AUTO_NIGHT, false)
+        _nightStartMinutes.value = prefs.getInt(KEY_NIGHT_START, 19 * 60)
+        _nightEndMinutes.value = prefs.getInt(KEY_NIGHT_END, 7 * 60)
         _favorites.value = loadFavorites()
         _showTime.value = prefs.getBoolean(KEY_SHOW_TIME, true)
         _showDate.value = prefs.getBoolean(KEY_SHOW_DATE, true)
@@ -896,6 +1025,9 @@ class LauncherPreferences(context: Context) {
 
     companion object {
         private const val KEY_NIGHT_MODE = "is_night_mode"
+        private const val KEY_AUTO_NIGHT = "auto_night"
+        private const val KEY_NIGHT_START = "night_start_minutes"
+        private const val KEY_NIGHT_END = "night_end_minutes"
         private const val KEY_FAVORITES = "favorite_packages"
         private const val KEY_SHOW_TIME = "show_time"
         private const val KEY_SHOW_DATE = "show_date"

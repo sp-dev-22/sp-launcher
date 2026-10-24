@@ -16,4 +16,10 @@ data class AlertItem(
     val category: String = "",
     /** Optional reminder time (epoch millis). Null means no reminder. */
     val reminderMillis: Long? = null,
+    /** How the reminder repeats once it fires. */
+    val repeat: RepeatRule = RepeatRule.NONE,
+    /** Pinned notes stay at the top of the Home widget. */
+    val pinned: Boolean = false,
+    /** Archived notes are hidden from the Home widget but kept in the manager. */
+    val archived: Boolean = false,
 )
