@@ -24,12 +24,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.data.model.AlertItem
 import com.example.data.model.AppInfo
+import com.example.data.model.GoalItem
 import com.example.data.model.StudyDueItem
 import com.example.data.model.StudyProgress
 import com.example.data.model.TaskItem
 import com.example.ui.components.AlertsWidget
 import com.example.ui.components.AppFavoriteChip
 import com.example.ui.components.ClockWidget
+import com.example.ui.components.GoalsWidget
 import com.example.ui.components.StudyDueWidget
 import com.example.ui.components.TasksWidget
 
@@ -46,7 +48,11 @@ fun HomeScreen(
     showStudyDue: Boolean,
     studyDueItems: List<StudyDueItem>,
     studyProgress: StudyProgress,
+    showGoals: Boolean,
+    goals: List<GoalItem>,
     isDarkTheme: Boolean,
+    onTickGoal: (String) -> Unit,
+    onOpenGoals: () -> Unit,
     onAppClick: (AppInfo) -> Unit,
     onAppLongClick: (AppInfo) -> Unit,
     onToggleTask: (String) -> Unit,
@@ -93,6 +99,18 @@ fun HomeScreen(
                     progress = studyProgress,
                     isDarkTheme = isDarkTheme,
                     onOpenStudyManager = onOpenStudyManager,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // Goals widget (regular activity tracker) - tick straight from here
+            if (showGoals && goals.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                GoalsWidget(
+                    goals = goals,
+                    isDarkTheme = isDarkTheme,
+                    onTick = onTickGoal,
+                    onOpenGoals = onOpenGoals,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
