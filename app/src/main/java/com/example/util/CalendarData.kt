@@ -10,12 +10,24 @@ import java.util.Calendar
 /** What a calendar dot represents. */
 enum class CalendarEventType { DEADLINE, REMINDER, TASK_DUE, TASK_REMINDER, CARD }
 
-/** One thing on a given day. [timeMillis] is null for all-day items (like a due date). */
+/** Which screen a row belongs to, so tapping it can open the right place. */
+enum class CalendarEventKind { STUDY, TASK, NOTE, CARD }
+
+/**
+ * One thing on a given day. [timeMillis] is null for all-day items (like a due date).
+ *
+ * [clearKey] is the stable identity used by "remove from calendar": the row is hidden while its
+ * key sits in the user's cleared set. It is day-scoped, so moving an item to another date brings
+ * it back instead of leaving it hidden forever.
+ */
 data class CalendarEvent(
     val dayStartMillis: Long,
     val timeMillis: Long?,
     val type: CalendarEventType,
     val label: String,
+    val isCompleted: Boolean = false,
+    val clearKey: String = "",
+    val kind: CalendarEventKind = CalendarEventKind.STUDY,
 )
 
 /**
@@ -55,48 +67,127 @@ object CalendarData {
     fun daysInMonth(millis: Long): Int =
         Calendar.getInstance().apply { timeInMillis = millis }.getActualMaximum(Calendar.DAY_OF_MONTH)
 
+    /** The identity a row is remembered by: "<kind>:<id>:<dayStartMillis>". */
+    fun clearKey(kind: String, id: String, dayStartMillis: Long): String = "$kind:$id:$dayStartMillis"
+
     fun eventsFor(
         courses: List<StudyCourse>,
         tasks: List<TaskItem>,
         alerts: List<AlertItem>,
+        clearedKeys: Set<String> = emptySet(),
     ): List<CalendarEvent> {
         val out = mutableListOf<CalendarEvent>()
 
+        fun add(event: CalendarEvent) {
+            if (event.clearKey.isNotBlank() && clearedKeys.contains(event.clearKey)) return
+            out.add(event)
+        }
+
         for (course in courses) {
             for (ref in course.allClassRefs()) {
-                ref.clazz.deadlineMillis?.let {
-                    out.add(CalendarEvent(startOfDay(it), it, CalendarEventType.DEADLINE, ref.clazz.name))
+                val done = ref.clazz.isCompleted
+                ref.clazz.deadlineMillis?.let { at ->
+                    add(
+                        CalendarEvent(
+                            dayStartMillis = startOfDay(at),
+                            timeMillis = at,
+                            type = CalendarEventType.DEADLINE,
+                            label = ref.clazz.name,
+                            isCompleted = done,
+                            clearKey = clearKey("class", ref.clazz.id, startOfDay(at)),
+                            kind = CalendarEventKind.STUDY
+                        )
+                    )
                 }
-                ref.clazz.alertMillis?.let {
-                    out.add(CalendarEvent(startOfDay(it), it, CalendarEventType.REMINDER, ref.clazz.name))
+                ref.clazz.alertMillis?.let { at ->
+                    add(
+                        CalendarEvent(
+                            dayStartMillis = startOfDay(at),
+                            timeMillis = at,
+                            type = CalendarEventType.REMINDER,
+                            label = ref.clazz.name,
+                            isCompleted = done,
+                            clearKey = clearKey("class", ref.clazz.id, startOfDay(at)),
+                            kind = CalendarEventKind.STUDY
+                        )
+                    )
                 }
             }
+
             for (subject in course.subjects) {
                 for (topic in subject.topics) {
-                    topic.deadlineMillis?.let {
-                        out.add(CalendarEvent(startOfDay(it), it, CalendarEventType.DEADLINE, topic.name))
+                    topic.deadlineMillis?.let { at ->
+                        add(
+                            CalendarEvent(
+                                dayStartMillis = startOfDay(at),
+                                timeMillis = at,
+                                type = CalendarEventType.DEADLINE,
+                                label = topic.name,
+                                clearKey = clearKey("topic", topic.id, startOfDay(at)),
+                                kind = CalendarEventKind.STUDY
+                            )
+                        )
                     }
-                    topic.alertMillis?.let {
-                        out.add(CalendarEvent(startOfDay(it), it, CalendarEventType.REMINDER, topic.name))
+                    topic.alertMillis?.let { at ->
+                        add(
+                            CalendarEvent(
+                                dayStartMillis = startOfDay(at),
+                                timeMillis = at,
+                                type = CalendarEventType.REMINDER,
+                                label = topic.name,
+                                clearKey = clearKey("topic", topic.id, startOfDay(at)),
+                                kind = CalendarEventKind.STUDY
+                            )
+                        )
                     }
                 }
             }
         }
 
         for (task in tasks) {
-            if (task.isCompleted) continue
-            task.dueMillis?.let {
-                out.add(CalendarEvent(startOfDay(it), null, CalendarEventType.TASK_DUE, task.text))
+            // Completed tasks are kept on the calendar (struck through) until the user removes
+            // them by hand, so a finished day still reads as finished.
+            task.dueMillis?.let { at ->
+                add(
+                    CalendarEvent(
+                        dayStartMillis = startOfDay(at),
+                        timeMillis = null,
+                        type = CalendarEventType.TASK_DUE,
+                        label = task.text,
+                        isCompleted = task.isCompleted,
+                        clearKey = clearKey("task", task.id, startOfDay(at)),
+                        kind = CalendarEventKind.TASK
+                    )
+                )
             }
-            task.reminderMillis?.let {
-                out.add(CalendarEvent(startOfDay(it), it, CalendarEventType.TASK_REMINDER, task.text))
+            task.reminderMillis?.let { at ->
+                add(
+                    CalendarEvent(
+                        dayStartMillis = startOfDay(at),
+                        timeMillis = at,
+                        type = CalendarEventType.TASK_REMINDER,
+                        label = task.text,
+                        isCompleted = task.isCompleted,
+                        clearKey = clearKey("task", task.id, startOfDay(at)),
+                        kind = CalendarEventKind.TASK
+                    )
+                )
             }
         }
 
         for (alert in alerts) {
             if (alert.archived) continue
-            alert.reminderMillis?.let {
-                out.add(CalendarEvent(startOfDay(it), it, CalendarEventType.REMINDER, alert.title))
+            alert.reminderMillis?.let { at ->
+                add(
+                    CalendarEvent(
+                        dayStartMillis = startOfDay(at),
+                        timeMillis = at,
+                        type = CalendarEventType.REMINDER,
+                        label = alert.title,
+                        clearKey = clearKey("alert", alert.id, startOfDay(at)),
+                        kind = CalendarEventKind.NOTE
+                    )
+                )
             }
         }
 
