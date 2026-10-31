@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
@@ -44,7 +45,7 @@ fun SettingsScreen(
     onOpenThemes: () -> Unit,
     onOpenStudyManager: () -> Unit,
     onOpenStudyPopups: () -> Unit,
-    onOpenStats: () -> Unit,
+    onOpenGoals: () -> Unit,
     onOpenWidgetsManagement: () -> Unit,
     onOpenFavorites: () -> Unit,
     onOpenBackupRestore: () -> Unit,
@@ -138,20 +139,20 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 2c. Study Stats (progress, weekly activity & streak)
+        // 2c. Goals (regular activity tracker)
         SettingsItemRow(
-            title = "Study Stats",
-            subtitle = "Progress, weekly activity & your streak",
+            title = "Goals",
+            subtitle = "Track a regular activity and tick it from the Home widget",
             icon = {
                 Icon(
-                    imageVector = Icons.Default.Checklist,
+                    imageVector = Icons.Default.Flag,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
             },
-            onClick = onOpenStats,
-            testTag = "settings_study_stats"
+            onClick = onOpenGoals,
+            testTag = "settings_goals"
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -159,7 +160,7 @@ fun SettingsScreen(
         // 3. Widgets (Clock, Date, Alerts, Tasks, Study Due)
         SettingsItemRow(
             title = "Widgets",
-            subtitle = "Manage the Clock, Date, Alerts, Tasks & Study widgets",
+            subtitle = "Manage the Clock, Date, Alerts, Tasks, Study & Goals widgets",
             icon = {
                 Icon(
                     imageVector = Icons.Default.Checklist,
