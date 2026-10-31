@@ -73,6 +73,7 @@ fun WidgetsManagementSheet(
     showAlerts: Boolean,
     showTasks: Boolean,
     showStudyDue: Boolean,
+    showGoals: Boolean,
     alerts: List<AlertItem>,
     tasks: List<TaskItem>,
     onToggleShowTime: (Boolean) -> Unit,
@@ -80,6 +81,8 @@ fun WidgetsManagementSheet(
     onToggleShowAlerts: (Boolean) -> Unit,
     onToggleShowTasks: (Boolean) -> Unit,
     onToggleShowStudyDue: (Boolean) -> Unit,
+    onToggleShowGoals: (Boolean) -> Unit,
+    onOpenGoals: () -> Unit,
     onAddAlert: (AlertItem) -> Unit,
     onEditAlert: (AlertItem) -> Unit,
     onRemoveAlert: (String) -> Unit,
@@ -156,6 +159,11 @@ fun WidgetsManagementSheet(
                 ToggleRow("Show Alerts Widget", showAlerts, onToggleShowAlerts)
                 ToggleRow("Show Tasks Checklist", showTasks, onToggleShowTasks)
                 ToggleRow("Show Study Manager Status", showStudyDue, onToggleShowStudyDue)
+                ToggleRow("Show Goals Widget", showGoals, onToggleShowGoals)
+
+                TextButton(onClick = onOpenGoals) {
+                    Text(text = "Manage goals", fontSize = 13.sp)
+                }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
