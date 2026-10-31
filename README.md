@@ -12,6 +12,16 @@ a study planner, and a card-based study reminder system.
   optional reminders), a tasks checklist, a single **Study Manager Status** card (progress +
   tasks due over the next 7 days), and favourite-app pills.
 - **App Drawer** — search, launch, and long-press actions (favourite, app info, uninstall).
+- **Goals** — a regular-activity tracker. Each goal is either *limited* (a target, e.g. 2 litres
+  a day) or *unlimited* (no finish line, it just keeps counting). A goal carries a starting
+  text and, for limited goals, an end text it switches to when the target is reached, a
+  per-click value, an optional button label (e.g. `100 Liter`), and an optional daily reset.
+  Goals appear in a Home widget and are ticked from there; tapping the card opens the Goals
+  screen to add, edit or delete them.
+- **Calendar** — a month view of everything already dated in the app: study deadlines and
+  reminders, task due dates and reminders, note reminders and card review days. Tapping a row
+  opens the screen that owns it, and completed items stay on the day (struck through, one line)
+  until you clear them with the small cross.
 - **Study Manager** — a Course › Subject › Topic › Class tree, with deadlines, reminders,
   drag-and-drop reordering, and JSON / text / PDF export. Completing a task clears its
   Reminder & Deadline automatically, and a **Clean** button clears every task's Reminder &
@@ -26,6 +36,8 @@ a study planner, and a card-based study reminder system.
   wrong cards come back after 1, 3, 5 and 7 days. Cards are imported from JSON files (one or
   many at once), organised into decks you can switch on or off. Never shown on the lock screen.
 - **Themes** — six colour palettes plus night mode.
+- **Widgets** — the Clock, Date, Alerts, Tasks, Study Manager and Goals widgets can each be
+  switched on or off from the Widgets sheet.
 - **Backup & Restore** — export and import everything as a single JSON file.
 
 ## Card file format
