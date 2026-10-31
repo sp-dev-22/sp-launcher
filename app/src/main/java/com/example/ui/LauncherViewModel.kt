@@ -13,6 +13,7 @@ import com.example.data.model.StudyProgress
 import com.example.data.model.StudyCourse
 import com.example.data.model.StudyDueItem
 import com.example.data.model.TaskItem
+import com.example.data.model.GoalItem
 import com.example.data.model.allClassRefs
 import com.example.data.repository.AppRepository
 import com.example.data.repository.LauncherPreferences
@@ -26,6 +27,7 @@ import com.example.service.StudyPopupScheduler
 import com.example.service.StudyReminderScheduler
 import com.example.util.AutoBackup
 import com.example.util.CardFileParser
+import com.example.util.GoalProgress
 import com.example.util.TimeTablePlanner
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -73,6 +75,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val autoBackupEnabled = preferences.autoBackupEnabled
     val backupFolderUri = preferences.backupFolderUri
     val lastBackupMillis = preferences.lastBackupMillis
+
+    // Goals (regular activity tracker) + the calendar's cleared-event set
+    val goals = preferences.goals
+    val showGoalsWidget = preferences.showGoalsWidget
+    val clearedCalendarEvents = preferences.clearedCalendarEvents
 
     // Study Manager tree
     val studyCourses: StateFlow<List<StudyCourse>> = preferences.studyCourses
@@ -134,8 +141,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showCalendar = MutableStateFlow(false)
     val showCalendar: StateFlow<Boolean> = _showCalendar.asStateFlow()
 
-    private val _showStats = MutableStateFlow(false)
-    val showStats: StateFlow<Boolean> = _showStats.asStateFlow()
+    private val _showGoals = MutableStateFlow(false)
+    val showGoals: StateFlow<Boolean> = _showGoals.asStateFlow()
 
     private val _showSearch = MutableStateFlow(false)
     val showSearch: StateFlow<Boolean> = _showSearch.asStateFlow()
@@ -437,8 +444,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _showCalendar.value = show
     }
 
-    fun setShowStats(show: Boolean) {
-        _showStats.value = show
+    fun setShowGoals(show: Boolean) {
+        _showGoals.value = show
     }
 
     fun setShowSearch(show: Boolean) {
@@ -455,6 +462,67 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowPractice(show: Boolean) {
         _showPractice.value = show
+    }
+
+    // ---------------------------------------------------------------------
+    // Goals (regular activity tracker)
+    // ---------------------------------------------------------------------
+
+    fun setShowGoalsWidget(enabled: Boolean) = preferences.setShowGoalsWidget(enabled)
+
+    fun addGoal(goal: GoalItem) = preferences.addGoal(goal)
+
+    fun updateGoal(goal: GoalItem) = preferences.updateGoal(goal)
+
+    fun deleteGoal(id: String) {
+        val index = preferences.goals.value.indexOfFirst { it.id == id }
+        val removed = if (index >= 0) preferences.goals.value[index] else null
+        preferences.deleteGoal(id)
+        if (removed != null) offerUndo("Goal deleted") { preferences.restoreGoal(removed, index) }
+    }
+
+    /** One tap on a goal, from the Home widget or anywhere else. */
+    fun tickGoal(id: String) {
+        val goal = preferences.goals.value.firstOrNull { it.id == id } ?: return
+        val updated = GoalProgress.tick(goal)
+        if (updated == goal) return
+        preferences.updateGoal(updated)
+        offerUndo("${goal.title}: ${GoalProgress.formatValue(updated.currentValue)}") {
+            preferences.updateGoal(goal)
+        }
+    }
+
+    /** Takes the last tap back (the undo bar's job, but also usable directly). */
+    fun undoGoalTick(id: String) {
+        val goal = preferences.goals.value.firstOrNull { it.id == id } ?: return
+        preferences.updateGoal(GoalProgress.undo(goal))
+    }
+
+    // ---------------------------------------------------------------------
+    // Calendar: open a screen from an event, and clear an event
+    // ---------------------------------------------------------------------
+
+    /** The calendar overlay closes first, so the target screen is not drawn underneath it. */
+    fun openStudyManagerFromCalendar() {
+        _showCalendar.value = false
+        _showStudyManager.value = true
+    }
+
+    fun openStudyPopupsFromCalendar() {
+        _showCalendar.value = false
+        _showStudyPopups.value = true
+    }
+
+    /** The checklist lives in the Widgets sheet's task section. */
+    fun openChecklistFromCalendar() {
+        _showCalendar.value = false
+        _showWidgetsDialog.value = true
+    }
+
+    /** Hides one event from the calendar. The item itself is untouched. */
+    fun clearCalendarEvent(key: String) {
+        preferences.clearCalendarEvent(key)
+        offerUndo("Removed from calendar") { preferences.unclearCalendarEvent(key) }
     }
 
     // ---- flashcards: manual practice ----
