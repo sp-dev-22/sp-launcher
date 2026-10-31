@@ -32,7 +32,7 @@ import com.example.ui.screens.PracticeScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StudyManagerScreen
 import com.example.ui.screens.SearchScreen
-import com.example.ui.screens.StatsScreen
+import com.example.ui.screens.GoalsScreen
 import com.example.ui.screens.StudyPopupsScreen
 import com.example.ui.screens.TimeGateScreen
 import com.example.ui.screens.TimeTableScreen
@@ -83,7 +83,9 @@ fun MainScreen(
     val showBackupRestore by viewModel.showBackupRestore.collectAsState()
     val showTimeTable by viewModel.showTimeTable.collectAsState()
     val showCalendar by viewModel.showCalendar.collectAsState()
-    val showStats by viewModel.showStats.collectAsState()
+    val showGoals by viewModel.showGoals.collectAsState()
+    val goals by viewModel.goals.collectAsState()
+    val showGoalsWidget by viewModel.showGoalsWidget.collectAsState()
     val showSearch by viewModel.showSearch.collectAsState()
     val showTimeGate by viewModel.showTimeGate.collectAsState()
     val showHiddenApps by viewModel.showHiddenApps.collectAsState()
@@ -99,7 +101,7 @@ fun MainScreen(
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
-        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar || showStats || showSearch || showTimeGate || showHiddenApps || showPractice
+        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar || showGoals || showSearch || showTimeGate || showHiddenApps || showPractice
     ) {
         when {
             showPractice -> viewModel.setShowPractice(false)
@@ -107,7 +109,7 @@ fun MainScreen(
             showHiddenApps -> viewModel.setShowHiddenApps(false)
             showCards -> viewModel.setShowCards(false)
             showCalendar -> viewModel.setShowCalendar(false)
-            showStats -> viewModel.setShowStats(false)
+            showGoals -> viewModel.setShowGoals(false)
             showSearch -> viewModel.setShowSearch(false)
             showStudyPopups -> viewModel.setShowStudyPopups(false)
             showTimeTable -> viewModel.setShowTimeTable(false)
@@ -141,7 +143,7 @@ fun MainScreen(
                             onOpenThemes = { viewModel.setShowThemesSheet(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             onOpenStudyPopups = { viewModel.setShowStudyPopups(true) },
-                            onOpenStats = { viewModel.setShowStats(true) },
+                            onOpenGoals = { viewModel.setShowGoals(true) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onOpenFavorites = { viewModel.setShowAddFavoritesScreen(true) },
                             onOpenBackupRestore = { viewModel.setShowBackupRestore(true) },
@@ -162,7 +164,11 @@ fun MainScreen(
                             showStudyDue = showStudyDue,
                             studyDueItems = studyDueItems,
                             studyProgress = studyProgress,
+                            showGoals = showGoalsWidget,
+                            goals = goals,
                             isDarkTheme = isDarkTheme,
+                            onTickGoal = { id -> viewModel.tickGoal(id) },
+                            onOpenGoals = { viewModel.setShowGoals(true) },
                             onAppClick = { app -> viewModel.launchApp(app) },
                             onAppLongClick = { app -> viewModel.setShowAddFavoritesScreen(true) },
                             onToggleTask = { id -> viewModel.toggleTask(id) },
@@ -249,11 +255,14 @@ fun MainScreen(
                 )
             }
 
-            // Fullscreen Study Stats
-            if (showStats) {
-                StatsScreen(
-                    viewModel = viewModel,
-                    onBack = { viewModel.setShowStats(false) }
+            // Fullscreen Goals (regular activity tracker)
+            if (showGoals) {
+                GoalsScreen(
+                    goals = goals,
+                    onAdd = { goal -> viewModel.addGoal(goal) },
+                    onUpdate = { goal -> viewModel.updateGoal(goal) },
+                    onDelete = { id -> viewModel.deleteGoal(id) },
+                    onBack = { viewModel.setShowGoals(false) }
                 )
             }
 
@@ -324,6 +333,12 @@ fun MainScreen(
             onToggleShowAlerts = { viewModel.setShowAlerts(it) },
             onToggleShowTasks = { viewModel.setShowTasks(it) },
             onToggleShowStudyDue = { viewModel.setShowStudyDue(it) },
+            showGoals = showGoalsWidget,
+            onToggleShowGoals = { viewModel.setShowGoalsWidget(it) },
+            onOpenGoals = {
+                viewModel.setShowWidgetsDialog(false)
+                viewModel.setShowGoals(true)
+            },
             onAddAlert = { viewModel.addAlert(it) },
                             onEditAlert = { viewModel.updateAlert(it) },
                             onRemoveAlert = { viewModel.removeAlert(it) },
