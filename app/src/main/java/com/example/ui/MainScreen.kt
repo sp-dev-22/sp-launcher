@@ -32,6 +32,7 @@ import com.example.ui.screens.PracticeScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StudyManagerScreen
 import com.example.ui.screens.SearchScreen
+import com.example.ui.screens.SupportScreen
 import com.example.ui.screens.GoalsScreen
 import com.example.ui.screens.StudyPopupsScreen
 import com.example.ui.screens.TimeGateScreen
@@ -84,6 +85,7 @@ fun MainScreen(
     val showTimeTable by viewModel.showTimeTable.collectAsState()
     val showCalendar by viewModel.showCalendar.collectAsState()
     val showGoals by viewModel.showGoals.collectAsState()
+    val showSupport by viewModel.showSupport.collectAsState()
     val goals by viewModel.goals.collectAsState()
     val showGoalsWidget by viewModel.showGoalsWidget.collectAsState()
     val showSearch by viewModel.showSearch.collectAsState()
@@ -101,7 +103,7 @@ fun MainScreen(
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
-        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar || showGoals || showSearch || showTimeGate || showHiddenApps || showPractice
+        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar || showGoals || showSupport || showSearch || showTimeGate || showHiddenApps || showPractice
     ) {
         when {
             showPractice -> viewModel.setShowPractice(false)
@@ -110,6 +112,7 @@ fun MainScreen(
             showCards -> viewModel.setShowCards(false)
             showCalendar -> viewModel.setShowCalendar(false)
             showGoals -> viewModel.setShowGoals(false)
+            showSupport -> viewModel.setShowSupport(false)
             showSearch -> viewModel.setShowSearch(false)
             showStudyPopups -> viewModel.setShowStudyPopups(false)
             showTimeTable -> viewModel.setShowTimeTable(false)
@@ -147,6 +150,7 @@ fun MainScreen(
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onOpenFavorites = { viewModel.setShowAddFavoritesScreen(true) },
                             onOpenBackupRestore = { viewModel.setShowBackupRestore(true) },
+                            onOpenSupport = { viewModel.setShowSupport(true) },
                             onSetDefaultLauncher = onSetDefaultLauncher,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -295,6 +299,11 @@ fun MainScreen(
                     viewModel = viewModel,
                     onBack = { viewModel.setShowPractice(false) }
                 )
+            }
+
+            // Fullscreen Support (tips + links)
+            if (showSupport) {
+                SupportScreen(onBack = { viewModel.setShowSupport(false) })
             }
 
             // Delete-undo bar (drawn here; the sheet draws its own copy so it stays reachable)
