@@ -144,6 +144,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showGoals = MutableStateFlow(false)
     val showGoals: StateFlow<Boolean> = _showGoals.asStateFlow()
 
+    private val _showSupport = MutableStateFlow(false)
+    val showSupport: StateFlow<Boolean> = _showSupport.asStateFlow()
+
     private val _showSearch = MutableStateFlow(false)
     val showSearch: StateFlow<Boolean> = _showSearch.asStateFlow()
 
@@ -446,6 +449,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowGoals(show: Boolean) {
         _showGoals.value = show
+    }
+
+    fun setShowSupport(show: Boolean) {
+        _showSupport.value = show
     }
 
     fun setShowSearch(show: Boolean) {
