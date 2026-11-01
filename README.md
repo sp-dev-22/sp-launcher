@@ -20,8 +20,9 @@ a study planner, and a card-based study reminder system.
   screen to add, edit or delete them.
 - **Calendar** — a month view of everything already dated in the app: study deadlines and
   reminders, task due dates and reminders, note reminders and card review days. Tapping a row
-  opens the screen that owns it, and completed items stay on the day (struck through, one line)
-  until you clear them with the small cross.
+  opens the screen that owns it. Completed checklist tasks stay on the day, struck through and
+  cut to one line, until you clear them with the small cross; clearing hides them from the
+  calendar only and leaves the task itself alone.
 - **Study Manager** — a Course › Subject › Topic › Class tree, with deadlines, reminders,
   drag-and-drop reordering, and JSON / text / PDF export. Completing a task clears its
   Reminder & Deadline automatically, and a **Clean** button clears every task's Reminder &
