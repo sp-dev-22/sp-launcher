@@ -53,6 +53,7 @@ fun GoalsWidget(
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .clickable { onOpenGoals() }
             .testTag("goals_widget"),
         shape = RoundedCornerShape(18.dp),
@@ -63,7 +64,7 @@ fun GoalsWidget(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
