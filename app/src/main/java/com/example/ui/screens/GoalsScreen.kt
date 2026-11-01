@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -62,6 +63,7 @@ fun GoalsScreen(
     onAdd: (GoalItem) -> Unit,
     onUpdate: (GoalItem) -> Unit,
     onDelete: (String) -> Unit,
+    onReset: (String) -> Unit,
     onBack: () -> Unit
 ) {
     var creating by remember { mutableStateOf(false) }
@@ -123,7 +125,8 @@ fun GoalsScreen(
                 GoalCard(
                     goal = goal,
                     onEdit = { editing = goal },
-                    onDelete = { onDelete(goal.id) }
+                    onDelete = { onDelete(goal.id) },
+                    onReset = { onReset(goal.id) }
                 )
                 Spacer(modifier = Modifier.height(10.dp))
             }
@@ -156,7 +159,12 @@ fun GoalsScreen(
 }
 
 @Composable
-private fun GoalCard(goal: GoalItem, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun GoalCard(
+    goal: GoalItem,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onReset: () -> Unit
+) {
     val done = GoalProgress.isComplete(goal)
 
     Card(
@@ -183,6 +191,14 @@ private fun GoalCard(goal: GoalItem, onEdit: () -> Unit, onDelete: () -> Unit) {
                         text = if (goal.type == GoalType.LIMITED) "Limited activity" else "Unlimited activity",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                    )
+                }
+                IconButton(onClick = onReset) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = "Reset progress",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
                 IconButton(onClick = onEdit) {
