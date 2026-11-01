@@ -16,9 +16,9 @@ enum class CalendarEventKind { STUDY, TASK, NOTE, CARD }
 /**
  * One thing on a given day. [timeMillis] is null for all-day items (like a due date).
  *
- * [clearKey] is the stable identity used by "remove from calendar": the row is hidden while its
- * key sits in the user's cleared set. It is day-scoped, so moving an item to another date brings
- * it back instead of leaving it hidden forever.
+ * [clearKey] is the stable identity used by "remove from calendar", and only checklist tasks
+ * carry one: the row is hidden while its key sits in the user's cleared set. It is day-scoped,
+ * so moving the task to another date brings it back instead of leaving it hidden forever.
  */
 data class CalendarEvent(
     val dayStartMillis: Long,
@@ -83,9 +83,11 @@ object CalendarData {
             out.add(event)
         }
 
+        // Study Manager rows are plain deadlines/reminders. Completing a class clears its
+        // deadline and reminder, so a completed class never reaches this list — there is
+        // nothing to strike through and nothing to clear.
         for (course in courses) {
             for (ref in course.allClassRefs()) {
-                val done = ref.clazz.isCompleted
                 ref.clazz.deadlineMillis?.let { at ->
                     add(
                         CalendarEvent(
@@ -93,8 +95,6 @@ object CalendarData {
                             timeMillis = at,
                             type = CalendarEventType.DEADLINE,
                             label = ref.clazz.name,
-                            isCompleted = done,
-                            clearKey = clearKey("class", ref.clazz.id, startOfDay(at)),
                             kind = CalendarEventKind.STUDY
                         )
                     )
@@ -106,8 +106,6 @@ object CalendarData {
                             timeMillis = at,
                             type = CalendarEventType.REMINDER,
                             label = ref.clazz.name,
-                            isCompleted = done,
-                            clearKey = clearKey("class", ref.clazz.id, startOfDay(at)),
                             kind = CalendarEventKind.STUDY
                         )
                     )
@@ -123,7 +121,6 @@ object CalendarData {
                                 timeMillis = at,
                                 type = CalendarEventType.DEADLINE,
                                 label = topic.name,
-                                clearKey = clearKey("topic", topic.id, startOfDay(at)),
                                 kind = CalendarEventKind.STUDY
                             )
                         )
@@ -135,7 +132,6 @@ object CalendarData {
                                 timeMillis = at,
                                 type = CalendarEventType.REMINDER,
                                 label = topic.name,
-                                clearKey = clearKey("topic", topic.id, startOfDay(at)),
                                 kind = CalendarEventKind.STUDY
                             )
                         )
@@ -145,8 +141,8 @@ object CalendarData {
         }
 
         for (task in tasks) {
-            // Completed tasks are kept on the calendar (struck through) until the user removes
-            // them by hand, so a finished day still reads as finished.
+            // Checklist tasks are the one place completed items stay: a ticked task keeps its
+            // due date, so it is listed struck through until the user clears it by hand.
             task.dueMillis?.let { at ->
                 add(
                     CalendarEvent(
@@ -184,7 +180,6 @@ object CalendarData {
                         timeMillis = at,
                         type = CalendarEventType.REMINDER,
                         label = alert.title,
-                        clearKey = clearKey("alert", alert.id, startOfDay(at)),
                         kind = CalendarEventKind.NOTE
                     )
                 )
