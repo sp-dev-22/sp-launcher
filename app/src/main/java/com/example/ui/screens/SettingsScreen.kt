@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -49,6 +50,7 @@ fun SettingsScreen(
     onOpenWidgetsManagement: () -> Unit,
     onOpenFavorites: () -> Unit,
     onOpenBackupRestore: () -> Unit,
+    onOpenSupport: () -> Unit,
     onSetDefaultLauncher: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -211,7 +213,25 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 6. Set Default Launcher
+        // 6. Support the developer (tips + links)
+        SettingsItemRow(
+            title = "Support the developer",
+            subtitle = "Send a tip on UPI, or find me on GitHub and YouTube",
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Favorite,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            onClick = onOpenSupport,
+            testTag = "settings_support"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 7. Set Default Launcher
         SettingsItemRow(
             title = "Set Default Launcher",
             subtitle = "Set SP Launcher as system home screen",
