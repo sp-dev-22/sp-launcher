@@ -492,6 +492,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /** Zeroes a goal's current progress but keeps its lifetime total. */
+    fun resetGoal(id: String) {
+        val goal = preferences.goals.value.firstOrNull { it.id == id } ?: return
+        if (goal.currentValue == 0.0) return
+        preferences.updateGoal(goal.copy(currentValue = 0.0))
+        offerUndo("${goal.title} reset") { preferences.updateGoal(goal) }
+    }
+
     /** Takes the last tap back (the undo bar's job, but also usable directly). */
     fun undoGoalTick(id: String) {
         val goal = preferences.goals.value.firstOrNull { it.id == id } ?: return
