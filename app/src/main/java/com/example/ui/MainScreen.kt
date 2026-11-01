@@ -262,6 +262,7 @@ fun MainScreen(
                     onAdd = { goal -> viewModel.addGoal(goal) },
                     onUpdate = { goal -> viewModel.updateGoal(goal) },
                     onDelete = { id -> viewModel.deleteGoal(id) },
+                    onReset = { id -> viewModel.resetGoal(id) },
                     onBack = { viewModel.setShowGoals(false) }
                 )
             }
