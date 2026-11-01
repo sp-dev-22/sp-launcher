@@ -60,37 +60,51 @@ class CalendarDataTest {
     }
 
     @Test
-    fun `a completed study class is listed as done and opens the study manager`() {
-        val course = StudyCourse(
-            name = "RRB",
-            subjects = listOf(
-                StudySubject(
-                    name = "GK",
-                    topics = listOf(
-                        StudyTopic(
-                            name = "Polity",
-                            classes = listOf(
-                                StudyClass(name = "Fundamental rights", isCompleted = true, deadlineMillis = day + 7_200_000L)
+    fun `a pending study class appears and opens the study manager`() {
+        val events = CalendarData.eventsFor(listOf(course(isCompleted = false, deadline = day + 7_200_000L)), emptyList(), emptyList())
+
+        assertEquals(1, events.size)
+        assertEquals(CalendarEventKind.STUDY, events[0].kind)
+        assertEquals("Fundamental rights", events[0].label)
+        assertFalse(events[0].isCompleted)
+    }
+
+    @Test
+    fun `a completed study class has no deadline left, so it never appears`() {
+        // Completing a class clears its deadline and reminder, so there is nothing to list.
+        val events = CalendarData.eventsFor(listOf(course(isCompleted = true, deadline = null)), emptyList(), emptyList())
+        assertTrue(events.isEmpty())
+    }
+
+    @Test
+    fun `only checklist tasks are clearable`() {
+        val taskEvents = CalendarData.eventsFor(emptyList(), listOf(task(true, day + 1000L)), emptyList())
+        assertTrue(taskEvents[0].clearKey.isNotBlank())
+
+        val studyEvents = CalendarData.eventsFor(listOf(course(isCompleted = false, deadline = day + 1000L)), emptyList(), emptyList())
+        assertTrue(studyEvents[0].clearKey.isBlank())
+    }
+
+    private fun course(isCompleted: Boolean, deadline: Long?) = StudyCourse(
+        name = "RRB",
+        subjects = listOf(
+            StudySubject(
+                name = "GK",
+                topics = listOf(
+                    StudyTopic(
+                        name = "Polity",
+                        classes = listOf(
+                            StudyClass(
+                                name = "Fundamental rights",
+                                isCompleted = isCompleted,
+                                deadlineMillis = deadline
                             )
                         )
                     )
                 )
             )
         )
-
-        val events = CalendarData.eventsFor(listOf(course), emptyList(), emptyList())
-
-        assertEquals(1, events.size)
-        assertTrue(events[0].isCompleted)
-        assertEquals(CalendarEventKind.STUDY, events[0].kind)
-        assertEquals("Fundamental rights", events[0].label)
-    }
-
-    @Test
-    fun `every event carries a clear key`() {
-        val events = CalendarData.eventsFor(emptyList(), listOf(task(true, day + 1000L)), emptyList())
-        assertTrue(events[0].clearKey.isNotBlank())
-    }
+    )
 
     @Test
     fun `day helpers stay consistent`() {
