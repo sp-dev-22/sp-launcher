@@ -21,10 +21,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,11 +39,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.LauncherViewModel
 import com.example.util.CalendarData
 import com.example.util.CalendarEvent
+import com.example.util.CalendarEventKind
 import com.example.util.CalendarEventType
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -55,7 +60,12 @@ private val CARD_COLOR = Color(0xFF43A047)
 
 /**
  * A month view of everything already dated in the app: study deadlines, note reminders, task
- * due dates / reminders and card review days. Tap a day to see that day's list. Local only.
+ * due dates / reminders and card review days. Local only.
+ *
+ * Tapping a row opens the screen that owns it — Study Manager for study deadlines and
+ * reminders, the checklist for tasks and notes, Study Popups for cards. Completed items stay
+ * on the day, struck through and cut to one line, until the user clears them with the small
+ * cross; clearing only hides them from this calendar and leaves the item itself alone.
  */
 @Composable
 fun CalendarScreen(
@@ -66,14 +76,25 @@ fun CalendarScreen(
     val tasks by viewModel.tasks.collectAsState()
     val alerts by viewModel.alerts.collectAsState()
     val cards by viewModel.flashcardBank.collectAsState()
+    val cleared by viewModel.clearedCalendarEvents.collectAsState()
 
-    val events = remember(courses, tasks, alerts) { CalendarData.eventsFor(courses, tasks, alerts) }
+    val events = remember(courses, tasks, alerts, cleared) {
+        CalendarData.eventsFor(courses, tasks, alerts, cleared)
+    }
     val cardCounts = remember(cards) { CalendarData.cardDueCounts(cards) }
     val eventsByDay = remember(events) { events.groupBy { it.dayStartMillis } }
 
     val today = remember { CalendarData.startOfDay(System.currentTimeMillis()) }
     var month by remember { mutableStateOf(CalendarData.startOfMonth(System.currentTimeMillis())) }
     var selected by remember { mutableStateOf(today) }
+
+    val openEvent: (CalendarEvent) -> Unit = { event ->
+        when (event.kind) {
+            CalendarEventKind.STUDY -> viewModel.openStudyManagerFromCalendar()
+            CalendarEventKind.TASK, CalendarEventKind.NOTE -> viewModel.openChecklistFromCalendar()
+            CalendarEventKind.CARD -> viewModel.openStudyPopupsFromCalendar()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -94,6 +115,16 @@ fun CalendarScreen(
                 text = "Calendar",
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
             )
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(
+                onClick = {
+                    selected = today
+                    month = CalendarData.startOfMonth(today)
+                },
+                modifier = Modifier.testTag("calendar_today_btn")
+            ) {
+                Text(text = "Today", fontSize = 13.sp)
+            }
         }
 
         Row(
@@ -162,6 +193,12 @@ fun CalendarScreen(
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.onBackground
         )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = "Tap a row to open it",
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+        )
         Spacer(modifier = Modifier.height(6.dp))
 
         val dayEvents = eventsByDay[selected].orEmpty().sortedBy { it.timeMillis ?: Long.MIN_VALUE }
@@ -174,10 +211,23 @@ fun CalendarScreen(
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
             )
         } else {
-            dayEvents.forEach { event -> EventRow(event) }
+            dayEvents.forEach { event ->
+                EventRow(
+                    event = event,
+                    onClick = { openEvent(event) },
+                    onClear = if (event.isCompleted && event.clearKey.isNotBlank()) {
+                        { viewModel.clearCalendarEvent(event.clearKey) }
+                    } else {
+                        null
+                    }
+                )
+            }
             if (dayCardCount > 0) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { viewModel.openStudyPopupsFromCalendar() }
+                        .padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Dot(CARD_COLOR)
@@ -249,9 +299,19 @@ private fun DayCell(
 }
 
 @Composable
-private fun EventRow(event: CalendarEvent) {
+private fun EventRow(
+    event: CalendarEvent,
+    onClick: () -> Unit,
+    onClear: (() -> Unit)?
+) {
+    val dim = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 5.dp)
+            .testTag("calendar_event_row"),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Dot(typeColor(event.type))
@@ -260,10 +320,13 @@ private fun EventRow(event: CalendarEvent) {
             Text(
                 text = event.label,
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textDecoration = if (event.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
+                color = if (event.isCompleted) dim else MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = typeLabel(event.type),
+                text = if (event.isCompleted) "${typeLabel(event.type)} - done" else typeLabel(event.type),
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
             )
@@ -275,6 +338,21 @@ private fun EventRow(event: CalendarEvent) {
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary
             )
+        }
+        if (onClear != null) {
+            IconButton(
+                onClick = onClear,
+                modifier = Modifier
+                    .size(28.dp)
+                    .testTag("calendar_clear_btn")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Remove from calendar",
+                    modifier = Modifier.size(15.dp),
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
+                )
+            }
         }
     }
 }

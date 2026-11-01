@@ -14,6 +14,8 @@ import com.example.data.model.StudySubject
 import com.example.data.model.StudyTopic
 import com.example.data.model.RepeatRule
 import com.example.data.model.TaskItem
+import com.example.data.model.GoalItem
+import com.example.data.model.GoalType
 import com.example.data.model.TaskPriority
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -77,6 +79,19 @@ class LauncherPreferences(context: Context) {
 
     private val _showStudyDue = MutableStateFlow(prefs.getBoolean(KEY_SHOW_STUDY_DUE, true))
     val showStudyDue: StateFlow<Boolean> = _showStudyDue.asStateFlow()
+
+    // Goals (regular activity tracker) and their Home widget toggle
+    private val _showGoalsWidget = MutableStateFlow(prefs.getBoolean(KEY_SHOW_GOALS, true))
+    val showGoalsWidget: StateFlow<Boolean> = _showGoalsWidget.asStateFlow()
+
+    private val _goals = MutableStateFlow(loadGoals())
+    val goals: StateFlow<List<GoalItem>> = _goals.asStateFlow()
+
+    // Calendar events the user cleared. Keyed by "<kind>:<id>:<dayStartMillis>" so a cleared
+    // item stays hidden on that day only, and reappears if its date is moved.
+    private val _clearedCalendarEvents =
+        MutableStateFlow(prefs.getStringSet(KEY_CLEARED_CALENDAR, emptySet()) ?: emptySet())
+    val clearedCalendarEvents: StateFlow<Set<String>> = _clearedCalendarEvents.asStateFlow()
 
     private val _alerts = MutableStateFlow(loadAlerts())
     val alerts: StateFlow<List<AlertItem>> = _alerts.asStateFlow()
@@ -165,6 +180,77 @@ class LauncherPreferences(context: Context) {
     fun setShowStudyDue(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_STUDY_DUE, enabled).apply()
         _showStudyDue.value = enabled
+    }
+
+    fun setShowGoalsWidget(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_GOALS, enabled).apply()
+        _showGoalsWidget.value = enabled
+    }
+
+    // ---- Goals ----
+
+    fun saveGoals(list: List<GoalItem>) {
+        val array = JSONArray()
+        for (goal in list) {
+            array.put(
+                JSONObject().apply {
+                    put("id", goal.id)
+                    put("title", goal.title)
+                    put("type", goal.type.name)
+                    put("startText", goal.startText)
+                    put("endText", goal.endText)
+                    put("stepValue", goal.stepValue)
+                    put("stepLabel", goal.stepLabel)
+                    put("targetValue", goal.targetValue)
+                    put("currentValue", goal.currentValue)
+                    put("totalValue", goal.totalValue)
+                    put("resetDaily", goal.resetDaily)
+                    put("lastResetEpochDay", goal.lastResetEpochDay)
+                    put("colorIndex", goal.colorIndex)
+                    put("createdAtMillis", goal.createdAtMillis)
+                }
+            )
+        }
+        prefs.edit().putString(KEY_GOALS, array.toString()).apply()
+        _goals.value = list
+    }
+
+    fun addGoal(goal: GoalItem) {
+        val current = _goals.value.toMutableList()
+        current.add(goal)
+        saveGoals(current)
+    }
+
+    fun updateGoal(goal: GoalItem) {
+        saveGoals(_goals.value.map { if (it.id == goal.id) goal else it })
+    }
+
+    fun deleteGoal(id: String) {
+        saveGoals(_goals.value.filterNot { it.id == id })
+    }
+
+    fun restoreGoal(goal: GoalItem, index: Int) {
+        val current = _goals.value.toMutableList()
+        val at = index.coerceIn(0, current.size)
+        current.add(at, goal)
+        saveGoals(current)
+    }
+
+    // ---- Calendar: cleared events ----
+
+    fun clearCalendarEvent(key: String) {
+        val current = _clearedCalendarEvents.value.toMutableSet()
+        current.add(key)
+        prefs.edit().putStringSet(KEY_CLEARED_CALENDAR, current).apply()
+        _clearedCalendarEvents.value = current
+    }
+
+    fun unclearCalendarEvent(key: String) {
+        val current = _clearedCalendarEvents.value.toMutableSet()
+        if (current.remove(key)) {
+            prefs.edit().putStringSet(KEY_CLEARED_CALENDAR, current).apply()
+            _clearedCalendarEvents.value = current
+        }
     }
 
     fun setTheme(key: String) {
@@ -356,6 +442,39 @@ class LauncherPreferences(context: Context) {
                         priority = runCatching { TaskPriority.valueOf(obj.optString("priority", "NONE")) }
                             .getOrDefault(TaskPriority.NONE),
                         completedAtMillis = if (obj.has("completedAtMillis")) obj.optLong("completedAtMillis") else null
+                    )
+                )
+            }
+            list
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun loadGoals(): List<GoalItem> {
+        val raw = prefs.getString(KEY_GOALS, null) ?: return emptyList()
+        return try {
+            val array = JSONArray(raw)
+            val list = mutableListOf<GoalItem>()
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                list.add(
+                    GoalItem(
+                        id = obj.optString("id").ifBlank { java.util.UUID.randomUUID().toString() },
+                        title = obj.optString("title"),
+                        type = runCatching { GoalType.valueOf(obj.optString("type", "LIMITED")) }
+                            .getOrDefault(GoalType.LIMITED),
+                        startText = obj.optString("startText", "Beginner"),
+                        endText = obj.optString("endText", "Pro"),
+                        stepValue = obj.optDouble("stepValue", 1.0),
+                        stepLabel = obj.optString("stepLabel"),
+                        targetValue = obj.optDouble("targetValue", 100.0),
+                        currentValue = obj.optDouble("currentValue", 0.0),
+                        totalValue = obj.optDouble("totalValue", 0.0),
+                        resetDaily = obj.optBoolean("resetDaily", false),
+                        lastResetEpochDay = obj.optLong("lastResetEpochDay", 0L),
+                        colorIndex = obj.optInt("colorIndex", 0),
+                        createdAtMillis = obj.optLong("createdAtMillis", 0L)
                     )
                 )
             }
@@ -1063,6 +1182,10 @@ class LauncherPreferences(context: Context) {
         _showAlerts.value = prefs.getBoolean(KEY_SHOW_ALERTS, true)
         _showTasks.value = prefs.getBoolean(KEY_SHOW_TASKS, true)
         _showStudyDue.value = prefs.getBoolean(KEY_SHOW_STUDY_DUE, true)
+        _showGoalsWidget.value = prefs.getBoolean(KEY_SHOW_GOALS, true)
+        _goals.value = loadGoals()
+        _clearedCalendarEvents.value =
+            prefs.getStringSet(KEY_CLEARED_CALENDAR, emptySet()) ?: emptySet()
         _themeKey.value = prefs.getString(KEY_THEME, "default") ?: "default"
         _alerts.value = loadAlerts()
         _tasks.value = loadTasks()
@@ -1092,6 +1215,9 @@ class LauncherPreferences(context: Context) {
         private const val KEY_STUDY_DATA = "study_manager_data"
         private const val KEY_THEME = "theme_key"
         private const val KEY_SHOW_STUDY_DUE = "show_study_due"
+        private const val KEY_SHOW_GOALS = "show_goals_widget"
+        private const val KEY_GOALS = "goals_data"
+        private const val KEY_CLEARED_CALENDAR = "cleared_calendar_events"
         private const val KEY_TIMETABLE = "timetable_settings"
         private const val KEY_FLASHCARD_BANK = "flashcard_bank"
         private const val KEY_POPUP_SETTINGS = "study_popup_settings"
