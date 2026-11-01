@@ -10,6 +10,20 @@ a study planner, a goals tracker and a card-based study reminder system.
 `INTERNET` permission in the manifest, no analytics, no ads and no account. Everything you
 enter stays in the app's own storage on your phone.
 
+## Screenshots
+
+| Home | App Drawer |
+| --- | --- |
+| ![Home screen with clock, study status and goals](docs/screenshots/home.jpg) | ![App drawer with search](docs/screenshots/app-drawer.jpg) |
+
+| Study Manager | Settings |
+| --- | --- |
+| ![Study Manager progress tree](docs/screenshots/study-manager.jpg) | ![Settings screen](docs/screenshots/settings.jpg) |
+
+| Backup & Restore |
+| --- |
+| ![Backup and restore screen](docs/screenshots/backup-restore.jpg) |
+
 ## Features
 
 - **Home** — a 12-hour clock with date, the Alerts widget (custom tags + optional reminders),
