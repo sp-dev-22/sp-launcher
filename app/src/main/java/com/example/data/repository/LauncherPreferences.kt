@@ -84,10 +84,25 @@ class LauncherPreferences(context: Context) {
 
     // Which effects are switched on. Each one has its own toggle; the Diwali theme turns them
     // all on at once.
-    private val _enabledAnimations = MutableStateFlow(
-        prefs.getStringSet(KEY_ENABLED_ANIMATIONS, null)?.toSet() ?: AnimationEffect.allKeys
-    )
+    private val _enabledAnimations = MutableStateFlow(loadEnabledAnimations())
     val enabledAnimations: StateFlow<Set<String>> = _enabledAnimations.asStateFlow()
+
+    /**
+     * Reads the saved effect set. Existing installs saved their set before the Rockets and
+     * Twinkling Stars effects existed (v1.11.3), so those two are switched on once for them;
+     * after that, their own toggles rule. Fresh installs simply get every effect.
+     */
+    private fun loadEnabledAnimations(): Set<String> {
+        val stored = prefs.getStringSet(KEY_ENABLED_ANIMATIONS, null)?.toSet()
+            ?: return AnimationEffect.allKeys
+        if (prefs.getBoolean(KEY_ANIM_V1113_SEEN, false)) return stored
+        val merged = stored + AnimationEffect.ROCKETS.key + AnimationEffect.STARS.key
+        prefs.edit()
+            .putStringSet(KEY_ENABLED_ANIMATIONS, merged)
+            .putBoolean(KEY_ANIM_V1113_SEEN, true)
+            .apply()
+        return merged
+    }
 
     private val _showTime = MutableStateFlow(prefs.getBoolean(KEY_SHOW_TIME, true))
     val showTime: StateFlow<Boolean> = _showTime.asStateFlow()
@@ -1317,8 +1332,7 @@ class LauncherPreferences(context: Context) {
         _groups.value = loadGroups()
         _autoThemeMode.value = prefs.getString(KEY_AUTO_THEME, "off") ?: "off"
         _animationsEnabled.value = prefs.getBoolean(KEY_ANIMATIONS, false)
-        _enabledAnimations.value =
-            prefs.getStringSet(KEY_ENABLED_ANIMATIONS, null)?.toSet() ?: AnimationEffect.allKeys
+        _enabledAnimations.value = loadEnabledAnimations()
         _showTime.value = prefs.getBoolean(KEY_SHOW_TIME, true)
         _showDate.value = prefs.getBoolean(KEY_SHOW_DATE, true)
         _showAlerts.value = prefs.getBoolean(KEY_SHOW_ALERTS, true)
@@ -1367,6 +1381,7 @@ class LauncherPreferences(context: Context) {
         private const val KEY_AUTO_THEME = "auto_theme_mode"
         private const val KEY_ANIMATIONS = "animations_enabled"
         private const val KEY_ENABLED_ANIMATIONS = "enabled_animations"
+        private const val KEY_ANIM_V1113_SEEN = "anim_v1113_seen"
 
         /** Theme key that switches the rainbow palette and its animations on. */
         const val THEME_DIWALI = "diwali"

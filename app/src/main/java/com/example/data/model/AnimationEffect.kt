@@ -12,7 +12,9 @@ enum class AnimationEffect(val key: String, val label: String) {
     RANGOLI("rangoli", "Rangoli"),
     CHAKRI("chakri", "Chakri"),
     SKY_LANTERNS("sky_lanterns", "Sky lanterns"),
-    PETALS("petals", "Flower petals");
+    PETALS("petals", "Flower petals"),
+    ROCKETS("rockets", "Rockets"),
+    STARS("stars", "Twinkling stars");
 
     companion object {
         fun fromKey(key: String?): AnimationEffect? = entries.firstOrNull { it.key == key }
