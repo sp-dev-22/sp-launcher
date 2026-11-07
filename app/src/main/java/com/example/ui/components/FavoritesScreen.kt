@@ -283,6 +283,30 @@ fun FavoritesScreen(
                         modifier = Modifier.weight(1f)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
+                    // A group that is not in the bar (removed earlier, or restored from a
+                    // backup) needs its way back in: without this, Edit/Delete were its only
+                    // actions and it could never take a slot again.
+                    val groupSlot = FavoriteSlots.forGroup(group.id)
+                    if (groupSlot in favoriteOrder) {
+                        Text(
+                            text = "In bar",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
+                        )
+                    } else {
+                        Text(
+                            text = "Add",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clickable { addSlot(groupSlot) }
+                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                                .testTag("add_group_${group.id}")
+                        )
+                    }
                     Text(
                         text = "Edit",
                         fontSize = 12.sp,

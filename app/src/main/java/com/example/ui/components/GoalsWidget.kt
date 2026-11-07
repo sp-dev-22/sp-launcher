@@ -115,10 +115,11 @@ private fun GoalRow(goal: GoalItem, onTick: (String) -> Unit) {
             )
             Spacer(modifier = Modifier.height(3.dp))
 
-            // 1 Pushup → 10 Pushups
+            // 1 Pushup -> 10 Pushups. Plain ASCII on purpose: the arrow glyph does not exist in
+            // the phone's XOS font and renders as garbage there (seen on device, v1.11.3).
             Text(
                 text = if (goal.type == GoalType.LIMITED) {
-                    "${valueLabel(goal, goal.currentValue)}  →  ${valueLabel(goal, goal.targetValue)}"
+                    "${valueLabel(goal, goal.currentValue)}  ->  ${valueLabel(goal, goal.targetValue)}"
                 } else {
                     valueLabel(goal, goal.currentValue)
                 },
@@ -131,9 +132,9 @@ private fun GoalRow(goal: GoalItem, onTick: (String) -> Unit) {
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            // Beginner -> Pro
+            // Beginner -> Pro (ASCII arrow for the same XOS font reason as above)
             Text(
-                text = "${goal.startText}  →  ${goal.endText}",
+                text = "${goal.startText}  ->  ${goal.endText}",
                 fontSize = 10.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
