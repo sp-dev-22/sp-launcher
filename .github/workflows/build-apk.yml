@@ -55,8 +55,10 @@ jobs:
       # Keep a per-version copy so older APKs are never lost when the rolling
       # app-debug.apk is replaced by the next build.
       - name: Make a versioned copy of the APK
+        id: ver
         run: |
           VERSION=$(grep -m1 'versionName' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/sp-launcher-v${VERSION}.apk"
           echo "Versioned APK: sp-launcher-v${VERSION}.apk"
 
@@ -67,11 +69,24 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
-      - name: Attach APK to a Release (direct download link)
+      # Each version gets its OWN release page (tag v<version>), holding
+      # only that version's APK.
+      - name: Attach versioned APK to its own Release
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: SP Launcher v${{ steps.ver.outputs.version }}
+          body: "Auto-built debug APK for v${{ steps.ver.outputs.version }}. Download sp-launcher-v${{ steps.ver.outputs.version }}.apk and install it on your phone."
+          files: app/build/outputs/apk/debug/sp-launcher-v${{ steps.ver.outputs.version }}.apk
+
+      # The rolling release keeps ONLY the newest app-debug.apk, so
+      # old versioned APKs never pile up in it again.
+      - name: Attach latest APK to the rolling Release
         continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest
           name: SP Launcher - latest APK
           body: "Auto-built debug APK. Download app-debug.apk and install it on your phone."
-          files: app/build/outputs/apk/debug/*.apk
+          files: app/build/outputs/apk/debug/app-debug.apk
