@@ -113,14 +113,33 @@ private fun GoalRow(goal: GoalItem, onTick: (String) -> Unit) {
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(3.dp))
+
+            // 1 Pushup → 10 Pushups
             Text(
-                text = subtitle(goal),
+                text = if (goal.type == GoalType.LIMITED) {
+                    "${valueLabel(goal, goal.currentValue)}  →  ${valueLabel(goal, goal.targetValue)}"
+                } else {
+                    valueLabel(goal, goal.currentValue)
+                },
                 fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = if (done) DONE_COLOR else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
             )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // Beginner -> Pro
+            Text(
+                text = "${goal.startText}  →  ${goal.endText}",
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+            )
+
             if (goal.type == GoalType.LIMITED) {
                 Spacer(modifier = Modifier.height(5.dp))
                 LinearProgressIndicator(
@@ -157,14 +176,18 @@ private fun GoalRow(goal: GoalItem, onTick: (String) -> Unit) {
     }
 }
 
-/** "12 / 100 - Beginner" for a limited goal, "12 - Beginner" for an unlimited one. */
-private fun subtitle(goal: GoalItem): String {
-    val value = GoalProgress.formatValue(goal.currentValue)
-    return if (goal.type == GoalType.LIMITED) {
-        "$value / ${GoalProgress.formatValue(goal.targetValue)} - ${GoalProgress.label(goal)}"
-    } else {
-        "$value - ${goal.startText}"
-    }
+/**
+ * The unit a goal counts in, taken from the tap button's own label: "100 Liter" -> "Liter",
+ * "1 Pushup" -> "Pushup". Falls back to the plain number when no label was given.
+ */
+private fun unitOf(goal: GoalItem): String =
+    goal.stepLabel.filterNot { it.isDigit() }.replace("/", " ").trim()
+
+/** "1 Pushup", "15 Today" — the number plus the goal's own unit, exactly as typed. */
+private fun valueLabel(goal: GoalItem, value: Double): String {
+    val unit = unitOf(goal)
+    val number = GoalProgress.formatValue(value)
+    return if (unit.isBlank()) number else "$number $unit"
 }
 
 private const val MAX_ROWS = 3

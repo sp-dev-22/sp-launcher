@@ -28,7 +28,17 @@ enter stays in the app's own storage on your phone.
 
 - **Home** — a 12-hour clock with date, the Alerts widget (custom tags + optional reminders),
   a tasks checklist, a Goals widget you can tick from the home screen, a single **Study
-  Manager Status** card (progress + tasks due over the next 7 days), and favourite-app pills.
+  Manager Status** card (progress + tasks due over the next 7 days), and a **favourites bar**
+  pinned to the bottom of the screen.
+- **Favourites bar** — a taskbar-style row at the very bottom of Home. It holds **five slots in
+  total**, each one either an app or an app group, and it stays put however many widgets are
+  switched on (the widgets scroll above it). Tap a slot to launch, long-press to edit.
+- **App groups** — pack up to **four apps into one slot**, so the bar's five slots can hold
+  twenty apps. Groups are unnamed and only ever appear in the favourites bar: the slot shows the
+  apps' icons in miniature, tap it to open them.
+- **Real app icons** — the drawer, the favourites bar and the group sheet use the actual
+  launcher icon of each installed app (cached, and falling back to the old coloured initial if
+  an icon cannot be read).
 - **App Drawer** — search, launch, and long-press actions (favourite, app info, uninstall).
 - **Goals** — a regular-activity tracker. Each goal is either *limited* (a target, e.g. 2 litres
   a day) or *unlimited* (no finish line, it just keeps counting). A goal carries a starting
@@ -54,12 +64,24 @@ enter stays in the app's own storage on your phone.
   the card, a "Show" button to reveal the back, then True/False. Correct cards are mastered;
   wrong cards come back after 1, 3, 5 and 7 days. Cards are imported from JSON files (one or
   many at once), organised into decks you can switch on or off. Never shown on the lock screen.
-- **Themes** — six colour palettes plus night mode, including an automatic night window.
+- **Themes** — seven colour palettes plus night mode. The schedules (auto night window, theme
+  rotation every hour or every day) and the animation toggles live on their own screen:
+  **Settings > Auto & Animations**.
+- **Diwali theme** — a rainbow palette that gives the whole app different colours, and switches
+  the festival animations on by itself: **Lamps**, **Firecrackers**, **Rangoli**, **Chakri**,
+  **Sky lanterns** and **Flower petals**. Each one has its own toggle under Settings > Auto &
+  Animations, and they are drawn on the launcher only — never over other apps.
 - **Widgets** — the Clock, Date, Alerts, Tasks, Study Manager and Goals widgets can each be
   switched on or off from the Widgets sheet.
 - **Backup & Restore** — export and import everything as a single JSON file, plus an optional
   daily automatic backup into a folder you pick.
-- **Hidden apps** — keep selected apps out of the drawer, behind a PIN entered on the clock.
+- **Hidden apps (the vault)** — keep selected apps out of the drawer, behind a four-digit PIN
+  typed as a command in the app search bar:
+  - `vault 1234` opens the hidden-apps screen (hide, unhide, change PIN).
+  - `apps 1234` opens the same list in launch mode, so a hidden app can be started **without
+    unhiding it first**.
+
+  The default PIN is `1234`. The clock is no longer a door to the vault.
 
 ## Download
 
@@ -95,6 +117,21 @@ Each file is JSON — either a plain list, or an object with a `cards` list:
 
 `front` is required. Give `back` for the answer, or `options` + `correct` (1-based) for an
 MCQ and the back is filled in as `Answer: 1) Jupiter`. `q`/`a` are accepted as aliases.
+
+## What's new in 1.11.2
+
+- **Auto & Animations** is its own Settings screen now: auto night mode (with its two times),
+  auto theme change (1 hour / 1 day) and a separate on/off for every animation. The Themes sheet
+  holds just the palettes and night mode, so nothing is squeezed off the bottom of the screen.
+- **Groups are smaller and simpler**: no name, up to four apps per group, mini icons inside the
+  slot. Five slots, twenty apps.
+- Three more animations: **Chakri**, **Sky lanterns** and **Flower petals**.
+- **Animations over other apps removed.** They could swallow touches and drained the battery;
+  the effects now stay inside the launcher.
+- Goals widget: the dashed rule is gone — it reads `1 Pushup → 10 Pushups`, with the goal's
+  start and end text underneath.
+- From 1.11: real app icons, the five-slot favourites bar, the vault as search commands
+  (`vault <pin>` / `apps <pin>`) and the PIN-change fix.
 
 ## Notes
 

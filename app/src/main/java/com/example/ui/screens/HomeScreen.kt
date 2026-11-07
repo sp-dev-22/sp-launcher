@@ -1,12 +1,8 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,22 +19,25 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.data.model.AlertItem
+import com.example.data.model.AppGroup
 import com.example.data.model.AppInfo
 import com.example.data.model.GoalItem
 import com.example.data.model.StudyDueItem
 import com.example.data.model.StudyProgress
 import com.example.data.model.TaskItem
 import com.example.ui.components.AlertsWidget
-import com.example.ui.components.AppFavoriteChip
 import com.example.ui.components.ClockWidget
+import com.example.ui.components.FavoritesBar
 import com.example.ui.components.GoalsWidget
 import com.example.ui.components.StudyDueWidget
 import com.example.ui.components.TasksWidget
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     favoriteApps: List<AppInfo>,
+    allApps: List<AppInfo>,
+    favorites: List<String>,
+    groups: List<AppGroup>,
     showTime: Boolean,
     showDate: Boolean,
     showAlerts: Boolean,
@@ -55,6 +54,7 @@ fun HomeScreen(
     onOpenGoals: () -> Unit,
     onAppClick: (AppInfo) -> Unit,
     onAppLongClick: (AppInfo) -> Unit,
+    onEditFavorites: () -> Unit,
     onToggleTask: (String) -> Unit,
     onAddTask: (String) -> Unit,
     onOpenWidgetsManagement: () -> Unit,
@@ -66,122 +66,113 @@ fun HomeScreen(
 ) {
     val scrollState = rememberScrollState()
 
-    Column(
+    // The favourites bar is pinned to the bottom; everything else scrolls above it, so the bar
+    // stays put however many widgets the user has switched on.
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(bottom = 24.dp)
-            .testTag("home_screen"),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+            .testTag("home_screen")
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Digital Clock & Date Widget
-            ClockWidget(
-                showTime = showTime,
-                showDate = showDate,
-                onDateClick = onOpenCalendar,
-                onTimeClick = onTimeClick,
-                overrideMillis = clockOverrideMillis,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Study Manager status — progress + tasks due, in one combined card
-            if (showStudyDue && (studyDueItems.isNotEmpty() || studyProgress.total > 0)) {
-                Spacer(modifier = Modifier.height(8.dp))
-                StudyDueWidget(
-                    items = studyDueItems,
-                    progress = studyProgress,
-                    isDarkTheme = isDarkTheme,
-                    onOpenStudyManager = onOpenStudyManager,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            // Goals widget (regular activity tracker) - tick straight from here
-            if (showGoals && goals.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                GoalsWidget(
-                    goals = goals,
-                    isDarkTheme = isDarkTheme,
-                    onTick = onTickGoal,
-                    onOpenGoals = onOpenGoals,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Alerts widget (with custom tags + optional reminders) - hidden when empty
-            if (showAlerts && alerts.isNotEmpty()) {
-                AlertsWidget(
-                    items = alerts,
-                    isDarkTheme = isDarkTheme,
-                    onManage = onOpenWidgetsManagement,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Interactive Tasks Widget (hidden when there are no tasks)
-            if (showTasks && tasks.isNotEmpty()) {
-                TasksWidget(
-                    tasks = tasks,
-                    isDarkTheme = isDarkTheme,
-                    onToggleTask = onToggleTask,
-                    onAddTask = onAddTask,
-                    onManageTasks = onOpenWidgetsManagement,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-            }
-        }
-
-        // Favorite Apps (Colorful Text Pills)
-        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(bottom = 84.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
         ) {
-            if (favoriteApps.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Swipe right to App Drawer\nor open Settings to add Favorite apps",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                        textAlign = TextAlign.Center
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Digital Clock & Date Widget
+                ClockWidget(
+                    showTime = showTime,
+                    showDate = showDate,
+                    onDateClick = onOpenCalendar,
+                    onTimeClick = onTimeClick,
+                    overrideMillis = clockOverrideMillis,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Study Manager status — progress + tasks due, in one combined card
+                if (showStudyDue && (studyDueItems.isNotEmpty() || studyProgress.total > 0)) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    StudyDueWidget(
+                        items = studyDueItems,
+                        progress = studyProgress,
+                        isDarkTheme = isDarkTheme,
+                        onOpenStudyManager = onOpenStudyManager,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-            } else {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    maxItemsInEachRow = 3
-                ) {
-                    favoriteApps.forEach { app ->
-                        AppFavoriteChip(
-                            app = app,
-                            isDarkTheme = isDarkTheme,
-                            onClick = { onAppClick(app) },
-                            onLongClick = { onAppLongClick(app) },
-                            modifier = Modifier.padding(2.dp)
+
+                // Goals widget (regular activity tracker) - tick straight from here
+                if (showGoals && goals.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GoalsWidget(
+                        goals = goals,
+                        isDarkTheme = isDarkTheme,
+                        onTick = onTickGoal,
+                        onOpenGoals = onOpenGoals,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Alerts widget (with custom tags + optional reminders) - hidden when empty
+                if (showAlerts && alerts.isNotEmpty()) {
+                    AlertsWidget(
+                        items = alerts,
+                        isDarkTheme = isDarkTheme,
+                        onManage = onOpenWidgetsManagement,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Interactive Tasks Widget (hidden when there are no tasks)
+                if (showTasks && tasks.isNotEmpty()) {
+                    TasksWidget(
+                        tasks = tasks,
+                        isDarkTheme = isDarkTheme,
+                        onToggleTask = onToggleTask,
+                        onAddTask = onAddTask,
+                        onManageTasks = onOpenWidgetsManagement,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
+                if (favorites.isEmpty() && favoriteApps.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Swipe right to the App Drawer,\nor tap + in the bar below to add favourites",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
             }
         }
+
+        FavoritesBar(
+            favorites = favorites,
+            apps = allApps,
+            groups = groups,
+            isDarkTheme = isDarkTheme,
+            onLaunchApp = onAppClick,
+            onEdit = onEditFavorites,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
-

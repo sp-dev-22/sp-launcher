@@ -15,7 +15,10 @@ enum class LauncherTheme(val key: String, val label: String) {
     SAFFRON("saffron", "Saffron"),
     SEATTLE("seattle", "Seattle"),
     OCEAN("ocean", "Ocean"),
-    LAVENDER("lavender", "Lavender");
+    LAVENDER("lavender", "Lavender"),
+
+    /** Rainbow palette for Diwali; switching to it also switches the animations on. */
+    DIWALI("diwali", "Diwali");
 
     companion object {
         fun fromKey(key: String?): LauncherTheme =
@@ -247,6 +250,57 @@ private val LavenderDark = darkColorScheme(
     onError = Color(0xFF690005)
 )
 
+private val DiwaliLight = lightColorScheme(
+    primary = Color(0xFFD81B60),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFE0B2),
+    onPrimaryContainer = Color(0xFF4A2500),
+    secondary = Color(0xFF7B1FA2),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFF3E5F5),
+    onSecondaryContainer = Color(0xFF31103D),
+    tertiary = Color(0xFF00796B),
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFB2DFDB),
+    onTertiaryContainer = Color(0xFF00251F),
+    background = Color(0xFFFFF8E1),
+    onBackground = Color(0xFF2A1A10),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF2A1A10),
+    surfaceVariant = Color(0xFFFFF0D6),
+    onSurfaceVariant = Color(0xFF5C4632),
+    outline = Color(0xFFFFCC80),
+    error = Color(0xFFBA1A1A),
+    onError = Color.White
+)
+
+private val DiwaliDark = darkColorScheme(
+    primary = Color(0xFFFF80AB),
+    onPrimary = Color(0xFF4A0026),
+    primaryContainer = Color(0xFF7A1F4D),
+    onPrimaryContainer = Color(0xFFFFD9E4),
+    secondary = Color(0xFFE1BEE7),
+    onSecondary = Color(0xFF3A1245),
+    secondaryContainer = Color(0xFF4A2058),
+    onSecondaryContainer = Color(0xFFF3E5F5),
+    tertiary = Color(0xFF80CBC4),
+    onTertiary = Color(0xFF00332C),
+    tertiaryContainer = Color(0xFF00504A),
+    onTertiaryContainer = Color(0xFFB2DFDB),
+    background = Color(0xFF1A0F14),
+    onBackground = Color(0xFFFFE9D6),
+    surface = Color(0xFF241419),
+    onSurface = Color(0xFFFFE9D6),
+    surfaceVariant = Color(0xFF33202A),
+    onSurfaceVariant = Color(0xFFE6C9B8),
+    outline = Color(0xFF6B4A33),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005)
+)
+
+/** True for the Diwali theme, which paints a rainbow wash behind the app. */
+fun isRainbowTheme(theme: LauncherTheme): Boolean = theme == LauncherTheme.DIWALI
+
 fun colorSchemeFor(theme: LauncherTheme, dark: Boolean): ColorScheme = when (theme) {
     LauncherTheme.DEFAULT -> if (dark) DefaultDark else DefaultLight
     LauncherTheme.PINK -> if (dark) PinkDark else PinkLight
@@ -255,6 +309,7 @@ fun colorSchemeFor(theme: LauncherTheme, dark: Boolean): ColorScheme = when (the
     LauncherTheme.SEATTLE -> if (dark) SeattleDark else SeattleLight
     LauncherTheme.OCEAN -> if (dark) OceanDark else OceanLight
     LauncherTheme.LAVENDER -> if (dark) LavenderDark else LavenderLight
+    LauncherTheme.DIWALI -> if (dark) DiwaliDark else DiwaliLight
 }
 
 /** Preview swatch colour for the Themes picker. */

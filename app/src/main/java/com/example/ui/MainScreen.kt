@@ -12,34 +12,36 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import com.example.ui.anim.DiwaliAnimationLayer
+import com.example.ui.anim.RainbowBackground
 import com.example.ui.components.AppActionBottomSheet
 import com.example.ui.components.FavoritesScreen
 import com.example.ui.components.ThemesSheet
 import com.example.ui.components.UndoBar
 import com.example.ui.components.WidgetsManagementSheet
+import com.example.ui.screens.AutoAnimationsScreen
 import com.example.ui.screens.BackupRestoreScreen
 import com.example.ui.screens.CalendarScreen
 import com.example.ui.screens.CardsScreen
 import com.example.ui.screens.DrawerScreen
+import com.example.ui.screens.GoalsScreen
 import com.example.ui.screens.HiddenAppsScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.PracticeScreen
+import com.example.ui.screens.SearchScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StudyManagerScreen
-import com.example.ui.screens.SearchScreen
-import com.example.ui.screens.SupportScreen
-import com.example.ui.screens.GoalsScreen
 import com.example.ui.screens.StudyPopupsScreen
-import com.example.ui.screens.TimeGateScreen
+import com.example.ui.screens.SupportScreen
 import com.example.ui.screens.TimeTableScreen
 import com.example.ui.theme.LauncherTheme
+import com.example.ui.theme.isRainbowTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 
 @Composable
 fun MainScreen(
@@ -50,10 +52,11 @@ fun MainScreen(
     val coroutineScope = rememberCoroutineScope()
     val undoMessage by viewModel.undoMessage.collectAsState()
 
-    // Keep auto night mode in step with the clock.
+    // Keep auto night mode and the per-hour / per-day theme rotation in step with the clock.
     LaunchedEffect(Unit) {
         while (true) {
             viewModel.refreshAutoNightMode()
+            viewModel.refreshAutoTheme()
             delay(60_000L)
         }
     }
@@ -62,6 +65,7 @@ fun MainScreen(
     val allApps by viewModel.installedApps.collectAsState()
     val favoriteAppInfos by viewModel.favoriteAppInfos.collectAsState()
     val favoritePackages by viewModel.favorites.collectAsState()
+    val groups by viewModel.groups.collectAsState()
 
     val showTime by viewModel.showTime.collectAsState()
     val showDate by viewModel.showDate.collectAsState()
@@ -73,6 +77,10 @@ fun MainScreen(
 
     // Themes
     val themeKey by viewModel.themeKey.collectAsState()
+    val autoThemeMode by viewModel.autoThemeMode.collectAsState()
+    val animationsEnabled by viewModel.animationsEnabled.collectAsState()
+    val enabledAnimations by viewModel.enabledAnimations.collectAsState()
+    val showAutoAnimations by viewModel.showAutoAnimations.collectAsState()
     val showStudyDue by viewModel.showStudyDue.collectAsState()
     val studyDueItems by viewModel.studyDueItems.collectAsState()
 
@@ -89,7 +97,6 @@ fun MainScreen(
     val goals by viewModel.goals.collectAsState()
     val showGoalsWidget by viewModel.showGoalsWidget.collectAsState()
     val showSearch by viewModel.showSearch.collectAsState()
-    val showTimeGate by viewModel.showTimeGate.collectAsState()
     val showHiddenApps by viewModel.showHiddenApps.collectAsState()
     val clockOverride by viewModel.clockOverride.collectAsState()
     val drawerApps by viewModel.drawerApps.collectAsState()
@@ -101,13 +108,19 @@ fun MainScreen(
     val nightStart by viewModel.nightStartMinutes.collectAsState()
     val nightEnd by viewModel.nightEndMinutes.collectAsState()
 
+    val currentTheme = LauncherTheme.fromKey(themeKey)
+    val rainbow = isRainbowTheme(currentTheme)
+
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
-        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager || showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar || showGoals || showSupport || showSearch || showTimeGate || showHiddenApps || showPractice
+        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager ||
+            showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar ||
+            showGoals || showSupport || showSearch || showHiddenApps || showPractice ||
+            showAutoAnimations
     ) {
         when {
+            showAutoAnimations -> viewModel.setShowAutoAnimations(false)
             showPractice -> viewModel.setShowPractice(false)
-            showTimeGate -> viewModel.setShowTimeGate(false)
             showHiddenApps -> viewModel.setShowHiddenApps(false)
             showCards -> viewModel.setShowCards(false)
             showCalendar -> viewModel.setShowCalendar(false)
@@ -127,13 +140,18 @@ fun MainScreen(
         modifier = Modifier
             .fillMaxSize()
             .testTag("launcher_main_scaffold"),
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = if (rainbow) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            // Diwali: a rainbow wash behind everything.
+            if (rainbow) {
+                RainbowBackground(dark = isDarkTheme)
+            }
+
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
@@ -144,6 +162,7 @@ fun MainScreen(
                         SettingsScreen(
                             isDarkTheme = isDarkTheme,
                             onOpenThemes = { viewModel.setShowThemesSheet(true) },
+                            onOpenAutoAnimations = { viewModel.setShowAutoAnimations(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             onOpenStudyPopups = { viewModel.setShowStudyPopups(true) },
                             onOpenGoals = { viewModel.setShowGoals(true) },
@@ -159,6 +178,9 @@ fun MainScreen(
                         // Center Page: Home
                         HomeScreen(
                             favoriteApps = favoriteAppInfos,
+                            allApps = allApps,
+                            favorites = favoritePackages,
+                            groups = groups,
                             showTime = showTime,
                             showDate = showDate,
                             showAlerts = showAlerts,
@@ -174,13 +196,16 @@ fun MainScreen(
                             onTickGoal = { id -> viewModel.tickGoal(id) },
                             onOpenGoals = { viewModel.setShowGoals(true) },
                             onAppClick = { app -> viewModel.launchApp(app) },
-                            onAppLongClick = { app -> viewModel.setShowAddFavoritesScreen(true) },
+                            onAppLongClick = { viewModel.setShowAddFavoritesScreen(true) },
+                            onEditFavorites = { viewModel.setShowAddFavoritesScreen(true) },
                             onToggleTask = { id -> viewModel.toggleTask(id) },
                             onAddTask = { text -> viewModel.addTask(text) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             onOpenCalendar = { viewModel.setShowCalendar(true) },
-                            onTimeClick = { viewModel.setShowTimeGate(true) },
+                            // The clock is no longer a door to the vault: the search commands
+                            // (`vault <pin>` / `apps <pin>`) are the only way in now.
+                            onTimeClick = { },
                             clockOverrideMillis = clockOverride,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -199,12 +224,16 @@ fun MainScreen(
                 }
             }
 
-            // Fullscreen Favorites (pick apps + drag to reorder)
+            // Fullscreen Favorites (pick apps + groups, drag to reorder)
             if (showAddFavoritesScreen) {
                 FavoritesScreen(
                     allApps = allApps,
                     initialFavorites = favoritePackages,
+                    groups = groups,
                     onSave = { newFavorites -> viewModel.reorderFavorites(newFavorites) },
+                    onAddGroup = { packages -> viewModel.addGroup(packages) },
+                    onUpdateGroup = { group -> viewModel.updateGroup(group) },
+                    onDeleteGroup = { id -> viewModel.deleteGroup(id) },
                     onBack = { viewModel.setShowAddFavoritesScreen(false) }
                 )
             }
@@ -271,7 +300,7 @@ fun MainScreen(
                 )
             }
 
-            // Fullscreen Universal Search
+            // Fullscreen Universal Search (also the vault door: `vault <pin>` / `apps <pin>`)
             if (showSearch) {
                 SearchScreen(
                     viewModel = viewModel,
@@ -279,13 +308,7 @@ fun MainScreen(
                 )
             }
 
-            // Secret "set time" door -> hidden apps (the vault)
-            if (showTimeGate) {
-                TimeGateScreen(
-                    viewModel = viewModel,
-                    onBack = { viewModel.setShowTimeGate(false) }
-                )
-            }
+            // The vault, opened by a search command
             if (showHiddenApps) {
                 HiddenAppsScreen(
                     viewModel = viewModel,
@@ -304,6 +327,14 @@ fun MainScreen(
             // Fullscreen Support (tips + links)
             if (showSupport) {
                 SupportScreen(onBack = { viewModel.setShowSupport(false) })
+            }
+
+            // Festival effects. Deliberately in-app only: nothing is drawn over other apps.
+            if (animationsEnabled && enabledAnimations.isNotEmpty()) {
+                DiwaliAnimationLayer(
+                    effects = enabledAnimations,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
             // Delete-undo bar (drawn here; the sheet draws its own copy so it stays reachable)
@@ -350,34 +381,53 @@ fun MainScreen(
                 viewModel.setShowGoals(true)
             },
             onAddAlert = { viewModel.addAlert(it) },
-                            onEditAlert = { viewModel.updateAlert(it) },
-                            onRemoveAlert = { viewModel.removeAlert(it) },
-                            onMoveAlert = { id, dir -> viewModel.moveAlert(id, dir) },
-                            onPinAlert = { id, pinned -> viewModel.setAlertPinned(id, pinned) },
-                            onArchiveAlert = { id, archived -> viewModel.setAlertArchived(id, archived) },
-                            onAddTask = { viewModel.addTask(it) },
-                            onRemoveTask = { viewModel.removeTask(it) },
-                            onEditTaskItem = { task -> viewModel.updateTaskItem(task) },
-                            onMoveTask = { id, dir -> viewModel.moveTask(id, dir) },
-                            undoMessage = undoMessage,
-                            onUndo = { viewModel.performUndo() },
+            onEditAlert = { viewModel.updateAlert(it) },
+            onRemoveAlert = { viewModel.removeAlert(it) },
+            onMoveAlert = { id, dir -> viewModel.moveAlert(id, dir) },
+            onPinAlert = { id, pinned -> viewModel.setAlertPinned(id, pinned) },
+            onArchiveAlert = { id, archived -> viewModel.setAlertArchived(id, archived) },
+            onAddTask = { viewModel.addTask(it) },
+            onRemoveTask = { viewModel.removeTask(it) },
+            onEditTaskItem = { task -> viewModel.updateTaskItem(task) },
+            onMoveTask = { id, dir -> viewModel.moveTask(id, dir) },
+            undoMessage = undoMessage,
+            onUndo = { viewModel.performUndo() },
             onDismiss = { viewModel.setShowWidgetsDialog(false) }
         )
     }
 
-    // Themes Sheet (colour palettes + night mode)
+    // Themes Sheet: palettes and night mode only. The schedules and animations live on their
+    // own screen (Settings > Auto & Animations).
     if (showThemesSheet) {
         ThemesSheet(
-            currentTheme = LauncherTheme.fromKey(themeKey),
+            currentTheme = currentTheme,
             isDarkTheme = isDarkTheme,
+            onSelectTheme = { viewModel.setTheme(it.key) },
+            onToggleNightMode = { viewModel.setNightMode(it) },
+            onOpenAutoAnimations = {
+                viewModel.setShowThemesSheet(false)
+                viewModel.setShowAutoAnimations(true)
+            },
+            onDismiss = { viewModel.setShowThemesSheet(false) }
+        )
+    }
+
+    // Auto & Animations (auto night mode, auto theme change, one toggle per animation)
+    if (showAutoAnimations) {
+        AutoAnimationsScreen(
             autoNightEnabled = autoNight,
             nightStartMinutes = nightStart,
             nightEndMinutes = nightEnd,
-            onSelectTheme = { viewModel.setTheme(it.key) },
-            onToggleNightMode = { viewModel.setNightMode(it) },
+            autoThemeMode = autoThemeMode,
+            animationsEnabled = animationsEnabled,
+            enabledAnimations = enabledAnimations,
             onToggleAutoNight = { viewModel.setAutoNightMode(it) },
             onSetNightWindow = { s, e -> viewModel.setNightWindow(s, e) },
-            onDismiss = { viewModel.setShowThemesSheet(false) }
+            onSetAutoThemeMode = { viewModel.setAutoThemeMode(it) },
+            onToggleAnimations = { viewModel.setAnimationsEnabled(it) },
+            onToggleAnimation = { key, enabled -> viewModel.setAnimationEnabled(key, enabled) },
+            onToggleAllAnimations = { viewModel.setAllAnimationsEnabled(it) },
+            onBack = { viewModel.setShowAutoAnimations(false) }
         )
     }
 }

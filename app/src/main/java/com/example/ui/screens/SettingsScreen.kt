@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -44,6 +45,7 @@ import com.example.BuildConfig
 fun SettingsScreen(
     isDarkTheme: Boolean,
     onOpenThemes: () -> Unit,
+    onOpenAutoAnimations: () -> Unit,
     onOpenStudyManager: () -> Unit,
     onOpenStudyPopups: () -> Unit,
     onOpenGoals: () -> Unit,
@@ -101,6 +103,24 @@ fun SettingsScreen(
             },
             onClick = onOpenThemes,
             testTag = "settings_themes"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 1b. Auto schedules + animations (moved off the Themes sheet)
+        SettingsItemRow(
+            title = "Auto & Animations",
+            subtitle = "Auto night mode, auto theme change, and each animation on/off",
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Timer,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            onClick = onOpenAutoAnimations,
+            testTag = "settings_auto_animations"
         )
 
         Spacer(modifier = Modifier.height(16.dp))

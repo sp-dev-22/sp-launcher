@@ -6,7 +6,9 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.AlertItem
+import com.example.data.model.AppGroup
 import com.example.data.model.AppInfo
+import com.example.data.model.FavoriteSlots
 import com.example.data.model.CardStats
 import com.example.data.model.FlashcardItem
 import com.example.data.model.StudyProgress
@@ -56,6 +58,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     val isNightMode = preferences.isNightMode
     val favorites = preferences.favorites
+    val groups = preferences.groups
+    val autoThemeMode = preferences.autoThemeMode
+    val animationsEnabled = preferences.animationsEnabled
+    val enabledAnimations = preferences.enabledAnimations
     val showTime = preferences.showTime
     val showDate = preferences.showDate
     val showAlerts = preferences.showAlerts
@@ -153,8 +159,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showTimeGate = MutableStateFlow(false)
     val showTimeGate: StateFlow<Boolean> = _showTimeGate.asStateFlow()
 
+    private val _showAutoAnimations = MutableStateFlow(false)
+    val showAutoAnimations: StateFlow<Boolean> = _showAutoAnimations.asStateFlow()
+
+    fun setShowAutoAnimations(show: Boolean) {
+        _showAutoAnimations.value = show
+    }
+
     private val _showHiddenApps = MutableStateFlow(false)
     val showHiddenApps: StateFlow<Boolean> = _showHiddenApps.asStateFlow()
+
+    private val _hiddenAppsMode = MutableStateFlow(HiddenAppsMode.MANAGE)
+    val hiddenAppsMode: StateFlow<HiddenAppsMode> = _hiddenAppsMode.asStateFlow()
 
     private val _showPractice = MutableStateFlow(false)
     val showPractice: StateFlow<Boolean> = _showPractice.asStateFlow()
@@ -332,23 +348,94 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setTheme(key: String) {
+        // The Diwali theme switches the animations on by itself (see LauncherPreferences).
         preferences.setTheme(key)
     }
 
-    fun addFavorite(packageName: String) {
-        preferences.addFavorite(packageName)
-    }
+    /** True when the favourites bar still has a free slot. */
+    fun canAddFavorite(): Boolean = preferences.canAddFavorite()
+
+    /** Returns false when the bar is already full (five apps and groups together). */
+    fun addFavorite(packageName: String): Boolean = preferences.addFavorite(packageName)
 
     fun removeFavorite(packageName: String) {
         preferences.removeFavorite(packageName)
     }
 
-    fun toggleFavorite(packageName: String) {
-        preferences.toggleFavorite(packageName)
+    fun toggleFavorite(packageName: String): Boolean {
+        val added = preferences.toggleFavorite(packageName)
+        if (!added) {
+            offerUndo("Favourites bar is full (${FavoriteSlots.MAX_SLOTS} slots)") { }
+        }
+        return added
     }
 
     fun reorderFavorites(newOrder: List<String>) {
         preferences.saveFavorites(newOrder)
+    }
+
+    // ---- App groups (favourites bar only) ----
+
+    /** Returns false when the bar has no room for the new group. */
+    fun addGroup(packages: List<String>): Boolean {
+        val created = preferences.addGroup(packages)
+        if (created == null) {
+            offerUndo("Favourites bar is full (${FavoriteSlots.MAX_SLOTS} slots)") { }
+            return false
+        }
+        return true
+    }
+
+    fun updateGroup(group: AppGroup) = preferences.updateGroup(group)
+
+    fun deleteGroup(groupId: String) = preferences.deleteGroup(groupId)
+
+    fun setGroupPackages(groupId: String, packages: List<String>) =
+        preferences.setGroupPackages(groupId, packages)
+
+    // ---- Theme rotation ----
+
+    fun setAutoThemeMode(mode: String) {
+        preferences.setAutoThemeMode(mode)
+        refreshAutoTheme()
+    }
+
+    /**
+     * Rotates the palette once an hour or once a day, depending on the chosen mode. Does nothing
+     * when rotation is off, and never rotates into (or out of) the Diwali theme on its own.
+     */
+    fun refreshAutoTheme() {
+        val mode = preferences.autoThemeMode.value
+        if (mode == "off") return
+        val palette = ROTATING_THEMES
+        val cal = Calendar.getInstance()
+        val index = when (mode) {
+            "hour" -> cal.get(Calendar.HOUR_OF_DAY)
+            else -> cal.get(Calendar.DAY_OF_YEAR)
+        }
+        val target = palette[Math.floorMod(index, palette.size)]
+        if (preferences.themeKey.value != target) {
+            preferences.setTheme(target)
+        }
+    }
+
+    // ---- Diwali animations ----
+
+    fun setAnimationsEnabled(enabled: Boolean) {
+        preferences.setAnimationsEnabled(enabled)
+    }
+
+    /** One effect on or off (Settings > Auto & Animations). */
+    fun setAnimationEnabled(effectKey: String, enabled: Boolean) {
+        preferences.setAnimationEnabled(effectKey, enabled)
+        // Turning a single effect on implies the animations are on at all.
+        if (enabled && !preferences.animationsEnabled.value) {
+            preferences.setAnimationsEnabled(true)
+        }
+    }
+
+    fun setAllAnimationsEnabled(enabled: Boolean) {
+        preferences.setAllAnimationsEnabled(enabled)
     }
 
     fun addTask(text: String) {
@@ -465,6 +552,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowHiddenApps(show: Boolean) {
         _showHiddenApps.value = show
+        if (!show) _hiddenAppsMode.value = HiddenAppsMode.MANAGE
     }
 
     fun setShowPractice(show: Boolean) {
@@ -576,13 +664,51 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         preferences.setAppHidden(packageName, hidden)
     }
 
+    /**
+     * Stores the vault PIN. It is always kept as exactly four digits, so a PIN such as 0078 can
+     * be typed in the search bar as `vault 0078` and still match.
+     */
     fun setVaultPin(pin: String) {
-        preferences.setVaultPin(pin)
+        val digits = pin.filter { it.isDigit() }.take(4)
+        if (digits.length != 4) return
+        preferences.setVaultPin(digits)
     }
 
-    /** True when the hour/minute typed on the decoy "set time" screen is the vault PIN. */
-    fun checkVaultPin(hour: Int, minute: Int): Boolean =
-        "%02d%02d".format(hour, minute) == preferences.vaultPin.value
+    /** True when [typed] is the vault PIN. Spaces and stray characters are ignored. */
+    fun checkVaultPin(typed: String): Boolean {
+        val digits = typed.filter { it.isDigit() }
+        return digits.isNotEmpty() && digits == preferences.vaultPin.value.filter { it.isDigit() }
+    }
+
+    /**
+     * Runs a typed search-bar command. Returns true when the query was a command and should not
+     * be treated as a normal search.
+     *
+     * `vault <pin>` opens the hidden-apps screen (hide / unhide / change PIN).
+     * `apps <pin>`  opens the same screen in launch mode, so a hidden app can be started without
+     *               unhiding it first.
+     */
+    fun runSearchCommand(query: String): Boolean {
+        val parts = query.trim().split(Regex("\\s+"))
+        if (parts.size != 2) return false
+        val command = parts[0].lowercase()
+        if (command != "vault" && command != "apps") return false
+        if (!checkVaultPin(parts[1])) return false
+        _showSearch.value = false
+        _hiddenAppsMode.value = if (command == "vault") HiddenAppsMode.MANAGE else HiddenAppsMode.LAUNCH
+        _showHiddenApps.value = true
+        return true
+    }
+
+    /** Hidden apps, resolved to full [AppInfo]s (used by the `apps <pin>` launch mode). */
+    val hiddenAppInfos: StateFlow<List<AppInfo>> =
+        combine(_installedApps, preferences.hiddenApps) { apps, hidden ->
+            apps.filter { it.packageName in hidden }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun setHiddenAppsMode(mode: HiddenAppsMode) {
+        _hiddenAppsMode.value = mode
+    }
 
     /** Pins the Home clock to [hour]:[minute] for 30 seconds (the decoy), then it reverts. */
     fun setClockOverride(hour: Int, minute: Int) {
@@ -960,5 +1086,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             StudyPopupScheduler.reschedule(getApplication<Application>(), preferences.popupSettings.value)
         }
         return ok
+    }
+
+    companion object {
+        /**
+         * The palettes auto-rotation walks through. The Diwali theme is left out on purpose:
+         * it is a festival choice, not something the clock should switch on by itself.
+         */
+        private val ROTATING_THEMES = listOf(
+            "default", "pink", "green", "saffron", "seattle", "ocean", "lavender"
+        )
     }
 }

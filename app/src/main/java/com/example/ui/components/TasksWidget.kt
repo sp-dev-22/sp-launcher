@@ -255,15 +255,6 @@ fun TasksWidget(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Swipe left / right  •  tap to complete",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                    modifier = Modifier
-                        .clickable { onManageTasks() }
-                        .testTag("tasks_hint")
-                )
             }
         }
     }

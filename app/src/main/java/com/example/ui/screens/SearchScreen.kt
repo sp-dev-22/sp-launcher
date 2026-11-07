@@ -62,6 +62,15 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
+    // Vault commands: `vault <pin>` and `apps <pin>`. Checked on every keystroke, so the screen
+    // opens the moment the fourth PIN digit is typed.
+    LaunchedEffect(query) {
+        if (query.isNotBlank()) viewModel.runSearchCommand(query)
+    }
+
+    val looksLikeCommand = query.trim().lowercase().startsWith("vault ") ||
+        query.trim().lowercase().startsWith("apps ")
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -92,7 +101,11 @@ fun SearchScreen(
         }
 
         when {
-            query.isBlank() -> Hint("Type to search apps, tasks, notes, study classes and cards.")
+            query.isBlank() -> Hint(
+                "Type to search apps, tasks, notes, study classes and cards.\n\n" +
+                    "Commands:  vault 1234  ·  apps 1234"
+            )
+            looksLikeCommand && hits.isEmpty() -> Hint("Wrong PIN, or no results for \"$query\"")
             hits.isEmpty() -> Hint("No results for \"$query\"")
             else -> LazyColumn(
                 modifier = Modifier

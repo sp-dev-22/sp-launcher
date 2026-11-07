@@ -52,18 +52,17 @@ fun AppDrawerItem(
             .testTag("app_drawer_item_${app.packageName}"),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Colorful solid circle icon with clean single letter inside
+        // The real launcher icon, with the old coloured initial as a fallback.
         Box(
             modifier = Modifier
                 .size(54.dp)
                 .background(color = circleColor, shape = CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = initialChar,
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Medium
+            RealAppIcon(
+                app = app,
+                size = 54.dp,
+                isDarkTheme = isDarkTheme
             )
         }
 

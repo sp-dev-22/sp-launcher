@@ -3,6 +3,9 @@ package com.example.data.repository
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.data.model.AlertItem
+import com.example.data.model.AnimationEffect
+import com.example.data.model.AppGroup
+import com.example.data.model.FavoriteSlots
 import com.example.data.model.FlashcardItem
 import com.example.data.model.StudyPopupSettings
 import com.example.data.model.SubjectPlanSettings
@@ -62,8 +65,29 @@ class LauncherPreferences(context: Context) {
     private val _themeKey = MutableStateFlow(prefs.getString(KEY_THEME, "default") ?: "default")
     val themeKey: StateFlow<String> = _themeKey.asStateFlow()
 
+    // Favourites bar slots: a package name for an app, or "group:<id>" for an app group.
+    // Five slots in total, apps and groups together.
     private val _favorites = MutableStateFlow(loadFavorites())
     val favorites: StateFlow<List<String>> = _favorites.asStateFlow()
+
+    // App groups (only ever shown in the favourites bar)
+    private val _groups = MutableStateFlow(loadGroups())
+    val groups: StateFlow<List<AppGroup>> = _groups.asStateFlow()
+
+    // Theme rotation: off / hour / day
+    private val _autoThemeMode = MutableStateFlow(prefs.getString(KEY_AUTO_THEME, "off") ?: "off")
+    val autoThemeMode: StateFlow<String> = _autoThemeMode.asStateFlow()
+
+    // Diwali animations: on/off, which effect, and whether they also draw over other apps
+    private val _animationsEnabled = MutableStateFlow(prefs.getBoolean(KEY_ANIMATIONS, false))
+    val animationsEnabled: StateFlow<Boolean> = _animationsEnabled.asStateFlow()
+
+    // Which effects are switched on. Each one has its own toggle; the Diwali theme turns them
+    // all on at once.
+    private val _enabledAnimations = MutableStateFlow(
+        prefs.getStringSet(KEY_ENABLED_ANIMATIONS, null)?.toSet() ?: AnimationEffect.allKeys
+    )
+    val enabledAnimations: StateFlow<Set<String>> = _enabledAnimations.asStateFlow()
 
     private val _showTime = MutableStateFlow(prefs.getBoolean(KEY_SHOW_TIME, true))
     val showTime: StateFlow<Boolean> = _showTime.asStateFlow()
@@ -256,21 +280,31 @@ class LauncherPreferences(context: Context) {
     fun setTheme(key: String) {
         prefs.edit().putString(KEY_THEME, key).apply()
         _themeKey.value = key
+        // The Diwali theme turns its animations on by itself; the other themes leave the
+        // user's own animation choice alone.
+        if (key == THEME_DIWALI) setAnimationsEnabled(true)
     }
 
     fun saveFavorites(list: List<String>) {
+        // Never let more than MAX_SLOTS favourites through, whatever the caller sends.
+        val capped = list.distinct().take(FavoriteSlots.MAX_SLOTS)
         val array = JSONArray()
-        list.forEach { array.put(it) }
+        capped.forEach { array.put(it) }
         prefs.edit().putString(KEY_FAVORITES, array.toString()).apply()
-        _favorites.value = list
+        _favorites.value = capped
     }
 
-    fun addFavorite(packageName: String) {
+    /** True when another favourites-bar slot can still be used. */
+    fun canAddFavorite(): Boolean = _favorites.value.size < FavoriteSlots.MAX_SLOTS
+
+    /** Returns false when the bar is already full. */
+    fun addFavorite(packageName: String): Boolean {
         val current = _favorites.value.toMutableList()
-        if (!current.contains(packageName)) {
-            current.add(packageName)
-            saveFavorites(current)
-        }
+        if (current.contains(packageName)) return true
+        if (current.size >= FavoriteSlots.MAX_SLOTS) return false
+        current.add(packageName)
+        saveFavorites(current)
+        return true
     }
 
     fun removeFavorite(packageName: String) {
@@ -280,14 +314,94 @@ class LauncherPreferences(context: Context) {
         }
     }
 
-    fun toggleFavorite(packageName: String) {
+    /** Returns false when the bar is full and the app could not be added. */
+    fun toggleFavorite(packageName: String): Boolean {
         val current = _favorites.value.toMutableList()
         if (current.contains(packageName)) {
             current.remove(packageName)
-        } else {
-            current.add(packageName)
+            saveFavorites(current)
+            return true
         }
+        if (current.size >= FavoriteSlots.MAX_SLOTS) return false
+        current.add(packageName)
         saveFavorites(current)
+        return true
+    }
+
+    // ---- App groups ----
+
+    fun saveGroups(list: List<AppGroup>) {
+        val array = JSONArray()
+        for (group in list) {
+            val packages = JSONArray()
+            group.packages.take(FavoriteSlots.MAX_APPS_PER_GROUP).forEach { packages.put(it) }
+            array.put(
+                JSONObject().apply {
+                    put("id", group.id)
+                    put("packages", packages)
+                }
+            )
+        }
+        prefs.edit().putString(KEY_GROUPS, array.toString()).apply()
+        _groups.value = list
+    }
+
+    /** Creates a group of up to four apps. Returns null when the bar has no free slot left. */
+    fun addGroup(packages: List<String>): AppGroup? {
+        val apps = packages.distinct().take(FavoriteSlots.MAX_APPS_PER_GROUP)
+        if (apps.isEmpty()) return null
+        if (!canAddFavorite()) return null
+        val group = AppGroup(packages = apps)
+        saveGroups(_groups.value + group)
+        addFavorite(FavoriteSlots.forGroup(group.id))
+        return group
+    }
+
+    fun updateGroup(group: AppGroup) {
+        saveGroups(_groups.value.map { if (it.id == group.id) group else it })
+    }
+
+    fun deleteGroup(groupId: String) {
+        saveGroups(_groups.value.filterNot { it.id == groupId })
+        removeFavorite(FavoriteSlots.forGroup(groupId))
+    }
+
+    fun setGroupPackages(groupId: String, packages: List<String>) {
+        saveGroups(
+            _groups.value.map {
+                if (it.id == groupId) {
+                    it.copy(packages = packages.distinct().take(FavoriteSlots.MAX_APPS_PER_GROUP))
+                } else {
+                    it
+                }
+            }
+        )
+    }
+
+    // ---- Theme rotation & animations ----
+
+    fun setAutoThemeMode(mode: String) {
+        prefs.edit().putString(KEY_AUTO_THEME, mode).apply()
+        _autoThemeMode.value = mode
+    }
+
+    fun setAnimationsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ANIMATIONS, enabled).apply()
+        _animationsEnabled.value = enabled
+    }
+
+    /** Switches one effect on or off. */
+    fun setAnimationEnabled(effectKey: String, enabled: Boolean) {
+        val current = _enabledAnimations.value.toMutableSet()
+        if (enabled) current.add(effectKey) else current.remove(effectKey)
+        prefs.edit().putStringSet(KEY_ENABLED_ANIMATIONS, current).apply()
+        _enabledAnimations.value = current
+    }
+
+    fun setAllAnimationsEnabled(enabled: Boolean) {
+        val set = if (enabled) AnimationEffect.allKeys else emptySet()
+        prefs.edit().putStringSet(KEY_ENABLED_ANIMATIONS, set).apply()
+        _enabledAnimations.value = set
     }
 
     fun saveTasks(list: List<TaskItem>) {
@@ -404,6 +518,29 @@ class LauncherPreferences(context: Context) {
 
     fun setAlertArchived(id: String, archived: Boolean) {
         saveAlerts(_alerts.value.map { if (it.id == id) it.copy(archived = archived) else it })
+    }
+
+    private fun loadGroups(): List<AppGroup> {
+        val raw = prefs.getString(KEY_GROUPS, null) ?: return emptyList()
+        return try {
+            val array = JSONArray(raw)
+            val list = mutableListOf<AppGroup>()
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val packagesArr = obj.optJSONArray("packages") ?: JSONArray()
+                val packages = mutableListOf<String>()
+                for (j in 0 until packagesArr.length()) packages.add(packagesArr.getString(j))
+                list.add(
+                    AppGroup(
+                        id = obj.optString("id", java.util.UUID.randomUUID().toString()),
+                        packages = packages.take(FavoriteSlots.MAX_APPS_PER_GROUP)
+                    )
+                )
+            }
+            list
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     private fun loadFavorites(): List<String> {
@@ -1177,6 +1314,11 @@ class LauncherPreferences(context: Context) {
         _backupFolderUri.value = prefs.getString(KEY_BACKUP_URI, null)
         _lastBackupMillis.value = prefs.getLong(KEY_LAST_BACKUP, 0L)
         _favorites.value = loadFavorites()
+        _groups.value = loadGroups()
+        _autoThemeMode.value = prefs.getString(KEY_AUTO_THEME, "off") ?: "off"
+        _animationsEnabled.value = prefs.getBoolean(KEY_ANIMATIONS, false)
+        _enabledAnimations.value =
+            prefs.getStringSet(KEY_ENABLED_ANIMATIONS, null)?.toSet() ?: AnimationEffect.allKeys
         _showTime.value = prefs.getBoolean(KEY_SHOW_TIME, true)
         _showDate.value = prefs.getBoolean(KEY_SHOW_DATE, true)
         _showAlerts.value = prefs.getBoolean(KEY_SHOW_ALERTS, true)
@@ -1221,5 +1363,12 @@ class LauncherPreferences(context: Context) {
         private const val KEY_TIMETABLE = "timetable_settings"
         private const val KEY_FLASHCARD_BANK = "flashcard_bank"
         private const val KEY_POPUP_SETTINGS = "study_popup_settings"
+        private const val KEY_GROUPS = "app_groups"
+        private const val KEY_AUTO_THEME = "auto_theme_mode"
+        private const val KEY_ANIMATIONS = "animations_enabled"
+        private const val KEY_ENABLED_ANIMATIONS = "enabled_animations"
+
+        /** Theme key that switches the rainbow palette and its animations on. */
+        const val THEME_DIWALI = "diwali"
     }
 }
