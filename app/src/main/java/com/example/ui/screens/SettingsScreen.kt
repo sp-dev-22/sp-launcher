@@ -107,10 +107,10 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 1b. Auto schedules + animations (moved off the Themes sheet)
+        // 1b. Automatics: the schedules (moved off the Themes sheet)
         SettingsItemRow(
-            title = "Auto & Animations",
-            subtitle = "Auto night mode, auto theme change, and each animation on/off",
+            title = "Automatics",
+            subtitle = "Auto night mode and auto theme change",
             icon = {
                 Icon(
                     imageVector = Icons.Default.Timer,

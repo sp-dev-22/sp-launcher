@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 
 private const val UPI_ID = "sp.26@ptyes"
+private const val WEBSITE_URL = "https://sp-dev-22.github.io/"
 private const val GITHUB_URL = "https://github.com/sp-dev-22"
 private const val YOUTUBE_URL = "https://youtube.com/@sp-dev-22"
 private const val EMAIL = "somu.22.2026@gmail.com"
@@ -189,6 +190,11 @@ fun SupportScreen(onBack: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(8.dp))
 
+        LinkRow(
+            title = "Website",
+            subtitle = "sp-dev-22.github.io — all SP DEV 22 projects",
+            onClick = { openUri(context, Uri.parse(WEBSITE_URL), "No browser found") }
+        )
         LinkRow(
             title = "GitHub",
             subtitle = "github.com/sp-dev-22",

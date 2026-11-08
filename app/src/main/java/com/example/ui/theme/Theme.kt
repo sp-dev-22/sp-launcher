@@ -17,8 +17,9 @@ enum class LauncherTheme(val key: String, val label: String) {
     OCEAN("ocean", "Ocean"),
     LAVENDER("lavender", "Lavender"),
 
-    /** Rainbow palette for Diwali; switching to it also switches the animations on. */
-    DIWALI("diwali", "Diwali");
+    /** The rainbow palette. Its stored key stays "diwali" from the Diwali edition, so
+     *  existing installs keep the theme they had saved. */
+    RAINBOW("diwali", "Rainbow");
 
     companion object {
         fun fromKey(key: String?): LauncherTheme =
@@ -250,7 +251,7 @@ private val LavenderDark = darkColorScheme(
     onError = Color(0xFF690005)
 )
 
-private val DiwaliLight = lightColorScheme(
+private val RainbowLight = lightColorScheme(
     primary = Color(0xFFD81B60),
     onPrimary = Color.White,
     primaryContainer = Color(0xFFFFE0B2),
@@ -274,7 +275,7 @@ private val DiwaliLight = lightColorScheme(
     onError = Color.White
 )
 
-private val DiwaliDark = darkColorScheme(
+private val RainbowDark = darkColorScheme(
     primary = Color(0xFFFF80AB),
     onPrimary = Color(0xFF4A0026),
     primaryContainer = Color(0xFF7A1F4D),
@@ -298,8 +299,8 @@ private val DiwaliDark = darkColorScheme(
     onError = Color(0xFF690005)
 )
 
-/** True for the Diwali theme, which paints a rainbow wash behind the app. */
-fun isRainbowTheme(theme: LauncherTheme): Boolean = theme == LauncherTheme.DIWALI
+/** True for the Rainbow theme, which paints a rainbow wash behind the app. */
+fun isRainbowTheme(theme: LauncherTheme): Boolean = theme == LauncherTheme.RAINBOW
 
 fun colorSchemeFor(theme: LauncherTheme, dark: Boolean): ColorScheme = when (theme) {
     LauncherTheme.DEFAULT -> if (dark) DefaultDark else DefaultLight
@@ -309,7 +310,7 @@ fun colorSchemeFor(theme: LauncherTheme, dark: Boolean): ColorScheme = when (the
     LauncherTheme.SEATTLE -> if (dark) SeattleDark else SeattleLight
     LauncherTheme.OCEAN -> if (dark) OceanDark else OceanLight
     LauncherTheme.LAVENDER -> if (dark) LavenderDark else LavenderLight
-    LauncherTheme.DIWALI -> if (dark) DiwaliDark else DiwaliLight
+    LauncherTheme.RAINBOW -> if (dark) RainbowDark else RainbowLight
 }
 
 /** Preview swatch colour for the Themes picker. */

@@ -71,7 +71,7 @@ fun FavoritesScreen(
     initialFavorites: List<String>,
     groups: List<AppGroup>,
     onSave: (List<String>) -> Unit,
-    onAddGroup: (List<String>) -> Boolean,
+    onAddGroup: (List<String>) -> AppGroup?,
     onUpdateGroup: (AppGroup) -> Unit,
     onDeleteGroup: (String) -> Unit,
     onBack: () -> Unit
@@ -369,11 +369,14 @@ fun FavoritesScreen(
             allApps = allApps,
             existing = null,
             onSave = { packages ->
-                if (onAddGroup(packages)) {
-                    creatingGroup = false
-                } else {
-                    fullMessage = true
-                    creatingGroup = false
+                val created = onAddGroup(packages)
+                creatingGroup = false
+                if (created != null) {
+                    // The new group takes its bar slot through the same path as every
+                    // other slot, so the 5-slot limit is judged by the bar on this
+                    // screen. If the bar is full the group still exists below, with
+                    // its own Add button, ready for when a slot frees up.
+                    addSlot(FavoriteSlots.forGroup(created.id))
                 }
             },
             onDismiss = { creatingGroup = false }

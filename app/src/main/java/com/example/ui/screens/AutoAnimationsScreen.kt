@@ -34,16 +34,16 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.model.AnimationEffect
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
 /**
- * Settings > Auto & Animations.
+ * Settings > Automatics.
  *
- * Everything that runs on a schedule, plus one switch per animation, kept off the Themes sheet
- * where there was no room left for it.
+ * Everything that runs on a schedule, kept off the Themes sheet where there was no
+ * room left for it. (This screen also held the animation toggles until v1.11.5 took
+ * the animations themselves out.)
  */
 @Composable
 fun AutoAnimationsScreen(
@@ -51,14 +51,9 @@ fun AutoAnimationsScreen(
     nightStartMinutes: Int,
     nightEndMinutes: Int,
     autoThemeMode: String,
-    animationsEnabled: Boolean,
-    enabledAnimations: Set<String>,
     onToggleAutoNight: (Boolean) -> Unit,
     onSetNightWindow: (Int, Int) -> Unit,
     onSetAutoThemeMode: (String) -> Unit,
-    onToggleAnimations: (Boolean) -> Unit,
-    onToggleAnimation: (String, Boolean) -> Unit,
-    onToggleAllAnimations: (Boolean) -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -79,7 +74,7 @@ fun AutoAnimationsScreen(
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back")
             }
             Text(
-                text = "Auto & Animations",
+                text = "Automatics",
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.weight(1f)
             )
@@ -117,8 +112,8 @@ fun AutoAnimationsScreen(
             SectionTitle("AUTO CHANGE THEME")
 
             Text(
-                text = "Rotates through the palettes. Diwali is left out, so the festival theme " +
-                    "is never switched on behind your back.",
+                text = "Steps through the palettes one at a time. Rainbow is left out, so " +
+                    "that theme is never switched on or off by the clock.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
@@ -127,42 +122,6 @@ fun AutoAnimationsScreen(
                 OptionChip("Off", autoThemeMode == "off") { onSetAutoThemeMode("off") }
                 OptionChip("Every 1 hour", autoThemeMode == "hour") { onSetAutoThemeMode("hour") }
                 OptionChip("Every 1 day", autoThemeMode == "day") { onSetAutoThemeMode("day") }
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp))
-
-            // ---- Animations ----
-            SectionTitle("ANIMATIONS")
-
-            SwitchRow(
-                title = "Animations",
-                subtitle = "Drawn on the Home screen only. The Diwali theme switches them on.",
-                checked = animationsEnabled,
-                onCheckedChange = onToggleAnimations,
-                testTag = "animations_master_switch"
-            )
-
-            if (animationsEnabled) {
-                Spacer(modifier = Modifier.height(4.dp))
-                AnimationEffect.entries.forEach { effect ->
-                    SwitchRow(
-                        title = effect.label,
-                        subtitle = null,
-                        checked = enabledAnimations.contains(effect.key),
-                        onCheckedChange = { onToggleAnimation(effect.key, it) },
-                        testTag = "animation_switch_${effect.key}"
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OptionChip("All on", enabledAnimations.size == AnimationEffect.entries.size) {
-                        onToggleAllAnimations(true)
-                    }
-                    OptionChip("All off", enabledAnimations.isEmpty()) {
-                        onToggleAllAnimations(false)
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(36.dp))

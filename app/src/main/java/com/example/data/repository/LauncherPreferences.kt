@@ -3,7 +3,6 @@ package com.example.data.repository
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.data.model.AlertItem
-import com.example.data.model.AnimationEffect
 import com.example.data.model.AppGroup
 import com.example.data.model.FavoriteSlots
 import com.example.data.model.FlashcardItem
@@ -77,32 +76,6 @@ class LauncherPreferences(context: Context) {
     // Theme rotation: off / hour / day
     private val _autoThemeMode = MutableStateFlow(prefs.getString(KEY_AUTO_THEME, "off") ?: "off")
     val autoThemeMode: StateFlow<String> = _autoThemeMode.asStateFlow()
-
-    // Diwali animations: on/off, which effect, and whether they also draw over other apps
-    private val _animationsEnabled = MutableStateFlow(prefs.getBoolean(KEY_ANIMATIONS, false))
-    val animationsEnabled: StateFlow<Boolean> = _animationsEnabled.asStateFlow()
-
-    // Which effects are switched on. Each one has its own toggle; the Diwali theme turns them
-    // all on at once.
-    private val _enabledAnimations = MutableStateFlow(loadEnabledAnimations())
-    val enabledAnimations: StateFlow<Set<String>> = _enabledAnimations.asStateFlow()
-
-    /**
-     * Reads the saved effect set. Existing installs saved their set before the Rockets and
-     * Twinkling Stars effects existed (v1.11.3), so those two are switched on once for them;
-     * after that, their own toggles rule. Fresh installs simply get every effect.
-     */
-    private fun loadEnabledAnimations(): Set<String> {
-        val stored = prefs.getStringSet(KEY_ENABLED_ANIMATIONS, null)?.toSet()
-            ?: return AnimationEffect.allKeys
-        if (prefs.getBoolean(KEY_ANIM_V1113_SEEN, false)) return stored
-        val merged = stored + AnimationEffect.ROCKETS.key + AnimationEffect.STARS.key
-        prefs.edit()
-            .putStringSet(KEY_ENABLED_ANIMATIONS, merged)
-            .putBoolean(KEY_ANIM_V1113_SEEN, true)
-            .apply()
-        return merged
-    }
 
     private val _showTime = MutableStateFlow(prefs.getBoolean(KEY_SHOW_TIME, true))
     val showTime: StateFlow<Boolean> = _showTime.asStateFlow()
@@ -295,9 +268,6 @@ class LauncherPreferences(context: Context) {
     fun setTheme(key: String) {
         prefs.edit().putString(KEY_THEME, key).apply()
         _themeKey.value = key
-        // The Diwali theme turns its animations on by itself; the other themes leave the
-        // user's own animation choice alone.
-        if (key == THEME_DIWALI) setAnimationsEnabled(true)
     }
 
     fun saveFavorites(list: List<String>) {
@@ -361,14 +331,20 @@ class LauncherPreferences(context: Context) {
         _groups.value = list
     }
 
-    /** Creates a group of up to four apps. Returns null when the bar has no free slot left. */
+    /**
+     * Creates a group of up to four apps.
+     *
+     * The group is NOT put in the bar here: the Favourites screen holds the bar's working
+     * copy and places the new group through its own slot path, so the 5-slot limit is
+     * judged by the bar on screen, not by a saved list the user cannot see. (Before
+     * v1.11.5 this checked and filled the saved bar directly, which is why a second
+     * group so often refused to be made.)
+     */
     fun addGroup(packages: List<String>): AppGroup? {
         val apps = packages.distinct().take(FavoriteSlots.MAX_APPS_PER_GROUP)
         if (apps.isEmpty()) return null
-        if (!canAddFavorite()) return null
         val group = AppGroup(packages = apps)
         saveGroups(_groups.value + group)
-        addFavorite(FavoriteSlots.forGroup(group.id))
         return group
     }
 
@@ -393,30 +369,18 @@ class LauncherPreferences(context: Context) {
         )
     }
 
-    // ---- Theme rotation & animations ----
+    // ---- Theme rotation ----
 
     fun setAutoThemeMode(mode: String) {
         prefs.edit().putString(KEY_AUTO_THEME, mode).apply()
         _autoThemeMode.value = mode
     }
 
-    fun setAnimationsEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_ANIMATIONS, enabled).apply()
-        _animationsEnabled.value = enabled
-    }
+    /** When the auto rotation last stepped to a new theme (epoch millis); 0 means never. */
+    fun lastAutoThemeMillis(): Long = prefs.getLong(KEY_AUTO_THEME_LAST, 0L)
 
-    /** Switches one effect on or off. */
-    fun setAnimationEnabled(effectKey: String, enabled: Boolean) {
-        val current = _enabledAnimations.value.toMutableSet()
-        if (enabled) current.add(effectKey) else current.remove(effectKey)
-        prefs.edit().putStringSet(KEY_ENABLED_ANIMATIONS, current).apply()
-        _enabledAnimations.value = current
-    }
-
-    fun setAllAnimationsEnabled(enabled: Boolean) {
-        val set = if (enabled) AnimationEffect.allKeys else emptySet()
-        prefs.edit().putStringSet(KEY_ENABLED_ANIMATIONS, set).apply()
-        _enabledAnimations.value = set
+    fun setLastAutoThemeMillis(value: Long) {
+        prefs.edit().putLong(KEY_AUTO_THEME_LAST, value).apply()
     }
 
     fun saveTasks(list: List<TaskItem>) {
@@ -1331,8 +1295,6 @@ class LauncherPreferences(context: Context) {
         _favorites.value = loadFavorites()
         _groups.value = loadGroups()
         _autoThemeMode.value = prefs.getString(KEY_AUTO_THEME, "off") ?: "off"
-        _animationsEnabled.value = prefs.getBoolean(KEY_ANIMATIONS, false)
-        _enabledAnimations.value = loadEnabledAnimations()
         _showTime.value = prefs.getBoolean(KEY_SHOW_TIME, true)
         _showDate.value = prefs.getBoolean(KEY_SHOW_DATE, true)
         _showAlerts.value = prefs.getBoolean(KEY_SHOW_ALERTS, true)
@@ -1379,11 +1341,6 @@ class LauncherPreferences(context: Context) {
         private const val KEY_POPUP_SETTINGS = "study_popup_settings"
         private const val KEY_GROUPS = "app_groups"
         private const val KEY_AUTO_THEME = "auto_theme_mode"
-        private const val KEY_ANIMATIONS = "animations_enabled"
-        private const val KEY_ENABLED_ANIMATIONS = "enabled_animations"
-        private const val KEY_ANIM_V1113_SEEN = "anim_v1113_seen"
-
-        /** Theme key that switches the rainbow palette and its animations on. */
-        const val THEME_DIWALI = "diwali"
+        private const val KEY_AUTO_THEME_LAST = "auto_theme_last_change"
     }
 }

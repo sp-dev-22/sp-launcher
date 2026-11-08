@@ -39,8 +39,8 @@ import com.example.ui.theme.previewColorFor
 /**
  * The palette picker only.
  *
- * Night mode, the auto schedules and the animation toggles all live on their own screen
- * (Settings > Auto & Animations), because this sheet ran out of room.
+ * Night mode and the auto schedules live on their own screen
+ * (Settings > Automatics), because this sheet ran out of room.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,7 +118,7 @@ fun ThemesSheet(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-            // A pointer to the screen that holds the schedules and the animations.
+            // A pointer to the screen that holds the schedules.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -130,12 +130,12 @@ fun ThemesSheet(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Auto & Animations",
+                        text = "Automatics",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "Auto night mode, auto theme change and each animation's on/off",
+                        text = "Auto night mode and auto theme change",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )

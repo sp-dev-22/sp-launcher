@@ -15,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import com.example.ui.anim.DiwaliAnimationLayer
 import com.example.ui.anim.RainbowBackground
 import com.example.ui.components.AppActionBottomSheet
 import com.example.ui.components.FavoritesScreen
@@ -78,8 +77,6 @@ fun MainScreen(
     // Themes
     val themeKey by viewModel.themeKey.collectAsState()
     val autoThemeMode by viewModel.autoThemeMode.collectAsState()
-    val animationsEnabled by viewModel.animationsEnabled.collectAsState()
-    val enabledAnimations by viewModel.enabledAnimations.collectAsState()
     val showAutoAnimations by viewModel.showAutoAnimations.collectAsState()
     val showStudyDue by viewModel.showStudyDue.collectAsState()
     val studyDueItems by viewModel.studyDueItems.collectAsState()
@@ -147,7 +144,7 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Diwali: a rainbow wash behind everything.
+            // Rainbow theme: a soft rainbow wash behind everything.
             if (rainbow) {
                 RainbowBackground(dark = isDarkTheme)
             }
@@ -329,14 +326,6 @@ fun MainScreen(
                 SupportScreen(onBack = { viewModel.setShowSupport(false) })
             }
 
-            // Festival effects. Deliberately in-app only: nothing is drawn over other apps.
-            if (animationsEnabled && enabledAnimations.isNotEmpty()) {
-                DiwaliAnimationLayer(
-                    effects = enabledAnimations,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
             // Delete-undo bar (drawn here; the sheet draws its own copy so it stays reachable)
             UndoBar(
                 message = undoMessage,
@@ -396,8 +385,8 @@ fun MainScreen(
         )
     }
 
-    // Themes Sheet: palettes and night mode only. The schedules and animations live on their
-    // own screen (Settings > Auto & Animations).
+    // Themes Sheet: palettes and night mode only. The schedules live on their own
+    // screen (Settings > Automatics).
     if (showThemesSheet) {
         ThemesSheet(
             currentTheme = currentTheme,
@@ -412,21 +401,16 @@ fun MainScreen(
         )
     }
 
-    // Auto & Animations (auto night mode, auto theme change, one toggle per animation)
+    // Automatics (auto night mode, auto theme change)
     if (showAutoAnimations) {
         AutoAnimationsScreen(
             autoNightEnabled = autoNight,
             nightStartMinutes = nightStart,
             nightEndMinutes = nightEnd,
             autoThemeMode = autoThemeMode,
-            animationsEnabled = animationsEnabled,
-            enabledAnimations = enabledAnimations,
             onToggleAutoNight = { viewModel.setAutoNightMode(it) },
             onSetNightWindow = { s, e -> viewModel.setNightWindow(s, e) },
             onSetAutoThemeMode = { viewModel.setAutoThemeMode(it) },
-            onToggleAnimations = { viewModel.setAnimationsEnabled(it) },
-            onToggleAnimation = { key, enabled -> viewModel.setAnimationEnabled(key, enabled) },
-            onToggleAllAnimations = { viewModel.setAllAnimationsEnabled(it) },
             onBack = { viewModel.setShowAutoAnimations(false) }
         )
     }

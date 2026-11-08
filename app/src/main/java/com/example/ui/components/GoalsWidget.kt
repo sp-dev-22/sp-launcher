@@ -115,30 +115,21 @@ private fun GoalRow(goal: GoalItem, onTick: (String) -> Unit) {
             )
             Spacer(modifier = Modifier.height(3.dp))
 
-            // 1 Pushup -> 10 Pushups. Plain ASCII on purpose: the arrow glyph does not exist in
-            // the phone's XOS font and renders as garbage there (seen on device, v1.11.3).
+            // One line, the user's own format: "<value> <start text> / <target> <end text>",
+            // e.g. "1 दिन / 15 दिन". No arrow glyph: the phone's XOS font does not have it
+            // and renders garbage instead (seen on device, v1.11.3).
             Text(
                 text = if (goal.type == GoalType.LIMITED) {
-                    "${valueLabel(goal, goal.currentValue)}  ->  ${valueLabel(goal, goal.targetValue)}"
+                    "${valueWithText(goal, goal.currentValue, goal.startText)} / " +
+                        valueWithText(goal, goal.targetValue, goal.endText)
                 } else {
-                    valueLabel(goal, goal.currentValue)
+                    valueWithText(goal, goal.currentValue, goal.startText)
                 },
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = if (done) DONE_COLOR else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // Beginner -> Pro (ASCII arrow for the same XOS font reason as above)
-            Text(
-                text = "${goal.startText}  ->  ${goal.endText}",
-                fontSize = 10.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
             )
 
             if (goal.type == GoalType.LIMITED) {
@@ -184,11 +175,16 @@ private fun GoalRow(goal: GoalItem, onTick: (String) -> Unit) {
 private fun unitOf(goal: GoalItem): String =
     goal.stepLabel.filterNot { it.isDigit() }.replace("/", " ").trim()
 
-/** "1 Pushup", "15 Today" — the number plus the goal's own unit, exactly as typed. */
-private fun valueLabel(goal: GoalItem, value: Double): String {
-    val unit = unitOf(goal)
+/**
+ * "1 दिन", "100 मीटर" — a value plus the text that belongs to its side of the goal: the
+ * start text goes with the current value, the end text with the target. Falls back to
+ * the tap button's unit when that side's text was left blank, so older goals still
+ * show a unit.
+ */
+private fun valueWithText(goal: GoalItem, value: Double, text: String): String {
+    val label = text.ifBlank { unitOf(goal) }
     val number = GoalProgress.formatValue(value)
-    return if (unit.isBlank()) number else "$number $unit"
+    return if (label.isBlank()) number else "$number $label"
 }
 
 private const val MAX_ROWS = 3

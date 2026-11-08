@@ -60,8 +60,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val favorites = preferences.favorites
     val groups = preferences.groups
     val autoThemeMode = preferences.autoThemeMode
-    val animationsEnabled = preferences.animationsEnabled
-    val enabledAnimations = preferences.enabledAnimations
     val showTime = preferences.showTime
     val showDate = preferences.showDate
     val showAlerts = preferences.showAlerts
@@ -348,7 +346,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setTheme(key: String) {
-        // The Diwali theme switches the animations on by itself (see LauncherPreferences).
         preferences.setTheme(key)
     }
 
@@ -377,14 +374,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     // ---- App groups (favourites bar only) ----
 
     /** Returns false when the bar has no room for the new group. */
-    fun addGroup(packages: List<String>): Boolean {
-        val created = preferences.addGroup(packages)
-        if (created == null) {
-            offerUndo("Favourites bar is full (${FavoriteSlots.MAX_SLOTS} slots)") { }
-            return false
-        }
-        return true
-    }
+    /**
+     * Creates a group and returns it (null only when no apps were picked). Placing the
+     * group in the bar is the Favourites screen's job — it owns the bar's working copy.
+     */
+    fun addGroup(packages: List<String>): AppGroup? = preferences.addGroup(packages)
 
     fun updateGroup(group: AppGroup) = preferences.updateGroup(group)
 
@@ -397,45 +391,41 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setAutoThemeMode(mode: String) {
         preferences.setAutoThemeMode(mode)
-        refreshAutoTheme()
+        // Switching rotation on steps to the next palette straight away, so the change is
+        // visible at once — the old clock-based pick landed on the same theme every time
+        // it was switched on at the same time of day.
+        if (mode != "off") advanceAutoTheme()
     }
 
     /**
-     * Rotates the palette once an hour or once a day, depending on the chosen mode. Does nothing
-     * when rotation is off, and never rotates into (or out of) the Diwali theme on its own.
+     * Steps the palette forward once an hour or once a day, depending on the chosen mode.
+     * Does nothing when rotation is off, and never rotates into (or out of) the Rainbow
+     * theme on its own.
+     *
+     * The step is measured from the last actual change, not read off the clock: the
+     * pre-v1.11.5 version picked palette[hour % size] / palette[day-of-year % size], so
+     * switching the feature on at the same time of day always set the same theme.
      */
     fun refreshAutoTheme() {
         val mode = preferences.autoThemeMode.value
         if (mode == "off") return
+        val intervalMillis = if (mode == "hour") 3_600_000L else 86_400_000L
+        val last = preferences.lastAutoThemeMillis()
+        if (last == 0L) {
+            preferences.setLastAutoThemeMillis(System.currentTimeMillis())
+            return
+        }
+        if (System.currentTimeMillis() - last >= intervalMillis) advanceAutoTheme()
+    }
+
+    /** Moves to the palette entry after the current theme, and stamps the change. */
+    private fun advanceAutoTheme() {
         val palette = ROTATING_THEMES
-        val cal = Calendar.getInstance()
-        val index = when (mode) {
-            "hour" -> cal.get(Calendar.HOUR_OF_DAY)
-            else -> cal.get(Calendar.DAY_OF_YEAR)
-        }
-        val target = palette[Math.floorMod(index, palette.size)]
-        if (preferences.themeKey.value != target) {
-            preferences.setTheme(target)
-        }
-    }
-
-    // ---- Diwali animations ----
-
-    fun setAnimationsEnabled(enabled: Boolean) {
-        preferences.setAnimationsEnabled(enabled)
-    }
-
-    /** One effect on or off (Settings > Auto & Animations). */
-    fun setAnimationEnabled(effectKey: String, enabled: Boolean) {
-        preferences.setAnimationEnabled(effectKey, enabled)
-        // Turning a single effect on implies the animations are on at all.
-        if (enabled && !preferences.animationsEnabled.value) {
-            preferences.setAnimationsEnabled(true)
-        }
-    }
-
-    fun setAllAnimationsEnabled(enabled: Boolean) {
-        preferences.setAllAnimationsEnabled(enabled)
+        val index = palette.indexOf(preferences.themeKey.value)
+        // A theme outside the rotation (Rainbow, chosen by hand) restarts from the top.
+        val next = palette[(index + 1) % palette.size]
+        preferences.setTheme(next)
+        preferences.setLastAutoThemeMillis(System.currentTimeMillis())
     }
 
     fun addTask(text: String) {
@@ -1090,8 +1080,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     companion object {
         /**
-         * The palettes auto-rotation walks through. The Diwali theme is left out on purpose:
-         * it is a festival choice, not something the clock should switch on by itself.
+         * The palettes auto-rotation walks through. The Rainbow theme is left out on
+         * purpose: it is a hand-picked choice, not something the clock should switch
+         * on by itself.
          */
         private val ROTATING_THEMES = listOf(
             "default", "pink", "green", "saffron", "seattle", "ocean", "lavender"
