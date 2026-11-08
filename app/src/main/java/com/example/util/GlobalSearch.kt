@@ -2,12 +2,13 @@ package com.example.util
 
 import com.example.data.model.AlertItem
 import com.example.data.model.AppInfo
+import com.example.data.model.ContactEntry
 import com.example.data.model.FlashcardItem
 import com.example.data.model.StudyCourse
 import com.example.data.model.TaskItem
 import com.example.data.model.allClassRefs
 
-enum class SearchKind { APP, TASK, NOTE, CLASS, CARD }
+enum class SearchKind { APP, TASK, NOTE, CLASS, CARD, CONTACT }
 
 data class SearchHit(
     val kind: SearchKind,
@@ -26,6 +27,7 @@ object GlobalSearch {
         alerts: List<AlertItem>,
         courses: List<StudyCourse>,
         cards: List<FlashcardItem>,
+        contacts: List<ContactEntry> = emptyList(),
         perKind: Int = 25,
     ): List<SearchHit> {
         val q = query.trim()
@@ -34,6 +36,15 @@ object GlobalSearch {
 
         apps.filter { it.label.contains(q, ignoreCase = true) }.take(perKind)
             .forEach { out.add(SearchHit(SearchKind.APP, it.label, "App", it.packageName)) }
+
+        // Contacts match on the name, or on the number when the query is digits.
+        val queryDigits = PhoneNumbers.digits(q)
+        contacts.filter { entry ->
+            entry.name.contains(q, ignoreCase = true) ||
+                (queryDigits.length >= 3 && PhoneNumbers.digits(entry.number).contains(queryDigits))
+        }.take(perKind).forEach { entry ->
+            out.add(SearchHit(SearchKind.CONTACT, entry.name, entry.number, entry.id))
+        }
 
         tasks.filter { it.text.contains(q, ignoreCase = true) }.take(perKind)
             .forEach { out.add(SearchHit(SearchKind.TASK, it.text, if (it.isCompleted) "Task - done" else "Task", it.id)) }

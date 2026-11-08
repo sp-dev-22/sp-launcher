@@ -1,13 +1,17 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.AlertItem
 import com.example.data.model.AppGroup
 import com.example.data.model.AppInfo
+import com.example.data.model.ContactEntry
+import com.example.data.model.DeviceFile
 import com.example.data.model.FavoriteSlots
 import com.example.data.model.CardStats
 import com.example.data.model.FlashcardItem
@@ -18,6 +22,7 @@ import com.example.data.model.TaskItem
 import com.example.data.model.GoalItem
 import com.example.data.model.allClassRefs
 import com.example.data.repository.AppRepository
+import com.example.data.repository.AssistantRepository
 import com.example.data.repository.LauncherPreferences
 import com.example.data.model.SubjectPlanSettings
 import com.example.data.model.TimeTableSettings
@@ -60,6 +65,74 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val favorites = preferences.favorites
     val groups = preferences.groups
     val autoThemeMode = preferences.autoThemeMode
+
+    // SP Assistant (v1.12): search source toggles + phone data
+    val searchContactsEnabled = preferences.searchContacts
+    val searchFilesEnabled = preferences.searchFiles
+    val searchCalcEnabled = preferences.searchCalc
+    val searchWebEnabled = preferences.searchWeb
+    val searchVoiceEnabled = preferences.searchVoice
+
+    fun setSearchContactsEnabled(enabled: Boolean) = preferences.setSearchContacts(enabled)
+    fun setSearchFilesEnabled(enabled: Boolean) = preferences.setSearchFiles(enabled)
+    fun setSearchCalcEnabled(enabled: Boolean) = preferences.setSearchCalc(enabled)
+    fun setSearchWebEnabled(enabled: Boolean) = preferences.setSearchWeb(enabled)
+    fun setSearchVoiceEnabled(enabled: Boolean) = preferences.setSearchVoice(enabled)
+
+    private val _contacts = MutableStateFlow<List<ContactEntry>>(emptyList())
+    val contacts: StateFlow<List<ContactEntry>> = _contacts.asStateFlow()
+
+    private val _fileHits = MutableStateFlow<List<DeviceFile>>(emptyList())
+    val fileHits: StateFlow<List<DeviceFile>> = _fileHits.asStateFlow()
+
+    private var fileSearchJob: Job? = null
+
+    fun hasContactsPermission(): Boolean = ContextCompat.checkSelfPermission(
+        getApplication(), android.Manifest.permission.READ_CONTACTS
+    ) == PackageManager.PERMISSION_GRANTED
+
+    fun hasFilesPermission(): Boolean {
+        val app = getApplication<Application>()
+        return if (android.os.Build.VERSION.SDK_INT >= 33) {
+            listOf(
+                android.Manifest.permission.READ_MEDIA_IMAGES,
+                android.Manifest.permission.READ_MEDIA_VIDEO,
+                android.Manifest.permission.READ_MEDIA_AUDIO
+            ).any {
+                ContextCompat.checkSelfPermission(app, it) == PackageManager.PERMISSION_GRANTED
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            ContextCompat.checkSelfPermission(
+                app, android.Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    /** Loads the address book in the background. Does nothing without the permission. */
+    fun refreshContacts() {
+        if (!hasContactsPermission()) return
+        viewModelScope.launch {
+            _contacts.value = withContext(Dispatchers.IO) {
+                AssistantRepository.loadContacts(getApplication())
+            }
+        }
+    }
+
+    /** Debounced media-store search; results land in [fileHits]. */
+    fun searchFiles(query: String) {
+        fileSearchJob?.cancel()
+        if (query.trim().length < 2 || !hasFilesPermission()) {
+            _fileHits.value = emptyList()
+            return
+        }
+        fileSearchJob = viewModelScope.launch {
+            delay(250)
+            _fileHits.value = withContext(Dispatchers.IO) {
+                AssistantRepository.searchFiles(getApplication(), query)
+            }
+        }
+    }
     val showTime = preferences.showTime
     val showDate = preferences.showDate
     val showAlerts = preferences.showAlerts

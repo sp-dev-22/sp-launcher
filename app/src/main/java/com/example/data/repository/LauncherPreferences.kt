@@ -80,6 +80,23 @@ class LauncherPreferences(context: Context) {
     private val _showTime = MutableStateFlow(prefs.getBoolean(KEY_SHOW_TIME, true))
     val showTime: StateFlow<Boolean> = _showTime.asStateFlow()
 
+    // SP Assistant (v1.12) source toggles, from Search > three-dot menu > Search Settings.
+    // All default ON; the permissions behind Contacts and Files are still asked lazily.
+    private val _searchContacts = MutableStateFlow(prefs.getBoolean(KEY_SEARCH_CONTACTS, true))
+    val searchContacts: StateFlow<Boolean> = _searchContacts.asStateFlow()
+
+    private val _searchFiles = MutableStateFlow(prefs.getBoolean(KEY_SEARCH_FILES, true))
+    val searchFiles: StateFlow<Boolean> = _searchFiles.asStateFlow()
+
+    private val _searchCalc = MutableStateFlow(prefs.getBoolean(KEY_SEARCH_CALC, true))
+    val searchCalc: StateFlow<Boolean> = _searchCalc.asStateFlow()
+
+    private val _searchWeb = MutableStateFlow(prefs.getBoolean(KEY_SEARCH_WEB, true))
+    val searchWeb: StateFlow<Boolean> = _searchWeb.asStateFlow()
+
+    private val _searchVoice = MutableStateFlow(prefs.getBoolean(KEY_SEARCH_VOICE, true))
+    val searchVoice: StateFlow<Boolean> = _searchVoice.asStateFlow()
+
     private val _showDate = MutableStateFlow(prefs.getBoolean(KEY_SHOW_DATE, true))
     val showDate: StateFlow<Boolean> = _showDate.asStateFlow()
 
@@ -172,6 +189,31 @@ class LauncherPreferences(context: Context) {
     fun setShowTime(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_TIME, enabled).apply()
         _showTime.value = enabled
+    }
+
+    fun setSearchContacts(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SEARCH_CONTACTS, enabled).apply()
+        _searchContacts.value = enabled
+    }
+
+    fun setSearchFiles(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SEARCH_FILES, enabled).apply()
+        _searchFiles.value = enabled
+    }
+
+    fun setSearchCalc(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SEARCH_CALC, enabled).apply()
+        _searchCalc.value = enabled
+    }
+
+    fun setSearchWeb(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SEARCH_WEB, enabled).apply()
+        _searchWeb.value = enabled
+    }
+
+    fun setSearchVoice(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SEARCH_VOICE, enabled).apply()
+        _searchVoice.value = enabled
     }
 
     fun setShowDate(enabled: Boolean) {
@@ -1296,6 +1338,11 @@ class LauncherPreferences(context: Context) {
         _groups.value = loadGroups()
         _autoThemeMode.value = prefs.getString(KEY_AUTO_THEME, "off") ?: "off"
         _showTime.value = prefs.getBoolean(KEY_SHOW_TIME, true)
+        _searchContacts.value = prefs.getBoolean(KEY_SEARCH_CONTACTS, true)
+        _searchFiles.value = prefs.getBoolean(KEY_SEARCH_FILES, true)
+        _searchCalc.value = prefs.getBoolean(KEY_SEARCH_CALC, true)
+        _searchWeb.value = prefs.getBoolean(KEY_SEARCH_WEB, true)
+        _searchVoice.value = prefs.getBoolean(KEY_SEARCH_VOICE, true)
         _showDate.value = prefs.getBoolean(KEY_SHOW_DATE, true)
         _showAlerts.value = prefs.getBoolean(KEY_SHOW_ALERTS, true)
         _showTasks.value = prefs.getBoolean(KEY_SHOW_TASKS, true)
@@ -1325,6 +1372,11 @@ class LauncherPreferences(context: Context) {
         private const val KEY_LAST_BACKUP = "last_backup_millis"
         private const val KEY_FAVORITES = "favorite_packages"
         private const val KEY_SHOW_TIME = "show_time"
+        private const val KEY_SEARCH_CONTACTS = "search_contacts"
+        private const val KEY_SEARCH_FILES = "search_files"
+        private const val KEY_SEARCH_CALC = "search_calc"
+        private const val KEY_SEARCH_WEB = "search_web"
+        private const val KEY_SEARCH_VOICE = "search_voice"
         private const val KEY_SHOW_DATE = "show_date"
         private const val KEY_SHOW_ALERTS = "show_alerts"
         private const val KEY_SHOW_TASKS = "show_tasks"

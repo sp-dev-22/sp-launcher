@@ -14,6 +14,19 @@
     <!-- Re-arm Alerts and Study Manager reminders after a reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- SP Assistant (v1.12): contacts search with Call / SMS / WhatsApp actions.
+         Asked for lazily, the first time a search needs it — never up front. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
+    <!-- SP Assistant (v1.12): files search over photos, videos, audio and documents.
+         Also asked lazily. Legacy storage permission covers Android 12 and below;
+         the per-type media permissions cover Android 13+. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
