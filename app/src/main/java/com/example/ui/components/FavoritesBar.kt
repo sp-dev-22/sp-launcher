@@ -257,7 +257,7 @@ private fun AddSlot(isDarkTheme: Boolean, onClick: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = "Add a favourite",
+                contentDescription = "Add a favorite",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp)
             )
@@ -299,7 +299,7 @@ private fun GroupSheet(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "One slot in the favourites bar",
+                text = "One slot in the favorites bar",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )

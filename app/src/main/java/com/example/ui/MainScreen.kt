@@ -94,6 +94,19 @@ fun MainScreen(
     val goals by viewModel.goals.collectAsState()
     val showGoalsWidget by viewModel.showGoalsWidget.collectAsState()
     val showSearch by viewModel.showSearch.collectAsState()
+    val searchAutoVoice by viewModel.searchAutoVoice.collectAsState()
+    val isLoadingApps by viewModel.isLoadingApps.collectAsState()
+    val showHomeSearchBar by viewModel.searchHomeBarEnabled.collectAsState()
+    val autoBackupOn by viewModel.autoBackupEnabled.collectAsState()
+    val backupFolder by viewModel.backupFolderUri.collectAsState()
+    val backupFolderValid by viewModel.backupFolderValid.collectAsState()
+    // Settings > Backup & Restore warning (v1.13): shown only when auto-backup is
+    // on but its folder cannot actually be used.
+    val backupWarning = when {
+        !autoBackupOn || backupFolderValid -> null
+        backupFolder == null -> "Backup folder not selected"
+        else -> "Backup folder unavailable"
+    }
     val showHiddenApps by viewModel.showHiddenApps.collectAsState()
     val clockOverride by viewModel.clockOverride.collectAsState()
     val drawerApps by viewModel.drawerApps.collectAsState()
@@ -168,6 +181,7 @@ fun MainScreen(
                             onOpenBackupRestore = { viewModel.setShowBackupRestore(true) },
                             onOpenSupport = { viewModel.setShowSupport(true) },
                             onSetDefaultLauncher = onSetDefaultLauncher,
+                            backupWarning = backupWarning,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -204,6 +218,9 @@ fun MainScreen(
                             // (`vault <pin>` / `apps <pin>`) are the only way in now.
                             onTimeClick = { },
                             clockOverrideMillis = clockOverride,
+                            isLoadingApps = isLoadingApps,
+                            showSearchBar = showHomeSearchBar,
+                            onOpenSearch = { autoVoice -> viewModel.openSearch(autoVoice) },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -211,10 +228,11 @@ fun MainScreen(
                         // Right Page: App Drawer
                         DrawerScreen(
                             apps = drawerApps,
-                            onOpenSearch = { viewModel.setShowSearch(true) },
+                            onOpenSearch = { viewModel.openSearch(false) },
                             isDarkTheme = isDarkTheme,
                             onAppClick = { app -> viewModel.launchApp(app) },
                             onAppLongClick = { app -> viewModel.selectAppForActions(app) },
+                            isLoadingApps = isLoadingApps,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -301,6 +319,7 @@ fun MainScreen(
             if (showSearch) {
                 SearchScreen(
                     viewModel = viewModel,
+                    autoStartVoice = searchAutoVoice,
                     onBack = { viewModel.setShowSearch(false) }
                 )
             }

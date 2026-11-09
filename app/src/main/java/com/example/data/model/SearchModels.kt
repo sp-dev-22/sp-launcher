@@ -14,5 +14,12 @@ data class DeviceFile(
     /** content:// uri as a string, ready to hand to an ACTION_VIEW intent. */
     val uri: String,
     val mimeType: String?,
-    val sizeBytes: Long
+    val sizeBytes: Long,
+    /**
+     * Absolute path on shared storage, when the file came from the v1.13 directory
+     * walk. Media-store hits leave this null — they have no reliable path. Used to
+     * dedupe walk results (and walk vs media store) rather than for opening: even
+     * walk hits carry a FileProvider content:// [uri] for that.
+     */
+    val path: String? = null
 )

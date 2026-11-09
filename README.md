@@ -1,14 +1,14 @@
 # SP Launcher
 
-A minimal, student-friendly Android launcher built with Kotlin and Jetpack Compose.
+A lightweight, student-focused Android launcher built with Kotlin and Jetpack Compose.
 
-It is a home-screen replacement that keeps study close at hand: a three-page swipe layout
-(Settings on the left, Home in the centre, App Drawer on the right), with study widgets,
-a study planner, a goals tracker and a card-based study reminder system.
+SP Launcher replaces your home screen with a simple three-page layout — Settings on the
+left, Home in the center, App Drawer on the right — and keeps study close at hand: a study
+planner, goals tracker, flashcard reminders and a fast built-in assistant, all designed to
+stay smooth on low-RAM phones.
 
-**No internet permission.** SP Launcher cannot send anything anywhere — there is no
-`INTERNET` permission in the manifest, no analytics, no ads and no account. Everything you
-enter stays in the app's own storage on your phone.
+**Private by design.** SP Launcher has no `INTERNET` permission, no analytics, no ads and
+no account. Nothing you enter ever leaves your phone.
 
 ## Screenshots
 
@@ -26,70 +26,83 @@ enter stays in the app's own storage on your phone.
 
 ## Features
 
-- **Home** — a 12-hour clock with date, the Alerts widget (custom tags + optional reminders),
-  a tasks checklist, a Goals widget you can tick from the home screen, a single **Study
-  Manager Status** card (progress + tasks due over the next 7 days), and a **favourites bar**
-  pinned to the bottom of the screen.
-- **Favourites bar** — a taskbar-style row at the very bottom of Home. It holds **five slots in
-  total**, each one either an app or an app group, and it stays put however many widgets are
-  switched on (the widgets scroll above it). Tap a slot to launch, long-press to edit.
+- **Home** — a clock with date, the Alerts widget (custom tags + optional reminders), a
+  tasks checklist, a Goals widget you can tick from the home screen, a Study Manager status
+  card (progress + what is due in the next 7 days), an optional **search bar** above the
+  Favorites bar (with a mic button for voice search), and the Favorites bar itself, pinned
+  to the bottom.
+- **Favorites bar** — a taskbar-style row at the bottom of Home. It holds **five slots in
+  total**, each one either an app or an app group, and it stays put however many widgets
+  are switched on (the widgets scroll above it). Tap a slot to launch, long-press to edit.
 - **App groups** — pack up to **four apps into one slot**, so the bar's five slots can hold
-  twenty apps. Groups are unnamed and only ever appear in the favourites bar: the slot shows the
-  apps' icons in miniature, tap it to open them.
-- **Real app icons** — the drawer, the favourites bar and the group sheet use the actual
-  launcher icon of each installed app (cached, and falling back to the old coloured initial if
-  an icon cannot be read).
-- **App Drawer** — search, launch, and long-press actions (favourite, app info, uninstall).
-- **Goals** — a regular-activity tracker. Each goal is either *limited* (a target, e.g. 2 litres
-  a day) or *unlimited* (no finish line, it just keeps counting). A goal carries a starting
-  text and, for limited goals, an end text it switches to when the target is reached, a
-  per-click value, an optional button label (e.g. `100 Liter`), and an optional daily reset.
-  Goals appear in a Home widget and are ticked from there; tapping the card opens the Goals
+  twenty apps. Groups are unnamed: the slot shows the apps' icons in miniature, tap it to
+  open them.
+- **Real app icons** — the drawer, the Favorites bar and the group sheet use the actual
+  launcher icon of each installed app (cached, with a colored initial as fallback).
+- **App Drawer** — search, launch, and long-press actions (add to Favorites, app info,
+  uninstall). A loading indicator shows while the app list loads, so a first open never
+  looks like an empty phone.
+- **SP Assistant** — one search over everything: apps, contacts (with Call / SMS /
+  WhatsApp buttons right on the result, and the same buttons for a bare phone number
+  typed with or without country code), files, tasks, notes, study classes and cards —
+  plus a built-in calculator with unit conversion (`45*12`, `5 km in m`), voice input,
+  and Google / YouTube shortcuts. Which sources take part is up to you, in
+  **Search Settings** (the three-dot menu in the search box); permissions are asked
+  lazily, only when a search first needs them.
+  - **Files search** covers photos, videos, audio and documents. With **All Files
+    Access** granted (a system setting, offered in place when it is missing), search
+    also walks your storage on demand — no index — and finds files the media store
+    never lists.
+- **Goals** — a regular-activity tracker. Each goal is either *limited* (a target, e.g.
+  2 litres a day) or *unlimited* (no finish line, it just keeps counting). A goal carries
+  a starting text and, for limited goals, an end text it switches to when the target is
+  reached, a per-tap value, an optional button label, and an optional daily reset. Goals
+  appear in a Home widget and are ticked from there; tapping the card opens the Goals
   screen to add, edit, reset or delete them.
-- **Calendar** — a month view of everything already dated in the app: study deadlines and
-  reminders, task due dates and reminders, note reminders and card review days. Tapping a row
-  opens the screen that owns it. Completed checklist tasks stay on the day, struck through and
-  cut to one line, until you clear them with the small cross; clearing hides them from the
-  calendar only and leaves the task itself alone.
+- **Calendar** — a month view of everything dated in the app: study deadlines and
+  reminders, task due dates and reminders, note reminders and card review days. Tapping
+  a row opens the screen that owns it.
 - **Study Manager** — a Course › Subject › Topic › Class tree, with deadlines, reminders,
   drag-and-drop reordering, and JSON / text / PDF export. Completing a task clears its
-  Reminder & Deadline automatically, and a **Clean** button clears every task's Reminder &
-  Deadline in one tap.
-- **Quick Time Table** — set a daily study window and, per subject, its duration, rest and
-  sessions per day (single / double / triple), pick a 1, 3 or 7 day plan, and the app lays it
-  out from your un-completed classes, writing each session's reminder and deadline onto the
-  real classes. If the day is too short for every session, nothing is generated and the app
-  shows the exact calculation (available vs. needed minutes).
-- **Study Popups** — card reminders delivered as notifications through the day: the front of
-  the card, a "Show" button to reveal the back, then True/False. Correct cards are mastered;
-  wrong cards come back after 1, 3, 5 and 7 days. Cards are imported from JSON files (one or
-  many at once), organised into decks you can switch on or off. Never shown on the lock screen.
-- **Themes** — seven colour palettes plus night mode. The schedules (auto night window, theme
-  rotation every hour or every day) and the animation toggles live on their own screen:
-  **Settings > Auto & Animations**.
-- **Diwali theme** — a rainbow palette that gives the whole app different colours, and switches
-  the festival animations on by itself: **Lamps**, **Firecrackers**, **Rangoli**, **Chakri**,
-  **Sky lanterns** and **Flower petals**. Each one has its own toggle under Settings > Auto &
-  Animations, and they are drawn on the launcher only — never over other apps.
-- **Widgets** — the Clock, Date, Alerts, Tasks, Study Manager and Goals widgets can each be
+  Reminder & Deadline automatically, and a **Clean** button clears every task's Reminder
+  & Deadline in one tap.
+- **Quick Time Table** — set a daily study window and, per subject, its duration, rest
+  and sessions per day, pick a 1, 3 or 7 day plan, and the app lays it out from your
+  un-completed classes, writing each session's reminder and deadline onto the real
+  classes. If the day is too short, nothing is generated and the app shows the exact
+  calculation instead.
+- **Study Popups** — flashcard reminders delivered as notifications through the day: the
+  front of the card, a "Show" button to reveal the back, then True / False grading with
+  spaced repetition (wrong cards return after 1, 3, 5 and 7 days). Cards are imported
+  from JSON files and organized into decks you can switch on or off. Never shown on the
+  lock screen.
+- **Themes** — eight color palettes (Default, Pink, Green, Saffron Orange, Seattle Grey,
+  Ocean, Lavender and the Rainbow palette) plus night mode. Automatic schedules — auto
+  night mode and automatic theme change every hour or every day — live under
+  **Settings > Automatics**. There are no decorative animations: the launcher is kept
+  light to save battery.
+- **Widgets** — the Clock, Date, Alerts, Tasks, Study and Goals widgets can each be
   switched on or off from the Widgets sheet.
-- **Backup & Restore** — export and import everything as a single JSON file, plus an optional
-  daily automatic backup into a folder you pick.
-- **Hidden apps (the vault)** — keep selected apps out of the drawer, behind a four-digit PIN
-  typed as a command in the app search bar:
+- **Backup & Restore** — export and import everything as a single JSON file, plus an
+  optional daily automatic backup into a folder you pick. If auto-backup is on but its
+  folder is missing or no longer accessible, Settings and the Backup screen say so
+  clearly instead of letting backups fail silently.
+- **Hidden apps (the vault)** — keep selected apps out of the drawer, behind a four-digit
+  PIN typed as a command in the search bar:
   - `vault 1234` opens the hidden-apps screen (hide, unhide, change PIN).
-  - `apps 1234` opens the same list in launch mode, so a hidden app can be started **without
-    unhiding it first**.
+  - `apps 1234` opens the same list in launch mode, so a hidden app can be started
+    **without unhiding it first**.
 
-  The default PIN is `1234`. The clock is no longer a door to the vault.
+  The default PIN is `1234`.
 
 ## Download
 
-The APK is built by GitHub Actions and attached to the
-[`apk-latest` release](https://github.com/sp-dev-22/sp-launcher/releases/tag/apk-latest).
-Each version is kept as its own file (`sp-launcher-vX.Y.apk`) so older builds are never lost.
+Download the latest APK from the
+[Releases page](https://github.com/sp-dev-22/sp-launcher/releases) and install it — every
+version is published as its own release, so older builds stay available too.
 
-- `minSdk` 24 (Android 7 and above), `targetSdk` 36
+- Android 7.0 and above (`minSdk` 24), `targetSdk` 36
+- Small and light: built to run smoothly on low-RAM phones, including Android Go devices
 
 ## Building
 
@@ -97,8 +110,7 @@ Each version is kept as its own file (`sp-launcher-vX.Y.apk`) so older builds ar
 gradle assembleDebug
 ```
 
-Kotlin, Jetpack Compose, and no third-party runtime dependencies. The APK is rebuilt on every
-push to `main` and attached to the `apk-latest` release.
+Kotlin, Jetpack Compose, and no third-party runtime dependencies.
 
 ## Card file format
 
@@ -118,29 +130,30 @@ Each file is JSON — either a plain list, or an object with a `cards` list:
 `front` is required. Give `back` for the answer, or `options` + `correct` (1-based) for an
 MCQ and the back is filled in as `Answer: 1) Jupiter`. `q`/`a` are accepted as aliases.
 
-## What's new in 1.11.2
+## What's new in 1.13.0
 
-- **Auto & Animations** is its own Settings screen now: auto night mode (with its two times),
-  auto theme change (1 hour / 1 day) and a separate on/off for every animation. The Themes sheet
-  holds just the palettes and night mode, so nothing is squeezed off the bottom of the screen.
-- **Groups are smaller and simpler**: no name, up to four apps per group, mini icons inside the
-  slot. Five slots, twenty apps.
-- Three more animations: **Chakri**, **Sky lanterns** and **Flower petals**.
-- **Animations over other apps removed.** They could swallow touches and drained the battery;
-  the effects now stay inside the launcher.
-- Goals widget: the dashed rule is gone — it reads `1 Pushup → 10 Pushups`, with the goal's
-  start and end text underneath.
-- From 1.11: real app icons, the five-slot favourites bar, the vault as search commands
-  (`vault <pin>` / `apps <pin>`) and the PIN-change fix.
+- **Files search is complete now**: with All Files Access, search walks your storage on
+  demand and finds documents and every other file type — results stream in with a
+  "Searching files…" indicator.
+- **Home search bar**: the search box also lives on the Home screen, above the Favorites
+  bar. Tap it to search; tap its mic to search by voice straight away. It can be hidden
+  in Search Settings.
+- **Loading indicators** while the app list loads on Home and in the Drawer.
+- **Backup hints**: when auto-backup is on but no usable folder is selected (for example
+  after a restore, or if the folder was deleted), Settings and the Backup screen tell
+  you, and "Backup now" explains exactly what is wrong.
+- **Clearer English throughout the app** for users everywhere.
 
 ## Notes
 
-- Reminders and card notifications use `AlarmManager.setAndAllowWhileIdle`, so no exact-alarm
-  permission is needed.
-- On aggressive battery-saving phones, allow the app to auto-start and set battery usage to
-  "no restrictions", or background alarms may not fire.
-- A launcher needs the `QUERY_ALL_PACKAGES` permission to list the apps installed on the phone.
-  That is the only broad permission the app asks for, and the list never leaves the device.
+- Reminders and card notifications use `AlarmManager.setAndAllowWhileIdle`, so no
+  exact-alarm permission is needed.
+- On aggressive battery-saving phones, allow the app to auto-start and set battery usage
+  to "no restrictions", or background alarms may not fire.
+- A launcher needs the `QUERY_ALL_PACKAGES` permission to list the apps installed on the
+  phone. The list never leaves the device.
+- All Files Access (`MANAGE_EXTERNAL_STORAGE`) is optional and is used only by the files
+  search, only when you grant it in system settings.
 
 ## Support
 
@@ -148,17 +161,18 @@ SP Launcher is free and has no ads. If it saves you some time, you can send a ti
 any amount, once, no subscription.
 
 - UPI: `sp.26@ptyes`
+- Website: [sp-dev-22.github.io](https://sp-dev-22.github.io/)
 - GitHub: [@sp-dev-22](https://github.com/sp-dev-22)
-- YouTube: [@sp-dev-22](https://youtube.com/@sp-dev-22)
+- YouTube: [@SPDev22](https://youtube.com/@SPDev22)
 - Email: [somu.22.2026@gmail.com](mailto:somu.22.2026@gmail.com)
 
 ## License
 
 [PolyForm Noncommercial License 1.0.0](LICENSE) — Copyright 2026 Somdatt Prajapat.
 
-In plain words: you may read, copy, modify and use this code for **personal, noncommercial**
-purposes. You may **not** use it commercially or ship it as a product, and you may not use it
-at production level, without permission.
+In plain words: you may read, copy, modify and use this code for **personal,
+noncommercial** purposes. You may **not** use it commercially or ship it as a product,
+and you may not use it at production level, without permission.
 
-Note that this is deliberately *not* an open-source licence in the OSI sense, so the app is not
-eligible for F-Droid or other catalogues that require a free-software licence.
+Note that this is deliberately *not* an open-source license in the OSI sense, so the app
+is not eligible for F-Droid or other catalogs that require a free-software license.

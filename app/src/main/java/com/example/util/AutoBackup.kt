@@ -19,6 +19,10 @@ object AutoBackup {
 
     fun perform(context: Context, prefs: LauncherPreferences): Boolean {
         val treeString = prefs.backupFolderUri.value ?: return false
+        // v1.13: never attempt the write without a folder that is really usable
+        // (grant alive + folder exists). Still silent — this runs from a
+        // background receiver; the screens surface the hint instead.
+        if (!BackupSupport.isFolderValid(context, treeString)) return false
         return try {
             val treeUri = Uri.parse(treeString)
             val resolver = context.contentResolver

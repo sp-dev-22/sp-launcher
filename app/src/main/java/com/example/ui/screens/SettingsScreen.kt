@@ -54,6 +54,7 @@ fun SettingsScreen(
     onOpenBackupRestore: () -> Unit,
     onOpenSupport: () -> Unit,
     onSetDefaultLauncher: () -> Unit,
+    backupWarning: String? = null,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -92,7 +93,7 @@ fun SettingsScreen(
         // 1. Themes (Pink, Green, Saffron, Seattle, Ocean, Lavender) + Night Mode
         SettingsItemRow(
             title = "Themes",
-            subtitle = "Pink, Green, Saffron, Seattle, Ocean, Lavender & Night Mode",
+            subtitle = "Pink, Green, Saffron Orange, Seattle Grey, Ocean, Lavender & Night Mode",
             icon = {
                 Icon(
                     imageVector = Icons.Default.Palette,
@@ -215,10 +216,11 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 5. Backup & Restore
+        // 5. Backup & Restore (warning replaces the subtitle when auto-backup is
+        // on but its folder is missing or unusable — v1.13 hint)
         SettingsItemRow(
             title = "Backup & Restore",
-            subtitle = "Save or restore all settings, alerts, tasks and study data",
+            subtitle = backupWarning ?: "Save or restore all settings, alerts, tasks and study data",
             icon = {
                 Icon(
                     imageVector = Icons.Default.Backup,

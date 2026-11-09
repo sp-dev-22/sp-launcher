@@ -97,6 +97,11 @@ class LauncherPreferences(context: Context) {
     private val _searchVoice = MutableStateFlow(prefs.getBoolean(KEY_SEARCH_VOICE, true))
     val searchVoice: StateFlow<Boolean> = _searchVoice.asStateFlow()
 
+    // Home search bar (v1.13): the search box also lives on the Home screen, above
+    // the favorites bar. Shown by default; hidden from Search Settings.
+    private val _searchHomeBar = MutableStateFlow(prefs.getBoolean(KEY_SEARCH_HOME_BAR, true))
+    val searchHomeBar: StateFlow<Boolean> = _searchHomeBar.asStateFlow()
+
     private val _showDate = MutableStateFlow(prefs.getBoolean(KEY_SHOW_DATE, true))
     val showDate: StateFlow<Boolean> = _showDate.asStateFlow()
 
@@ -214,6 +219,11 @@ class LauncherPreferences(context: Context) {
     fun setSearchVoice(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SEARCH_VOICE, enabled).apply()
         _searchVoice.value = enabled
+    }
+
+    fun setSearchHomeBar(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SEARCH_HOME_BAR, enabled).apply()
+        _searchHomeBar.value = enabled
     }
 
     fun setShowDate(enabled: Boolean) {
@@ -1343,6 +1353,7 @@ class LauncherPreferences(context: Context) {
         _searchCalc.value = prefs.getBoolean(KEY_SEARCH_CALC, true)
         _searchWeb.value = prefs.getBoolean(KEY_SEARCH_WEB, true)
         _searchVoice.value = prefs.getBoolean(KEY_SEARCH_VOICE, true)
+        _searchHomeBar.value = prefs.getBoolean(KEY_SEARCH_HOME_BAR, true)
         _showDate.value = prefs.getBoolean(KEY_SHOW_DATE, true)
         _showAlerts.value = prefs.getBoolean(KEY_SHOW_ALERTS, true)
         _showTasks.value = prefs.getBoolean(KEY_SHOW_TASKS, true)
@@ -1377,6 +1388,7 @@ class LauncherPreferences(context: Context) {
         private const val KEY_SEARCH_CALC = "search_calc"
         private const val KEY_SEARCH_WEB = "search_web"
         private const val KEY_SEARCH_VOICE = "search_voice"
+        private const val KEY_SEARCH_HOME_BAR = "search_home_bar"
         private const val KEY_SHOW_DATE = "show_date"
         private const val KEY_SHOW_ALERTS = "show_alerts"
         private const val KEY_SHOW_TASKS = "show_tasks"

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Paths the FileProvider may share. The v1.13 files-search walk only ever hands
+     out files from the shared external storage, so that is all that is listed. -->
+<paths>
+    <external-path name="external" path="." />
+    <external-files-path name="external_files" path="." />
+</paths>

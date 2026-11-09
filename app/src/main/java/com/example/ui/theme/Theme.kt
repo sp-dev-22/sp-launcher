@@ -12,8 +12,8 @@ enum class LauncherTheme(val key: String, val label: String) {
     DEFAULT("default", "Default"),
     PINK("pink", "Pink"),
     GREEN("green", "Green"),
-    SAFFRON("saffron", "Saffron"),
-    SEATTLE("seattle", "Seattle"),
+    SAFFRON("saffron", "Saffron Orange"),
+    SEATTLE("seattle", "Seattle Grey"),
     OCEAN("ocean", "Ocean"),
     LAVENDER("lavender", "Lavender"),
 

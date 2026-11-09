@@ -2,11 +2,18 @@ package com.example.data.repository
 
 import android.content.ContentUris
 import android.content.Context
+import android.os.Build
+import android.os.Environment
 import android.provider.ContactsContract
 import android.provider.MediaStore
+import android.webkit.MimeTypeMap
+import androidx.core.content.FileProvider
 import com.example.data.model.ContactEntry
 import com.example.data.model.DeviceFile
 import com.example.util.PhoneNumbers
+import java.io.File
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /**
  * Where the SP Assistant (v1.12) reads the phone itself: the address book and the
@@ -83,4 +90,75 @@ object AssistantRepository {
         }
         return out
     }
+
+    /**
+     * True when the user has granted All Files Access (Android 11+). This is the
+     * switch in system settings — there is no runtime prompt for it.
+     */
+    fun hasAllFilesAccess(): Boolean =
+        Build.VERSION.SDK_INT >= 30 && Environment.isExternalStorageManager()
+
+    /**
+     * The v1.13 on-demand directory walk: starting at the root of shared storage,
+     * recursively visits folders (skipping `Android/data`, `Android/obb` and hidden
+     * dot-folders, which are either blocked or noise) and reports every file whose
+     * name contains [query]. Nothing is indexed — the walk runs fresh for each
+     * search, and matches are handed to [onBatch] as they are found so the UI can
+     * show them streaming in. Stops at [limit] matches. Must be called from a
+     * background dispatcher; cancellation of the calling coroutine stops the walk.
+     */
+    suspend fun walkFiles(
+        context: Context,
+        query: String,
+        limit: Int,
+        onBatch: (List<DeviceFile>) -> Unit
+    ) {
+        val q = query.trim().lowercase()
+        if (q.length < 2 || !hasAllFilesAccess()) return
+        val root = Environment.getExternalStorageDirectory() ?: return
+        val authority = context.packageName + ".fileprovider"
+        val found = mutableListOf<DeviceFile>()
+        val seenPaths = mutableSetOf<String>()
+        var sinceCheck = 0
+        val walker = root.walkTopDown()
+            .onEnter { dir ->
+                // Prune: never descend into hidden folders, or into the Android/data
+                // and Android/obb sandboxes (blocked even with All Files Access).
+                if (dir == root) return@onEnter true
+                if (dir.name.startsWith(".")) return@onEnter false
+                val underAndroid = dir.parentFile?.name == "Android"
+                !(underAndroid && dir.name in SKIP_DIRS)
+            }
+            .onFail { _, _ -> kotlin.io.OnErrorAction.SKIP }
+        for (file in walker) {
+            if (++sinceCheck >= 200) {
+                sinceCheck = 0
+                currentCoroutineContext().ensureActive()
+            }
+            if (!file.isFile) continue
+            if (!file.name.lowercase().contains(q)) continue
+            val path = file.absolutePath
+            if (!seenPaths.add(path)) continue
+            val mime = MimeTypeMap.getSingleton()
+                .getMimeTypeFromExtension(file.extension.lowercase())
+            val uri = try {
+                FileProvider.getUriForFile(context, authority, file).toString()
+            } catch (_: Exception) {
+                continue // outside the provider's roots — cannot be opened, skip it
+            }
+            found.add(
+                DeviceFile(
+                    name = file.name,
+                    uri = uri,
+                    mimeType = mime,
+                    sizeBytes = file.length(),
+                    path = path
+                )
+            )
+            onBatch(found.toList())
+            if (found.size >= limit) return
+        }
+    }
+
+    private val SKIP_DIRS = setOf("data", "obb")
 }

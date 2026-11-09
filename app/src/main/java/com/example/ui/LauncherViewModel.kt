@@ -33,6 +33,7 @@ import com.example.service.TaskReminderScheduler
 import com.example.service.StudyPopupScheduler
 import com.example.service.StudyReminderScheduler
 import com.example.util.AutoBackup
+import com.example.util.BackupSupport
 import com.example.util.CardFileParser
 import com.example.util.GoalProgress
 import com.example.util.TimeTablePlanner
@@ -58,6 +59,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _installedApps = MutableStateFlow<List<AppInfo>>(emptyList())
     val installedApps: StateFlow<List<AppInfo>> = _installedApps.asStateFlow()
 
+    /** True while the app list is (re)loading — screens show a loading sign, not an empty state. */
+    private val _isLoadingApps = MutableStateFlow(false)
+    val isLoadingApps: StateFlow<Boolean> = _isLoadingApps.asStateFlow()
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
@@ -72,18 +77,24 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val searchCalcEnabled = preferences.searchCalc
     val searchWebEnabled = preferences.searchWeb
     val searchVoiceEnabled = preferences.searchVoice
+    val searchHomeBarEnabled = preferences.searchHomeBar
 
     fun setSearchContactsEnabled(enabled: Boolean) = preferences.setSearchContacts(enabled)
     fun setSearchFilesEnabled(enabled: Boolean) = preferences.setSearchFiles(enabled)
     fun setSearchCalcEnabled(enabled: Boolean) = preferences.setSearchCalc(enabled)
     fun setSearchWebEnabled(enabled: Boolean) = preferences.setSearchWeb(enabled)
     fun setSearchVoiceEnabled(enabled: Boolean) = preferences.setSearchVoice(enabled)
+    fun setSearchHomeBarEnabled(enabled: Boolean) = preferences.setSearchHomeBar(enabled)
 
     private val _contacts = MutableStateFlow<List<ContactEntry>>(emptyList())
     val contacts: StateFlow<List<ContactEntry>> = _contacts.asStateFlow()
 
     private val _fileHits = MutableStateFlow<List<DeviceFile>>(emptyList())
     val fileHits: StateFlow<List<DeviceFile>> = _fileHits.asStateFlow()
+
+    /** True while the v1.13 storage walk is running for the current query. */
+    private val _isSearchingFiles = MutableStateFlow(false)
+    val isSearchingFiles: StateFlow<Boolean> = _isSearchingFiles.asStateFlow()
 
     private var fileSearchJob: Job? = null
 
@@ -119,17 +130,62 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /** Debounced media-store search; results land in [fileHits]. */
+    /** True when All Files Access is granted, so the storage walk can run. */
+    fun hasAllFilesAccess(): Boolean = AssistantRepository.hasAllFilesAccess()
+
+    /**
+     * Debounced files search; results land in [fileHits]. The media-store results
+     * come first (fast, indexed). When All Files Access is granted, an on-demand
+     * directory walk follows and streams in everything the media store does not
+     * index — documents above all — merged in and deduped (walk hits by path,
+     * walk vs media store by name + size), capped at 50 files in total. Changing
+     * the query cancels the walk.
+     */
     fun searchFiles(query: String) {
         fileSearchJob?.cancel()
-        if (query.trim().length < 2 || !hasFilesPermission()) {
+        _isSearchingFiles.value = false
+        val mediaOk = hasFilesPermission()
+        val walkOk = hasAllFilesAccess()
+        if (query.trim().length < 2 || (!mediaOk && !walkOk)) {
             _fileHits.value = emptyList()
             return
         }
         fileSearchJob = viewModelScope.launch {
             delay(250)
-            _fileHits.value = withContext(Dispatchers.IO) {
-                AssistantRepository.searchFiles(getApplication(), query)
+            val app = getApplication<Application>()
+            val merged = mutableListOf<DeviceFile>()
+            if (mediaOk) {
+                merged += withContext(Dispatchers.IO) {
+                    AssistantRepository.searchFiles(app, query)
+                }
+                _fileHits.value = merged.toList()
+            }
+            if (walkOk) {
+                _isSearchingFiles.value = true
+                try {
+                    withContext(Dispatchers.IO) {
+                        AssistantRepository.walkFiles(app, query, FILE_RESULTS_CAP) { batch ->
+                            // This batch is a later snapshot of the walk's own list:
+                            // keep the genuinely new files, appended in walk order.
+                            val knownPaths = merged.mapNotNull { it.path }.toHashSet()
+                            val knownNameSize = merged
+                                .map { it.name.lowercase() + "|" + it.sizeBytes }
+                                .toHashSet()
+                            val fresh = batch.filter { hit ->
+                                if (merged.size >= FILE_RESULTS_CAP) return@filter false
+                                val path = hit.path
+                                (path == null || path !in knownPaths) &&
+                                    (hit.name.lowercase() + "|" + hit.sizeBytes) !in knownNameSize
+                            }
+                            if (fresh.isNotEmpty()) {
+                                merged += fresh
+                                _fileHits.value = merged.take(FILE_RESULTS_CAP)
+                            }
+                        }
+                    }
+                } finally {
+                    _isSearchingFiles.value = false
+                }
             }
         }
     }
@@ -152,6 +208,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val autoBackupEnabled = preferences.autoBackupEnabled
     val backupFolderUri = preferences.backupFolderUri
     val lastBackupMillis = preferences.lastBackupMillis
+
+    /**
+     * Whether the stored backup folder can really be written to right now (v1.13):
+     * stored Uri + live write grant + folder still exists. Recomputed whenever the
+     * stored folder changes; screens use it to show the "folder not selected /
+     * unavailable" hints instead of letting auto-backup fail silently.
+     */
+    private val _backupFolderValid = MutableStateFlow(false)
+    val backupFolderValid: StateFlow<Boolean> = _backupFolderValid.asStateFlow()
 
     // Goals (regular activity tracker) + the calendar's cleared-event set
     val goals = preferences.goals
@@ -226,6 +291,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _showSearch = MutableStateFlow(false)
     val showSearch: StateFlow<Boolean> = _showSearch.asStateFlow()
+
+    /**
+     * Set when Search was opened from the Home bar's mic: Search starts voice
+     * input the moment it opens. Consumed (reset) by the search screen itself.
+     */
+    private val _searchAutoVoice = MutableStateFlow(false)
+    val searchAutoVoice: StateFlow<Boolean> = _searchAutoVoice.asStateFlow()
 
     private val _showTimeGate = MutableStateFlow(false)
     val showTimeGate: StateFlow<Boolean> = _showTimeGate.asStateFlow()
@@ -313,6 +385,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     init {
         loadApps()
+        // Keep the backup-folder validity in step with the stored folder (the
+        // validity check touches the content resolver, so it runs on IO).
+        viewModelScope.launch {
+            preferences.backupFolderUri.collect { uri ->
+                _backupFolderValid.value = withContext(Dispatchers.IO) {
+                    BackupSupport.isFolderValid(getApplication(), uri)
+                }
+            }
+        }
         // Re-arm any pending Alerts and Study Manager reminders on launch.
         rescheduleAlertReminders()
         rescheduleStudyReminders()
@@ -337,7 +418,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun loadApps() {
         lastAppsLoadMillis = System.currentTimeMillis()
         viewModelScope.launch {
-            val apps = appRepository.getInstalledApps()
+            _isLoadingApps.value = true
+            val apps = try {
+                appRepository.getInstalledApps()
+            } finally {
+                _isLoadingApps.value = false
+            }
             _installedApps.value = apps
 
             if (favorites.value.isEmpty() && apps.isNotEmpty()) {
@@ -435,7 +521,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun toggleFavorite(packageName: String): Boolean {
         val added = preferences.toggleFavorite(packageName)
         if (!added) {
-            offerUndo("Favourites bar is full (${FavoriteSlots.MAX_SLOTS} slots)") { }
+            offerUndo("Favorites bar is full (${FavoriteSlots.MAX_SLOTS} slots)") { }
         }
         return added
     }
@@ -607,6 +693,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowSearch(show: Boolean) {
         _showSearch.value = show
+        if (!show) _searchAutoVoice.value = false
+    }
+
+    /** Opens Search; [autoVoice] = true starts voice input as soon as it opens. */
+    fun openSearch(autoVoice: Boolean) {
+        _searchAutoVoice.value = autoVoice
+        _showSearch.value = true
+    }
+
+    /** The search screen calls this once it has acted on the auto-voice request. */
+    fun consumeSearchAutoVoice() {
+        _searchAutoVoice.value = false
     }
 
     fun setShowTimeGate(show: Boolean) {
@@ -716,8 +814,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun runBackupNow() {
         viewModelScope.launch(Dispatchers.IO) {
-            val ok = AutoBackup.perform(getApplication(), preferences)
-            _backupMessage.value = if (ok) "Backup saved." else "Backup failed - choose a folder first."
+            val folder = preferences.backupFolderUri.value
+            _backupMessage.value = when {
+                folder.isNullOrBlank() ->
+                    "No backup folder selected. Choose a folder first."
+                !BackupSupport.isFolderValid(getApplication(), folder) ->
+                    "Backup folder is not available (permission lost or folder deleted). Choose the folder again."
+                AutoBackup.perform(getApplication(), preferences) -> "Backup saved."
+                else -> "Backup failed. Choose the folder again and try once more."
+            }
         }
     }
 
@@ -1152,6 +1257,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     companion object {
+        /** Total file results (media store + walk) the Assistant shows at most. */
+        private const val FILE_RESULTS_CAP = 50
+
         /**
          * The palettes auto-rotation walks through. The Rainbow theme is left out on
          * purpose: it is a hand-picked choice, not something the clock should switch

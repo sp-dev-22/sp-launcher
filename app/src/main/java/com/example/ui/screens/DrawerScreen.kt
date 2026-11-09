@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.AppInfo
 import com.example.ui.components.AppDrawerItem
+import com.example.ui.components.LoadingIndicator
 
 @Composable
 fun DrawerScreen(
@@ -44,6 +45,7 @@ fun DrawerScreen(
     isDarkTheme: Boolean,
     onAppClick: (AppInfo) -> Unit,
     onAppLongClick: (AppInfo) -> Unit,
+    isLoadingApps: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -57,7 +59,14 @@ fun DrawerScreen(
                 .weight(1f)
                 .fillMaxWidth()
         ) {
-            if (apps.isEmpty()) {
+            if (isLoadingApps) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LoadingIndicator()
+                }
+            } else if (apps.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center

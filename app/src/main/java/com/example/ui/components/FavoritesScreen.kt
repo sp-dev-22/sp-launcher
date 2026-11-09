@@ -173,7 +173,7 @@ fun FavoritesScreen(
             if (favoriteOrder.isEmpty()) {
                 item {
                     Text(
-                        text = "No favourites yet. Tick apps below, or make a group.",
+                        text = "No favorites yet. Tick apps below, or make a group.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -422,7 +422,7 @@ private fun GroupEditorDialog(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     "Pick up to ${FavoriteSlots.MAX_APPS_PER_GROUP} apps. They share one slot in the " +
-                        "favourites bar.",
+                        "favorites bar.",
                     fontSize = 12.sp
                 )
                 Spacer(modifier = Modifier.height(6.dp))

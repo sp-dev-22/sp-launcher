@@ -59,6 +59,7 @@ fun BackupRestoreScreen(
 
     val autoBackup by viewModel.autoBackupEnabled.collectAsState()
     val backupFolder by viewModel.backupFolderUri.collectAsState()
+    val backupFolderValid by viewModel.backupFolderValid.collectAsState()
     val lastBackup by viewModel.lastBackupMillis.collectAsState()
     val backupMessage by viewModel.backupMessage.collectAsState()
 
@@ -200,12 +201,31 @@ fun BackupRestoreScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Auto-backup daily", fontWeight = FontWeight.SemiBold)
                         Text(
-                            text = backupFolder?.let { "Folder selected" } ?: "No folder chosen yet",
+                            text = when {
+                                backupFolder == null -> "No folder chosen yet"
+                                backupFolderValid -> "Folder selected"
+                                else -> "Folder not available"
+                            },
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                         )
                     }
                     Switch(checked = autoBackup, onCheckedChange = { viewModel.setAutoBackupEnabled(it) })
+                }
+
+                // v1.13 hint: auto-backup ON but unusable must never look fine —
+                // after a restore the folder permission does not come back, and a
+                // deleted folder fails the same way. Say which one it is.
+                if (autoBackup && !backupFolderValid) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (backupFolder == null)
+                            "Auto backup is on, but no backup folder is selected. Choose a folder so backups can run."
+                        else
+                            "Backup folder is not available (permission lost or folder deleted). Choose the folder again.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
 
                 Row {

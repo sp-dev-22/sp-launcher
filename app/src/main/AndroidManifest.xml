@@ -27,6 +27,15 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
+    <!-- SP Assistant (v1.13): All Files Access lets the files search walk the whole
+         shared storage on demand, so documents and other non-media files are found
+         too — not just what the media store indexes. Granted by the user in system
+         settings only (never a runtime prompt); search still works without it,
+         falling back to the media store. Google Play would require a declaration
+         for this permission; SP Launcher is distributed via GitHub Releases. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -78,6 +87,18 @@
         <receiver
             android:name=".service.StudyPopupReceiver"
             android:exported="false" />
+
+        <!-- Hands content:// uris for files found by the v1.13 storage walk to the
+             app the user opens them with (a raw file:// uri would be blocked). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- Re-schedules Alerts and Study Manager reminders after boot / app update -->
         <receiver

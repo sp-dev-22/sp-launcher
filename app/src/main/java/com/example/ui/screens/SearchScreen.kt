@@ -81,6 +81,7 @@ import java.util.Locale
 @Composable
 fun SearchScreen(
     viewModel: LauncherViewModel,
+    autoStartVoice: Boolean = false,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -91,6 +92,7 @@ fun SearchScreen(
     val cards by viewModel.flashcardBank.collectAsState()
     val contacts by viewModel.contacts.collectAsState()
     val fileHits by viewModel.fileHits.collectAsState()
+    val searchingFiles by viewModel.isSearchingFiles.collectAsState()
     val contactsOn by viewModel.searchContactsEnabled.collectAsState()
     val filesOn by viewModel.searchFilesEnabled.collectAsState()
     val calcOn by viewModel.searchCalcEnabled.collectAsState()
@@ -101,6 +103,7 @@ fun SearchScreen(
     var showSettings by remember { mutableStateOf(false) }
     var contactsGranted by remember { mutableStateOf(viewModel.hasContactsPermission()) }
     var filesGranted by remember { mutableStateOf(viewModel.hasFilesPermission()) }
+    var allFilesAccess by remember { mutableStateOf(viewModel.hasAllFilesAccess()) }
 
     val contactsPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -128,9 +131,46 @@ fun SearchScreen(
             .resolveActivity(context.packageManager) != null
     }
 
+    // All Files Access can only be granted on a system settings page; coming back
+    // from there, re-check it and re-run the search so documents appear at once.
+    val allFilesSettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        allFilesAccess = viewModel.hasAllFilesAccess()
+        if (allFilesAccess) viewModel.searchFiles(query)
+    }
+
+    fun startVoice() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hi-IN")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "hi-IN")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Listening… speak now")
+        }
+        try {
+            voiceLauncher.launch(intent)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(
+                context, "Voice search is not available on this phone",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    // Opened from the Home bar's mic: start listening immediately, exactly once.
+    LaunchedEffect(autoStartVoice) {
+        if (autoStartVoice) {
+            viewModel.consumeSearchAutoVoice()
+            if (voiceOn && voiceAvailable) startVoice()
+        }
+    }
+
     LaunchedEffect(Unit) { viewModel.refreshContacts() }
-    LaunchedEffect(query, filesOn, filesGranted) {
-        if (filesOn && filesGranted) viewModel.searchFiles(query)
+    LaunchedEffect(query, filesOn, filesGranted, allFilesAccess) {
+        if (filesOn && (filesGranted || allFilesAccess)) viewModel.searchFiles(query)
     }
 
     val hits = remember(query, apps, tasks, alerts, courses, cards, contacts, contactsOn, contactsGranted) {
@@ -160,8 +200,11 @@ fun SearchScreen(
     }
     val showContactsPrompt = contactsOn && !contactsGranted && query.trim().length >= 2
     val showFilesPrompt = filesOn && !filesGranted && query.trim().length >= 2
+    // The All Files Access hint (v1.13): media search works without it, but
+    // documents are only found once it is granted in system settings.
+    val showAllFilesPrompt = filesOn && filesGranted && !allFilesAccess && query.trim().length >= 2
     val nothingFound = hits.isEmpty() && calcResult == null && numberText == null &&
-        fileHits.isEmpty() && !showContactsPrompt && !showFilesPrompt
+        fileHits.isEmpty() && !showContactsPrompt && !showFilesPrompt && !searchingFiles
     val hasContent = !nothingFound || webOn
 
     fun closeSearch() = viewModel.setShowSearch(false)
@@ -189,25 +232,7 @@ fun SearchScreen(
                 trailingIcon = if (voiceOn && voiceAvailable) {
                     {
                         IconButton(
-                            onClick = {
-                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                    putExtra(
-                                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                                    )
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hi-IN")
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "hi-IN")
-                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "बोलिए, क्या खोजना है?")
-                                }
-                                try {
-                                    voiceLauncher.launch(intent)
-                                } catch (e: ActivityNotFoundException) {
-                                    Toast.makeText(
-                                        context, "Voice search इस phone पर नहीं चल पाया",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            },
+                            onClick = { startVoice() },
                             modifier = Modifier.testTag("search_mic_btn")
                         ) {
                             Icon(Icons.Default.Mic, contentDescription = "Voice search")
@@ -283,7 +308,7 @@ fun SearchScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "Tap करके copy करो",
+                                    text = "Tap to copy",
                                     fontSize = 10.5.sp,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                         .copy(alpha = 0.55f)
@@ -303,7 +328,7 @@ fun SearchScreen(
                         ) {
                             Text(numberText, fontSize = 17.sp, color = MaterialTheme.colorScheme.onBackground)
                             Text(
-                                "इस number पर:",
+                                "Actions for this number:",
                                 fontSize = 11.5.sp,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                             )
@@ -362,8 +387,8 @@ fun SearchScreen(
                 if (showContactsPrompt) {
                     item(key = "perm_contacts") {
                         PermissionRow(
-                            title = "Contacts में भी खोजूँ?",
-                            subtitle = "नाम/number खोजने के लिए contacts permission एक बार चाहिए"
+                            title = "Search contacts too?",
+                            subtitle = "Contacts permission is needed once to search by name or number"
                         ) {
                             contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
                         }
@@ -387,11 +412,48 @@ fun SearchScreen(
                     }
                 }
 
+                // The storage walk is still running: say so where its results land.
+                if (searchingFiles) {
+                    item(key = "files_searching") {
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 14.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            com.example.ui.components.LoadingIndicator(label = "Searching files…")
+                        }
+                    }
+                }
+
+                if (showAllFilesPrompt) {
+                    item(key = "perm_all_files") {
+                        PermissionRow(
+                            title = "Documents need All Files Access",
+                            subtitle = "Photos and videos are searched already. Allow access to all files to also find documents and every other file type.",
+                            buttonLabel = "Open settings"
+                        ) {
+                            val intent = Intent(
+                                android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                Uri.parse("package:" + context.packageName)
+                            )
+                            try {
+                                allFilesSettingsLauncher.launch(intent)
+                            } catch (e: ActivityNotFoundException) {
+                                startIntent(
+                                    context,
+                                    Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                                )
+                            }
+                        }
+                    }
+                }
+
                 if (showFilesPrompt) {
                     item(key = "perm_files") {
                         PermissionRow(
-                            title = "Files में भी खोजूँ?",
-                            subtitle = "Photos, videos और documents खोजने के लिए permission एक बार चाहिए"
+                            title = "Search files too?",
+                            subtitle = "Storage permission is needed once to search photos, videos and documents"
                         ) {
                             val perms = if (Build.VERSION.SDK_INT >= 33) {
                                 arrayOf(
@@ -410,7 +472,7 @@ fun SearchScreen(
 
                 if (webOn) {
                     item(key = "web_google") {
-                        WebRow(Icons.Default.Search, "Google पर खोजो: \"${query.trim()}\"") {
+                        WebRow(Icons.Default.Search, "Search on Google: \"${query.trim()}\"") {
                             closeSearch()
                             startIntent(
                                 context,
@@ -425,7 +487,7 @@ fun SearchScreen(
                         }
                     }
                     item(key = "web_youtube") {
-                        WebRow(Icons.Default.OndemandVideo, "YouTube पर खोजो: \"${query.trim()}\"") {
+                        WebRow(Icons.Default.OndemandVideo, "Search on YouTube: \"${query.trim()}\"") {
                             closeSearch()
                             startIntent(
                                 context,
@@ -557,7 +619,12 @@ private fun FileRow(file: DeviceFile, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PermissionRow(title: String, subtitle: String, onEnable: () -> Unit) {
+private fun PermissionRow(
+    title: String,
+    subtitle: String,
+    buttonLabel: String = "Turn on",
+    onEnable: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -573,7 +640,7 @@ private fun PermissionRow(title: String, subtitle: String, onEnable: () -> Unit)
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
             )
         }
-        TextButton(onClick = onEnable) { Text("चालू करो") }
+        TextButton(onClick = onEnable) { Text(buttonLabel) }
     }
 }
 
@@ -637,7 +704,7 @@ private fun startIntent(context: Context, intent: Intent) {
     try {
         context.startActivity(intent)
     } catch (e: ActivityNotFoundException) {
-        Toast.makeText(context, "इसके लिए कोई app नहीं मिला", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "No app found for this", Toast.LENGTH_SHORT).show()
     }
 }
 

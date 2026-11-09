@@ -36,6 +36,7 @@ fun SearchSettingsSheet(
     val calc by viewModel.searchCalcEnabled.collectAsState()
     val web by viewModel.searchWebEnabled.collectAsState()
     val voice by viewModel.searchVoiceEnabled.collectAsState()
+    val homeBar by viewModel.searchHomeBarEnabled.collectAsState()
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -51,41 +52,47 @@ fun SearchSettingsSheet(
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             Text(
-                "Assistant किन-किन जगहों पर खोजे. Permission सिर्फ़ तब माँगा जायेगा जब किसी खोज को उसकी सच में ज़रूरत होगी.",
+                "Choose where the Assistant searches. A permission is asked only when a search really needs it.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(bottom = 10.dp)
             )
             SettingRow(
                 title = "Contacts",
-                subtitle = "नाम या number से खोजो — Call, SMS, WhatsApp बटन के साथ",
+                subtitle = "Search by name or number, with Call, SMS and WhatsApp buttons",
                 checked = contacts,
                 testTag = "search_setting_contacts"
             ) { viewModel.setSearchContactsEnabled(it) }
             SettingRow(
                 title = "Files",
-                subtitle = "Photos, videos, audio और documents नाम से खोजो",
+                subtitle = "Search photos, videos, audio and documents by name",
                 checked = files,
                 testTag = "search_setting_files"
             ) { viewModel.setSearchFilesEnabled(it) }
             SettingRow(
                 title = "Calculator",
-                subtitle = "हिसाब और unit बदलना — 45*12, 5 km in m",
+                subtitle = "Calculations and unit conversions — 45*12, 5 km in m",
                 checked = calc,
                 testTag = "search_setting_calc"
             ) { viewModel.setSearchCalcEnabled(it) }
             SettingRow(
                 title = "Web shortcuts",
-                subtitle = "हर खोज के नीचे Google और YouTube पर खोजने के रास्ते",
+                subtitle = "Google and YouTube shortcuts below every search",
                 checked = web,
                 testTag = "search_setting_web"
             ) { viewModel.setSearchWebEnabled(it) }
             SettingRow(
                 title = "Voice input",
-                subtitle = "Search box में mic बटन — बोलकर खोजो",
+                subtitle = "Mic button in the search box — search by speaking",
                 checked = voice,
                 testTag = "search_setting_voice"
             ) { viewModel.setSearchVoiceEnabled(it) }
+            SettingRow(
+                title = "Home search bar",
+                subtitle = "Show the search bar on the Home screen, above Favorites",
+                checked = homeBar,
+                testTag = "search_setting_home_bar"
+            ) { viewModel.setSearchHomeBarEnabled(it) }
         }
     }
 }
