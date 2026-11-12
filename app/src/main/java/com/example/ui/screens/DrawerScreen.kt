@@ -46,6 +46,7 @@ fun DrawerScreen(
     onAppClick: (AppInfo) -> Unit,
     onAppLongClick: (AppInfo) -> Unit,
     isLoadingApps: Boolean = false,
+    lockedApps: Set<String> = emptySet(),
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -88,7 +89,8 @@ fun DrawerScreen(
                             app = app,
                             isDarkTheme = isDarkTheme,
                             onClick = { onAppClick(app) },
-                            onLongClick = { onAppLongClick(app) }
+                            onLongClick = { onAppLongClick(app) },
+                            isLocked = app.packageName in lockedApps
                         )
                     }
                 }

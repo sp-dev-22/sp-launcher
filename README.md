@@ -76,11 +76,18 @@ no account. Nothing you enter ever leaves your phone.
   spaced repetition (wrong cards return after 1, 3, 5 and 7 days). Cards are imported
   from JSON files and organized into decks you can switch on or off. Never shown on the
   lock screen.
-- **Themes** — eight color palettes (Default, Pink, Green, Saffron Orange, Seattle Grey,
-  Ocean, Lavender and the Rainbow palette) plus night mode. Automatic schedules — auto
-  night mode and automatic theme change every hour or every day — live under
-  **Settings > Automatics**. There are no decorative animations: the launcher is kept
-  light to save battery.
+- **App Lock** — lock any app behind a 4–6 digit PIN: long-press it in the drawer and
+  tap "Lock app". A locked app asks for the PIN every time it opens, and unlocking
+  it or changing the PIN needs the current PIN first. The PIN is stored only as a
+  secure hash, never in plain text. Locked apps are managed from
+  **Settings > App Lock**. Fully offline.
+- **Themes** — nine color palettes (Default, Pink, Green, Saffron Orange, Seattle Grey,
+  Ocean, Lavender, the Rainbow palette and the Winter palette) plus night mode.
+  Automatic schedules — auto night mode and automatic theme change every hour or every
+  day — live under **Settings > Automatics**; the rotation steps through every palette,
+  Rainbow and Winter included. The Rainbow and Winter themes offer light animations
+  (lamps, rockets and stars; snowfall) that are off by default, show only on the Home
+  screen, and pause automatically when Battery Saver is on.
 - **Widgets** — the Clock, Date, Alerts, Tasks, Study and Goals widgets can each be
   switched on or off from the Widgets sheet.
 - **Backup & Restore** — export and import everything as a single JSON file, plus an
@@ -129,6 +136,19 @@ Each file is JSON — either a plain list, or an object with a `cards` list:
 
 `front` is required. Give `back` for the answer, or `options` + `correct` (1-based) for an
 MCQ and the back is filled in as `Answer: 1) Jupiter`. `q`/`a` are accepted as aliases.
+
+## What's new in 1.14.0
+
+- **Winter theme**: a cool frost palette (ice-blue and slate) with a soft static
+  background — no battery cost. The Rainbow theme and the new Winter theme both take
+  part in automatic theme change now.
+- **App Lock**: lock any app behind a 4–6 digit PIN from the drawer's long-press menu.
+  The PIN is stored only as a secure hash, and unlocking or changing it needs the
+  current PIN first. Managed from **Settings > App Lock**.
+- **Lighter theme animations, off by default**: the Diwali lamps, rockets and stars
+  and a light snowfall are back in a cut-down form (fewer particles, about 30 frames
+  per second), on the Home screen only, only with their own theme, and paused while
+  Battery Saver is on. Switch them on in **Settings > Automatics**.
 
 ## What's new in 1.13.0
 

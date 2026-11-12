@@ -15,6 +15,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Divider
@@ -44,7 +46,9 @@ fun AppActionBottomSheet(
     onToggleFavorite: () -> Unit,
     onAppInfo: () -> Unit,
     onUninstall: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    isLocked: Boolean = false,
+    onToggleLock: () -> Unit = {}
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -114,6 +118,33 @@ fun AppActionBottomSheet(
                 Spacer(modifier = Modifier.width(18.dp))
                 Text(
                     text = if (isFavorite) "Remove from Favorites" else "Add to Favorites",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // Action: Lock / Unlock app (v1.14.0 App Lock). Locking asks for a PIN
+            // the first time; unlocking always asks for the current PIN.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        onToggleLock()
+                        onDismiss()
+                    }
+                    .padding(vertical = 14.dp)
+                    .testTag("action_toggle_lock"),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (isLocked) Icons.Default.LockOpen else Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(18.dp))
+                Text(
+                    text = if (isLocked) "Unlock app" else "Lock app",
                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
                     color = MaterialTheme.colorScheme.onSurface
                 )

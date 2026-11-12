@@ -39,6 +39,8 @@ import com.example.data.model.GoalItem
 import com.example.data.model.StudyDueItem
 import com.example.data.model.StudyProgress
 import com.example.data.model.TaskItem
+import com.example.ui.anim.DiwaliAnimationLayer
+import com.example.ui.anim.WinterAnimationLayer
 import com.example.ui.components.AlertsWidget
 import com.example.ui.components.ClockWidget
 import com.example.ui.components.FavoritesBar
@@ -80,6 +82,8 @@ fun HomeScreen(
     isLoadingApps: Boolean = false,
     showSearchBar: Boolean = true,
     onOpenSearch: (autoVoice: Boolean) -> Unit = {},
+    showDiwaliAnimations: Boolean = false,
+    showWinterAnimations: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -212,6 +216,16 @@ fun HomeScreen(
                 onLaunchApp = onAppClick,
                 onEdit = onEditFavorites
             )
+        }
+
+        // Theme animations (v1.14.0): Home screen only, only while their own theme is
+        // active — MainScreen decides both, so this just draws what it is told to.
+        // The canvases take no pointer input, so nothing here blocks a tap.
+        if (showDiwaliAnimations) {
+            DiwaliAnimationLayer(modifier = Modifier.fillMaxSize())
+        }
+        if (showWinterAnimations) {
+            WinterAnimationLayer(modifier = Modifier.fillMaxSize())
         }
     }
 }

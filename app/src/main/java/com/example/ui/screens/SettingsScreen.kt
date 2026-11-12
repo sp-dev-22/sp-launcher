@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.School
@@ -46,6 +47,7 @@ fun SettingsScreen(
     isDarkTheme: Boolean,
     onOpenThemes: () -> Unit,
     onOpenAutoAnimations: () -> Unit,
+    onOpenAppLock: () -> Unit,
     onOpenStudyManager: () -> Unit,
     onOpenStudyPopups: () -> Unit,
     onOpenGoals: () -> Unit,
@@ -122,6 +124,25 @@ fun SettingsScreen(
             },
             onClick = onOpenAutoAnimations,
             testTag = "settings_auto_animations"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 1c. App Lock (v1.14.0): locked apps + change PIN. Locking itself happens
+        // from the drawer (long-press an app).
+        SettingsItemRow(
+            title = "App Lock",
+            subtitle = "Locked apps ask for a PIN every time they open",
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            onClick = onOpenAppLock,
+            testTag = "settings_app_lock"
         )
 
         Spacer(modifier = Modifier.height(16.dp))

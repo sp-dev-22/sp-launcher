@@ -50,6 +50,24 @@ class LauncherPreferences(context: Context) {
     private val _vaultPin = MutableStateFlow(prefs.getString(KEY_VAULT_PIN, "1234") ?: "1234")
     val vaultPin: StateFlow<String> = _vaultPin.asStateFlow()
 
+    // App Lock (v1.14.0): one PIN for the whole launcher, stored only as its SHA-256 hash
+    // (see util/AppLock), plus the set of locked package names. The plaintext PIN is
+    // never stored anywhere. Backup exports every pref, so the hash travels with the
+    // user's own backup file — the same trust the plaintext vault PIN already has there.
+    private val _appLockPinHash = MutableStateFlow(prefs.getString(KEY_APP_LOCK_PIN_HASH, "") ?: "")
+    val appLockPinHash: StateFlow<String> = _appLockPinHash.asStateFlow()
+
+    private val _lockedApps = MutableStateFlow(prefs.getStringSet(KEY_LOCKED_APPS, emptySet()) ?: emptySet())
+    val lockedApps: StateFlow<Set<String>> = _lockedApps.asStateFlow()
+
+    // Theme animations (v1.14.0): lighter Diwali / Winter effects, both OFF by default.
+    // Each one shows only while its own theme is active, on the Home screen only.
+    private val _diwaliAnimations = MutableStateFlow(prefs.getBoolean(KEY_ANIMATIONS_DIWALI, false))
+    val diwaliAnimations: StateFlow<Boolean> = _diwaliAnimations.asStateFlow()
+
+    private val _winterAnimations = MutableStateFlow(prefs.getBoolean(KEY_ANIMATIONS_WINTER, false))
+    val winterAnimations: StateFlow<Boolean> = _winterAnimations.asStateFlow()
+
     // Auto-backup (a daily JSON written into a folder the user picks, via SAF).
     private val _autoBackupEnabled = MutableStateFlow(prefs.getBoolean(KEY_AUTO_BACKUP, false))
     val autoBackupEnabled: StateFlow<Boolean> = _autoBackupEnabled.asStateFlow()
@@ -60,7 +78,8 @@ class LauncherPreferences(context: Context) {
     private val _lastBackupMillis = MutableStateFlow(prefs.getLong(KEY_LAST_BACKUP, 0L))
     val lastBackupMillis: StateFlow<Long> = _lastBackupMillis.asStateFlow()
 
-    // Selected colour theme key (see LauncherTheme): default / pink / green / saffron / seattle / ocean / lavender
+    // Selected colour theme key (see LauncherTheme): default / pink / green / saffron /
+    // seattle / ocean / lavender / diwali (Rainbow) / winter
     private val _themeKey = MutableStateFlow(prefs.getString(KEY_THEME, "default") ?: "default")
     val themeKey: StateFlow<String> = _themeKey.asStateFlow()
 
@@ -174,6 +193,29 @@ class LauncherPreferences(context: Context) {
     fun setVaultPin(pin: String) {
         prefs.edit().putString(KEY_VAULT_PIN, pin).apply()
         _vaultPin.value = pin
+    }
+
+    /** Stores the App Lock PIN's SHA-256 hash (never the PIN itself). Empty means no PIN yet. */
+    fun setAppLockPinHash(hash: String) {
+        prefs.edit().putString(KEY_APP_LOCK_PIN_HASH, hash).apply()
+        _appLockPinHash.value = hash
+    }
+
+    fun setAppLocked(packageName: String, locked: Boolean) {
+        val current = _lockedApps.value.toMutableSet()
+        if (locked) current.add(packageName) else current.remove(packageName)
+        prefs.edit().putStringSet(KEY_LOCKED_APPS, current).apply()
+        _lockedApps.value = current
+    }
+
+    fun setDiwaliAnimations(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ANIMATIONS_DIWALI, enabled).apply()
+        _diwaliAnimations.value = enabled
+    }
+
+    fun setWinterAnimations(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ANIMATIONS_WINTER, enabled).apply()
+        _winterAnimations.value = enabled
     }
 
     fun setAutoBackupEnabled(enabled: Boolean) {
@@ -1341,6 +1383,10 @@ class LauncherPreferences(context: Context) {
         _nightEndMinutes.value = prefs.getInt(KEY_NIGHT_END, 7 * 60)
         _hiddenApps.value = prefs.getStringSet(KEY_HIDDEN_APPS, emptySet()) ?: emptySet()
         _vaultPin.value = prefs.getString(KEY_VAULT_PIN, "1234") ?: "1234"
+        _appLockPinHash.value = prefs.getString(KEY_APP_LOCK_PIN_HASH, "") ?: ""
+        _lockedApps.value = prefs.getStringSet(KEY_LOCKED_APPS, emptySet()) ?: emptySet()
+        _diwaliAnimations.value = prefs.getBoolean(KEY_ANIMATIONS_DIWALI, false)
+        _winterAnimations.value = prefs.getBoolean(KEY_ANIMATIONS_WINTER, false)
         _autoBackupEnabled.value = prefs.getBoolean(KEY_AUTO_BACKUP, false)
         _backupFolderUri.value = prefs.getString(KEY_BACKUP_URI, null)
         _lastBackupMillis.value = prefs.getLong(KEY_LAST_BACKUP, 0L)
@@ -1378,6 +1424,10 @@ class LauncherPreferences(context: Context) {
         private const val KEY_NIGHT_END = "night_end_minutes"
         private const val KEY_HIDDEN_APPS = "hidden_apps"
         private const val KEY_VAULT_PIN = "vault_pin"
+        private const val KEY_APP_LOCK_PIN_HASH = "app_lock_pin_hash"
+        private const val KEY_LOCKED_APPS = "locked_apps"
+        private const val KEY_ANIMATIONS_DIWALI = "animations_diwali"
+        private const val KEY_ANIMATIONS_WINTER = "animations_winter"
         private const val KEY_AUTO_BACKUP = "auto_backup"
         private const val KEY_BACKUP_URI = "backup_folder_uri"
         private const val KEY_LAST_BACKUP = "last_backup_millis"

@@ -19,7 +19,10 @@ enum class LauncherTheme(val key: String, val label: String) {
 
     /** The rainbow palette. Its stored key stays "diwali" from the Diwali edition, so
      *  existing installs keep the theme they had saved. */
-    RAINBOW("diwali", "Rainbow");
+    RAINBOW("diwali", "Rainbow"),
+
+    /** The winter palette (v1.14.0): cool frost colours, ice-blue and slate. */
+    WINTER("winter", "Winter");
 
     companion object {
         fun fromKey(key: String?): LauncherTheme =
@@ -299,8 +302,43 @@ private val RainbowDark = darkColorScheme(
     onError = Color(0xFF690005)
 )
 
+private val WinterLight = lightColorScheme(
+    primary = Color(0xFF1565A8),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFD6EAF7),
+    onPrimaryContainer = Color(0xFF06283E),
+    background = Color(0xFFF0F7FA),
+    onBackground = Color(0xFF16232C),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF16232C),
+    surfaceVariant = Color(0xFFDEEAF0),
+    onSurfaceVariant = Color(0xFF3E505B),
+    outline = Color(0xFFC2D6E2),
+    error = Color(0xFFBA1A1A),
+    onError = Color.White
+)
+
+private val WinterDark = darkColorScheme(
+    primary = Color(0xFF7FC4EC),
+    onPrimary = Color(0xFF06283E),
+    primaryContainer = Color(0xFF16486B),
+    onPrimaryContainer = Color(0xFFCDE8F8),
+    background = Color(0xFF0D161D),
+    onBackground = Color(0xFFDCE9EF),
+    surface = Color(0xFF141F26),
+    onSurface = Color(0xFFDCE9EF),
+    surfaceVariant = Color(0xFF1C2831),
+    onSurfaceVariant = Color(0xFFB7C9D4),
+    outline = Color(0xFF35464F),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005)
+)
+
 /** True for the Rainbow theme, which paints a rainbow wash behind the app. */
 fun isRainbowTheme(theme: LauncherTheme): Boolean = theme == LauncherTheme.RAINBOW
+
+/** True for the Winter theme, which paints a frost wash behind the app. */
+fun isWinterTheme(theme: LauncherTheme): Boolean = theme == LauncherTheme.WINTER
 
 fun colorSchemeFor(theme: LauncherTheme, dark: Boolean): ColorScheme = when (theme) {
     LauncherTheme.DEFAULT -> if (dark) DefaultDark else DefaultLight
@@ -311,6 +349,7 @@ fun colorSchemeFor(theme: LauncherTheme, dark: Boolean): ColorScheme = when (the
     LauncherTheme.OCEAN -> if (dark) OceanDark else OceanLight
     LauncherTheme.LAVENDER -> if (dark) LavenderDark else LavenderLight
     LauncherTheme.RAINBOW -> if (dark) RainbowDark else RainbowLight
+    LauncherTheme.WINTER -> if (dark) WinterDark else WinterLight
 }
 
 /** Preview swatch colour for the Themes picker. */

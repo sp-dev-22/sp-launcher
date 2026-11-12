@@ -42,8 +42,8 @@ import java.util.Locale
  * Settings > Automatics.
  *
  * Everything that runs on a schedule, kept off the Themes sheet where there was no
- * room left for it. (This screen also held the animation toggles until v1.11.5 took
- * the animations themselves out.)
+ * room left for it. The animation toggles left with the animations in v1.11.5 and
+ * came back in lighter form in v1.14.0.
  */
 @Composable
 fun AutoAnimationsScreen(
@@ -54,6 +54,10 @@ fun AutoAnimationsScreen(
     onToggleAutoNight: (Boolean) -> Unit,
     onSetNightWindow: (Int, Int) -> Unit,
     onSetAutoThemeMode: (String) -> Unit,
+    diwaliAnimationsEnabled: Boolean = false,
+    winterAnimationsEnabled: Boolean = false,
+    onToggleDiwaliAnimations: (Boolean) -> Unit = {},
+    onToggleWinterAnimations: (Boolean) -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -112,8 +116,7 @@ fun AutoAnimationsScreen(
             SectionTitle("AUTO CHANGE THEME")
 
             Text(
-                text = "Steps through the palettes one at a time. Rainbow is left out, so " +
-                    "that theme is never switched on or off by the clock.",
+                text = "Steps through every palette one at a time, Rainbow and Winter included.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
@@ -123,6 +126,35 @@ fun AutoAnimationsScreen(
                 OptionChip("Every 1 hour", autoThemeMode == "hour") { onSetAutoThemeMode("hour") }
                 OptionChip("Every 1 day", autoThemeMode == "day") { onSetAutoThemeMode("day") }
             }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp))
+
+            // ---- Theme animations (v1.14.0, lighter, both OFF by default) ----
+            SectionTitle("THEME ANIMATIONS")
+
+            Text(
+                text = "Light effects on the Home screen only, and only while their own theme " +
+                    "is active. They pause automatically when Battery Saver is on.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            SwitchRow(
+                title = "Diwali animations",
+                subtitle = "Lamps, rockets and stars — only with the Rainbow theme",
+                checked = diwaliAnimationsEnabled,
+                onCheckedChange = onToggleDiwaliAnimations,
+                testTag = "diwali_animations_switch"
+            )
+
+            SwitchRow(
+                title = "Winter animations",
+                subtitle = "Light snowfall — only with the Winter theme",
+                checked = winterAnimationsEnabled,
+                onCheckedChange = onToggleWinterAnimations,
+                testTag = "winter_animations_switch"
+            )
 
             Spacer(modifier = Modifier.height(36.dp))
         }

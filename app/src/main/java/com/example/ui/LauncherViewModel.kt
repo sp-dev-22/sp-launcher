@@ -1,8 +1,13 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.PowerManager
 import android.provider.OpenableColumns
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
@@ -32,6 +37,7 @@ import com.example.service.AutoBackupScheduler
 import com.example.service.TaskReminderScheduler
 import com.example.service.StudyPopupScheduler
 import com.example.service.StudyReminderScheduler
+import com.example.util.AppLock
 import com.example.util.AutoBackup
 import com.example.util.BackupSupport
 import com.example.util.CardFileParser
@@ -50,6 +56,21 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+
+/** Which App Lock PIN dialog is up, if any (v1.14.0). */
+sealed interface AppLockDialog {
+    /** No PIN exists yet — set one, then lock this app. */
+    data class SetupPin(val packageName: String) : AppLockDialog
+
+    /** A locked app was tapped — verify the PIN, then launch it. */
+    data class VerifyToLaunch(val app: AppInfo) : AppLockDialog
+
+    /** Unlock was asked from the drawer sheet or the App Lock screen — verify first. */
+    data class VerifyToUnlock(val packageName: String) : AppLockDialog
+
+    /** Change the PIN — current PIN first, then the new one twice. */
+    data object ChangePin : AppLockDialog
+}
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -70,6 +91,50 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val favorites = preferences.favorites
     val groups = preferences.groups
     val autoThemeMode = preferences.autoThemeMode
+
+    // Theme animations (v1.14.0): lighter Diwali / Winter effects, both OFF by default.
+    val diwaliAnimationsEnabled = preferences.diwaliAnimations
+    val winterAnimationsEnabled = preferences.winterAnimations
+
+    fun setDiwaliAnimationsEnabled(enabled: Boolean) = preferences.setDiwaliAnimations(enabled)
+    fun setWinterAnimationsEnabled(enabled: Boolean) = preferences.setWinterAnimations(enabled)
+
+    // App Lock (v1.14.0): the locked apps, and whether a PIN exists yet.
+    val lockedApps = preferences.lockedApps
+    val hasAppLockPin: StateFlow<Boolean> = preferences.appLockPinHash
+        .map { it.isNotEmpty() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), preferences.appLockPinHash.value.isNotEmpty())
+
+    private val _appLockDialog = MutableStateFlow<AppLockDialog?>(null)
+    val appLockDialog: StateFlow<AppLockDialog?> = _appLockDialog.asStateFlow()
+
+    fun dismissAppLockDialog() {
+        _appLockDialog.value = null
+    }
+
+    // Battery Saver state: the theme animations pause while it is on (v1.14.0).
+    private val _isPowerSaveMode = MutableStateFlow(isPowerSaveModeNow())
+    val isPowerSaveMode: StateFlow<Boolean> = _isPowerSaveMode.asStateFlow()
+
+    private val powerSaveReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            _isPowerSaveMode.value = isPowerSaveModeNow()
+        }
+    }
+
+    private fun isPowerSaveModeNow(): Boolean {
+        val pm = getApplication<Application>().getSystemService(Context.POWER_SERVICE) as? PowerManager
+        return pm?.isPowerSaveMode == true
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            getApplication<Application>().unregisterReceiver(powerSaveReceiver)
+        } catch (_: IllegalArgumentException) {
+            // Receiver was never registered — nothing to undo.
+        }
+    }
 
     // SP Assistant (v1.12): search source toggles + phone data
     val searchContactsEnabled = preferences.searchContacts
@@ -312,6 +377,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showHiddenApps = MutableStateFlow(false)
     val showHiddenApps: StateFlow<Boolean> = _showHiddenApps.asStateFlow()
 
+    private val _showAppLock = MutableStateFlow(false)
+    val showAppLock: StateFlow<Boolean> = _showAppLock.asStateFlow()
+
     private val _hiddenAppsMode = MutableStateFlow(HiddenAppsMode.MANAGE)
     val hiddenAppsMode: StateFlow<HiddenAppsMode> = _hiddenAppsMode.asStateFlow()
 
@@ -400,6 +468,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         rescheduleTaskReminders()
         StudyPopupScheduler.reschedule(application, preferences.popupSettings.value)
         refreshAutoNightMode()
+        // Watch Battery Saver so the theme animations can pause while it is on.
+        getApplication<Application>().registerReceiver(
+            powerSaveReceiver,
+            IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+        )
     }
 
     private var lastAppsLoadMillis = 0L
@@ -558,8 +631,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     /**
      * Steps the palette forward once an hour or once a day, depending on the chosen mode.
-     * Does nothing when rotation is off, and never rotates into (or out of) the Rainbow
-     * theme on its own.
+     * Does nothing when rotation is off. Every palette takes part, Rainbow and Winter
+     * included (v1.14.0 — Rainbow used to be left out).
      *
      * The step is measured from the last actual change, not read off the clock: the
      * pre-v1.11.5 version picked palette[hour % size] / palette[day-of-year % size], so
@@ -577,11 +650,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         if (System.currentTimeMillis() - last >= intervalMillis) advanceAutoTheme()
     }
 
-    /** Moves to the palette entry after the current theme, and stamps the change. */
+        /** Moves to the palette entry after the current theme, and stamps the change. */
     private fun advanceAutoTheme() {
         val palette = ROTATING_THEMES
         val index = palette.indexOf(preferences.themeKey.value)
-        // A theme outside the rotation (Rainbow, chosen by hand) restarts from the top.
+        // A theme outside the rotation restarts from the top (no theme is outside it now,
+        // but the guard stays so a future palette cannot stall the rotation).
         val next = palette[(index + 1) % palette.size]
         preferences.setTheme(next)
         preferences.setLastAutoThemeMillis(System.currentTimeMillis())
@@ -714,6 +788,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun setShowHiddenApps(show: Boolean) {
         _showHiddenApps.value = show
         if (!show) _hiddenAppsMode.value = HiddenAppsMode.MANAGE
+    }
+
+    fun setShowAppLock(show: Boolean) {
+        _showAppLock.value = show
     }
 
     fun setShowPractice(show: Boolean) {
@@ -898,9 +976,92 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _showStudyPopups.value = show
     }
 
-    // Smart App Launching (no usage limits any more — just launch)
+    // Smart App Launching (no usage limits any more — just launch, unless the app is locked)
     fun launchApp(app: AppInfo) {
+        if (app.packageName in preferences.lockedApps.value) {
+            _appLockDialog.value = AppLockDialog.VerifyToLaunch(app)
+            return
+        }
         appRepository.launchApp(app.packageName)
+    }
+
+    /** Called by the PIN dialog after a correct PIN for a launch. */
+    fun launchLockedApp(app: AppInfo) {
+        _appLockDialog.value = null
+        appRepository.launchApp(app.packageName)
+    }
+
+    // ---------------------------------------------------------------------
+    // App Lock (v1.14.0)
+    // ---------------------------------------------------------------------
+
+    /** From the drawer long-press sheet: lock this app, asking for a PIN first if none exists. */
+    fun requestLockApp(packageName: String) {
+        if (preferences.appLockPinHash.value.isEmpty()) {
+            _appLockDialog.value = AppLockDialog.SetupPin(packageName)
+        } else {
+            preferences.setAppLocked(packageName, true)
+            offerUndo("App locked") { preferences.setAppLocked(packageName, false) }
+        }
+    }
+
+    /** From the drawer sheet or the App Lock screen: unlocking needs the current PIN first. */
+    fun requestUnlockApp(packageName: String) {
+        _appLockDialog.value = AppLockDialog.VerifyToUnlock(packageName)
+    }
+
+    fun requestChangeAppLockPin() {
+        _appLockDialog.value = AppLockDialog.ChangePin
+    }
+
+    /** Saves a new PIN (hash only) and locks the app the setup started from. */
+    fun saveAppLockPinAndLock(pin: String, packageName: String) {
+        if (!AppLock.isValidPin(pin)) return
+        preferences.setAppLockPinHash(AppLock.hashPin(pin))
+        preferences.setAppLocked(packageName, true)
+        _appLockDialog.value = null
+        offerUndo("App locked") { preferences.setAppLocked(packageName, false) }
+    }
+
+    /** True when the typed PIN matches the stored hash. */
+    fun verifyAppLockPin(pin: String): Boolean =
+        AppLock.pinMatches(pin, preferences.appLockPinHash.value)
+
+    /**
+     * Submits a typed PIN for the verify dialog that is up (launch or unlock).
+     * Returns true when it was accepted — the dialog closes and the action runs.
+     * Returns false on a wrong PIN; the dialog stays up and shows the error.
+     */
+    fun submitAppLockPin(pin: String): Boolean {
+        return when (val d = _appLockDialog.value) {
+            is AppLockDialog.VerifyToLaunch -> {
+                if (!verifyAppLockPin(pin)) return false
+                launchLockedApp(d.app)
+                true
+            }
+            is AppLockDialog.VerifyToUnlock -> {
+                if (!verifyAppLockPin(pin)) return false
+                unlockAppAfterPin(d.packageName)
+                true
+            }
+            else -> false
+        }
+    }
+
+    /** Unlocks after a verified PIN. */
+    fun unlockAppAfterPin(packageName: String) {
+        preferences.setAppLocked(packageName, false)
+        _appLockDialog.value = null
+        offerUndo("App unlocked") { preferences.setAppLocked(packageName, true) }
+    }
+
+    /** Changes the PIN after the current one was verified (hash only — the PIN is never stored). */
+    fun changeAppLockPin(newPin: String) {
+        if (!AppLock.isValidPin(newPin)) return
+        val oldHash = preferences.appLockPinHash.value
+        preferences.setAppLockPinHash(AppLock.hashPin(newPin))
+        _appLockDialog.value = null
+        offerUndo("PIN changed") { preferences.setAppLockPinHash(oldHash) }
     }
 
     fun openAppInfo(packageName: String) {
@@ -1261,12 +1422,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         private const val FILE_RESULTS_CAP = 50
 
         /**
-         * The palettes auto-rotation walks through. The Rainbow theme is left out on
-         * purpose: it is a hand-picked choice, not something the clock should switch
-         * on by itself.
+         * The palettes auto-rotation walks through, in order. Every palette takes part:
+         * Rainbow joined in v1.14.0 (it used to be left out as a hand-picked choice),
+         * and the new Winter palette joins with it.
          */
         private val ROTATING_THEMES = listOf(
-            "default", "pink", "green", "saffron", "seattle", "ocean", "lavender"
+            "default", "pink", "green", "saffron", "seattle", "ocean", "lavender",
+            "diwali", "winter"
         )
     }
 }

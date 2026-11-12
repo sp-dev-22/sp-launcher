@@ -16,11 +16,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import com.example.ui.anim.RainbowBackground
+import com.example.ui.anim.WinterBackground
 import com.example.ui.components.AppActionBottomSheet
+import com.example.ui.components.AppLockPinDialog
 import com.example.ui.components.FavoritesScreen
 import com.example.ui.components.ThemesSheet
 import com.example.ui.components.UndoBar
 import com.example.ui.components.WidgetsManagementSheet
+import com.example.ui.screens.AppLockScreen
 import com.example.ui.screens.AutoAnimationsScreen
 import com.example.ui.screens.BackupRestoreScreen
 import com.example.ui.screens.CalendarScreen
@@ -38,6 +41,7 @@ import com.example.ui.screens.SupportScreen
 import com.example.ui.screens.TimeTableScreen
 import com.example.ui.theme.LauncherTheme
 import com.example.ui.theme.isRainbowTheme
+import com.example.ui.theme.isWinterTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -118,18 +122,36 @@ fun MainScreen(
     val nightStart by viewModel.nightStartMinutes.collectAsState()
     val nightEnd by viewModel.nightEndMinutes.collectAsState()
 
+    // Theme animations (v1.14.0): lighter Diwali / Winter effects, both OFF by default.
+    val diwaliAnimationsEnabled by viewModel.diwaliAnimationsEnabled.collectAsState()
+    val winterAnimationsEnabled by viewModel.winterAnimationsEnabled.collectAsState()
+    val powerSaveMode by viewModel.isPowerSaveMode.collectAsState()
+
+    // App Lock (v1.14.0)
+    val lockedApps by viewModel.lockedApps.collectAsState()
+    val appLockDialog by viewModel.appLockDialog.collectAsState()
+    val showAppLock by viewModel.showAppLock.collectAsState()
+
     val currentTheme = LauncherTheme.fromKey(themeKey)
     val rainbow = isRainbowTheme(currentTheme)
+    val winter = isWinterTheme(currentTheme)
+
+    // An animation shows only on the Home page, only with its own theme active, only
+    // when its toggle is on, and never while Battery Saver is on.
+    val onHomePage = pagerState.currentPage == 1
+    val showDiwaliAnimations = onHomePage && rainbow && diwaliAnimationsEnabled && !powerSaveMode
+    val showWinterAnimations = onHomePage && winter && winterAnimationsEnabled && !powerSaveMode
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
         enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager ||
             showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar ||
             showGoals || showSupport || showSearch || showHiddenApps || showPractice ||
-            showAutoAnimations
+            showAutoAnimations || showAppLock
     ) {
         when {
             showAutoAnimations -> viewModel.setShowAutoAnimations(false)
+            showAppLock -> viewModel.setShowAppLock(false)
             showPractice -> viewModel.setShowPractice(false)
             showHiddenApps -> viewModel.setShowHiddenApps(false)
             showCards -> viewModel.setShowCards(false)
@@ -162,6 +184,11 @@ fun MainScreen(
                 RainbowBackground(dark = isDarkTheme)
             }
 
+            // Winter theme: a soft frost wash behind everything.
+            if (winter) {
+                WinterBackground(dark = isDarkTheme)
+            }
+
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
@@ -173,6 +200,7 @@ fun MainScreen(
                             isDarkTheme = isDarkTheme,
                             onOpenThemes = { viewModel.setShowThemesSheet(true) },
                             onOpenAutoAnimations = { viewModel.setShowAutoAnimations(true) },
+                            onOpenAppLock = { viewModel.setShowAppLock(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             onOpenStudyPopups = { viewModel.setShowStudyPopups(true) },
                             onOpenGoals = { viewModel.setShowGoals(true) },
@@ -221,6 +249,8 @@ fun MainScreen(
                             isLoadingApps = isLoadingApps,
                             showSearchBar = showHomeSearchBar,
                             onOpenSearch = { autoVoice -> viewModel.openSearch(autoVoice) },
+                            showDiwaliAnimations = showDiwaliAnimations,
+                            showWinterAnimations = showWinterAnimations,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -233,6 +263,7 @@ fun MainScreen(
                             onAppClick = { app -> viewModel.launchApp(app) },
                             onAppLongClick = { app -> viewModel.selectAppForActions(app) },
                             isLoadingApps = isLoadingApps,
+                            lockedApps = lockedApps,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -332,6 +363,14 @@ fun MainScreen(
                 )
             }
 
+            // App Lock management (locked apps + change PIN)
+            if (showAppLock) {
+                AppLockScreen(
+                    viewModel = viewModel,
+                    onBack = { viewModel.setShowAppLock(false) }
+                )
+            }
+
             // Fullscreen flashcard Practice
             if (showPractice) {
                 PracticeScreen(
@@ -357,13 +396,45 @@ fun MainScreen(
     // App Action Bottom Sheet (from Drawer long press)
     selectedAppForActions?.let { app ->
         val isFav = favoritePackages.contains(app.packageName)
+        val isLocked = lockedApps.contains(app.packageName)
         AppActionBottomSheet(
             app = app,
             isFavorite = isFav,
             onToggleFavorite = { viewModel.toggleFavorite(app.packageName) },
             onAppInfo = { viewModel.openAppInfo(app.packageName) },
             onUninstall = { viewModel.uninstallApp(app.packageName) },
-            onDismiss = { viewModel.selectAppForActions(null) }
+            onDismiss = { viewModel.selectAppForActions(null) },
+            isLocked = isLocked,
+            onToggleLock = {
+                if (isLocked) viewModel.requestUnlockApp(app.packageName)
+                else viewModel.requestLockApp(app.packageName)
+            }
+        )
+    }
+
+    // App Lock PIN dialog (set / verify to open / verify to unlock / change PIN)
+    appLockDialog?.let { dialog ->
+        val appLabel = when (dialog) {
+            is AppLockDialog.SetupPin ->
+                allApps.firstOrNull { it.packageName == dialog.packageName }?.label
+                    ?: dialog.packageName
+            is AppLockDialog.VerifyToLaunch -> dialog.app.label
+            is AppLockDialog.VerifyToUnlock ->
+                allApps.firstOrNull { it.packageName == dialog.packageName }?.label
+                    ?: dialog.packageName
+            AppLockDialog.ChangePin -> ""
+        }
+        val setupPackage = (dialog as? AppLockDialog.SetupPin)?.packageName
+        AppLockPinDialog(
+            dialog = dialog,
+            appLabel = appLabel,
+            onDismiss = { viewModel.dismissAppLockDialog() },
+            onSetupPin = { pin ->
+                setupPackage?.let { viewModel.saveAppLockPinAndLock(pin, it) }
+            },
+            onVerifyPin = { pin -> viewModel.verifyAppLockPin(pin) },
+            onSubmitVerify = { pin -> viewModel.submitAppLockPin(pin) },
+            onChangePin = { pin -> viewModel.changeAppLockPin(pin) }
         )
     }
 
@@ -420,7 +491,7 @@ fun MainScreen(
         )
     }
 
-    // Automatics (auto night mode, auto theme change)
+    // Automatics (auto night mode, auto theme change, theme animations)
     if (showAutoAnimations) {
         AutoAnimationsScreen(
             autoNightEnabled = autoNight,
@@ -430,6 +501,10 @@ fun MainScreen(
             onToggleAutoNight = { viewModel.setAutoNightMode(it) },
             onSetNightWindow = { s, e -> viewModel.setNightWindow(s, e) },
             onSetAutoThemeMode = { viewModel.setAutoThemeMode(it) },
+            diwaliAnimationsEnabled = diwaliAnimationsEnabled,
+            winterAnimationsEnabled = winterAnimationsEnabled,
+            onToggleDiwaliAnimations = { viewModel.setDiwaliAnimationsEnabled(it) },
+            onToggleWinterAnimations = { viewModel.setWinterAnimationsEnabled(it) },
             onBack = { viewModel.setShowAutoAnimations(false) }
         )
     }
