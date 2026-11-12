@@ -289,7 +289,7 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Alerts (managed in the Widgets sheet, opened on its Alerts section)
+                // Alerts (standalone screen since v1.16.0)
                 SettingsItemRow(
                     title = "Alerts",
                     subtitle = "Reminders with optional notifications",
@@ -307,7 +307,7 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Tasks (managed in the Widgets sheet, opened on its Tasks section)
+                // Tasks (standalone screen since v1.16.0)
                 SettingsItemRow(
                     title = "Tasks",
                     subtitle = "Things to do, with due dates and reminders",

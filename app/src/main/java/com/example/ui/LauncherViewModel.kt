@@ -350,6 +350,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showGoals = MutableStateFlow(false)
     val showGoals: StateFlow<Boolean> = _showGoals.asStateFlow()
 
+    // Alerts / Tasks screens (v1.16.0): standalone screens now, not Widgets sheet
+    // sections. Named "...Screen" because showAlerts / setShowAlerts already mean
+    // the Home widget's visibility toggle.
+    private val _showAlertsScreen = MutableStateFlow(false)
+    val showAlertsScreen: StateFlow<Boolean> = _showAlertsScreen.asStateFlow()
+
+    private val _showTasksScreen = MutableStateFlow(false)
+    val showTasksScreen: StateFlow<Boolean> = _showTasksScreen.asStateFlow()
+
     private val _showSupport = MutableStateFlow(false)
     val showSupport: StateFlow<Boolean> = _showSupport.asStateFlow()
 
@@ -739,21 +748,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _showAddFavoritesScreen.value = show
     }
 
-    /**
-     * Which section the Widgets sheet opens on ("alerts" / "tasks" / null for the top).
-     * Set by [openWidgetsDialog]; cleared again when the sheet closes.
-     */
-    private val _widgetsSection = MutableStateFlow<String?>(null)
-    val widgetsSection: StateFlow<String?> = _widgetsSection.asStateFlow()
-
-    /** Opens the Widgets sheet, scrolled to [section] ("alerts" / "tasks") when given. */
-    fun openWidgetsDialog(section: String? = null) {
-        _widgetsSection.value = section
-        _showWidgetsDialog.value = true
-    }
-
     fun setShowWidgetsDialog(show: Boolean) {
-        if (!show) _widgetsSection.value = null
         _showWidgetsDialog.value = show
     }
 
@@ -779,6 +774,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowGoals(show: Boolean) {
         _showGoals.value = show
+    }
+
+    fun setShowAlertsScreen(show: Boolean) {
+        _showAlertsScreen.value = show
+    }
+
+    fun setShowTasksScreen(show: Boolean) {
+        _showTasksScreen.value = show
     }
 
     fun setShowSupport(show: Boolean) {
@@ -875,10 +878,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _showStudyPopups.value = true
     }
 
-    /** The checklist lives in the Widgets sheet's task section. */
-    fun openChecklistFromCalendar() {
+    /** The Alerts screen owns note reminders. */
+    fun openAlertsFromCalendar() {
         _showCalendar.value = false
-        _showWidgetsDialog.value = true
+        _showAlertsScreen.value = true
+    }
+
+    /** The Tasks screen owns task due dates and reminders. */
+    fun openTasksFromCalendar() {
+        _showCalendar.value = false
+        _showTasksScreen.value = true
     }
 
     /** Hides one event from the calendar. The item itself is untouched. */

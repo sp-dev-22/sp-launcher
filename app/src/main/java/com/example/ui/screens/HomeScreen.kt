@@ -73,7 +73,8 @@ fun HomeScreen(
     onEditFavorites: () -> Unit,
     onToggleTask: (String) -> Unit,
     onAddTask: (String) -> Unit,
-    onOpenWidgetsManagement: () -> Unit,
+    onOpenAlerts: () -> Unit,
+    onOpenTasks: () -> Unit,
     onOpenStudyManager: () -> Unit,
     onOpenCalendar: () -> Unit,
     onTimeClick: () -> Unit,
@@ -150,7 +151,7 @@ fun HomeScreen(
                     AlertsWidget(
                         items = alerts,
                         isDarkTheme = isDarkTheme,
-                        onManage = onOpenWidgetsManagement,
+                        onManage = onOpenAlerts,
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -163,7 +164,7 @@ fun HomeScreen(
                         isDarkTheme = isDarkTheme,
                         onToggleTask = onToggleTask,
                         onAddTask = onAddTask,
-                        onManageTasks = onOpenWidgetsManagement,
+                        onManageTasks = onOpenTasks,
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(14.dp))

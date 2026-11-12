@@ -138,6 +138,15 @@ Each file is JSON — either a plain list, or an object with a `cards` list:
 `front` is required. Give `back` for the answer, or `options` + `correct` (1-based) for an
 MCQ and the back is filled in as `Answer: 1) Jupiter`. `q`/`a` are accepted as aliases.
 
+## What's new in 1.16.0
+
+- **Alerts and Tasks are proper screens now**: the Apps tab, the Home widgets,
+  Search results and Calendar events all open full Alerts and Tasks screens
+  instead of the Widgets sheet's sections. The Widgets sheet is widget settings
+  only (visibility toggles and "Date opens"). Same data, same reminders —
+  nothing moves and nothing needs migrating. The Tasks screen also gains the
+  complete toggle the sheet never had (tap the circle before a task).
+
 ## What's new in 1.15.0
 
 - **Settings in two tabs**: **Settings** (Themes, Automatics, Widgets, Favorites,

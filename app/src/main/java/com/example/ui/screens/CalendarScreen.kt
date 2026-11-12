@@ -63,7 +63,8 @@ private val CARD_COLOR = Color(0xFF43A047)
  * due dates / reminders and card review days. Local only.
  *
  * Tapping a row opens the screen that owns it — Study Manager for study deadlines and
- * reminders, the checklist for tasks and notes, Study Popups for cards. Completed items stay
+ * reminders, the Alerts screen for notes and the Tasks screen for tasks, Study Popups
+ * for cards. Completed items stay
  * on the day, struck through and cut to one line, until the user clears them with the small
  * cross; clearing only hides them from this calendar and leaves the item itself alone.
  */
@@ -91,7 +92,8 @@ fun CalendarScreen(
     val openEvent: (CalendarEvent) -> Unit = { event ->
         when (event.kind) {
             CalendarEventKind.STUDY -> viewModel.openStudyManagerFromCalendar()
-            CalendarEventKind.TASK, CalendarEventKind.NOTE -> viewModel.openChecklistFromCalendar()
+            CalendarEventKind.TASK -> viewModel.openTasksFromCalendar()
+            CalendarEventKind.NOTE -> viewModel.openAlertsFromCalendar()
             CalendarEventKind.CARD -> viewModel.openStudyPopupsFromCalendar()
         }
     }

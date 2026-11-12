@@ -398,9 +398,13 @@ fun SearchScreen(
                                     closeSearch()
                                     if (app != null) viewModel.launchApp(app)
                                 }
-                                SearchKind.TASK, SearchKind.NOTE -> {
+                                SearchKind.TASK -> {
                                     closeSearch()
-                                    viewModel.setShowWidgetsDialog(true)
+                                    viewModel.setShowTasksScreen(true)
+                                }
+                                SearchKind.NOTE -> {
+                                    closeSearch()
+                                    viewModel.setShowAlertsScreen(true)
                                 }
                                 SearchKind.CLASS -> {
                                     closeSearch()

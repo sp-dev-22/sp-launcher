@@ -29,6 +29,7 @@ import com.example.ui.components.FavoritesScreen
 import com.example.ui.components.ThemesSheet
 import com.example.ui.components.UndoBar
 import com.example.ui.components.WidgetsManagementSheet
+import com.example.ui.screens.AlertsScreen
 import com.example.ui.screens.AppLockScreen
 import com.example.ui.screens.AutoAnimationsScreen
 import com.example.ui.screens.BackupRestoreScreen
@@ -44,6 +45,7 @@ import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StudyManagerScreen
 import com.example.ui.screens.StudyPopupsScreen
 import com.example.ui.screens.SupportScreen
+import com.example.ui.screens.TasksScreen
 import com.example.ui.screens.TimeTableScreen
 import com.example.ui.theme.LauncherTheme
 import com.example.ui.theme.isRainbowTheme
@@ -99,6 +101,8 @@ fun MainScreen(
     val showTimeTable by viewModel.showTimeTable.collectAsState()
     val showCalendar by viewModel.showCalendar.collectAsState()
     val showGoals by viewModel.showGoals.collectAsState()
+    val showAlertsScreen by viewModel.showAlertsScreen.collectAsState()
+    val showTasksScreen by viewModel.showTasksScreen.collectAsState()
     val showSupport by viewModel.showSupport.collectAsState()
     val goals by viewModel.goals.collectAsState()
     val showGoalsWidget by viewModel.showGoalsWidget.collectAsState()
@@ -136,9 +140,8 @@ fun MainScreen(
     val appLockDialog by viewModel.appLockDialog.collectAsState()
     val showAppLock by viewModel.showAppLock.collectAsState()
 
-    // Date widget tap target (v1.15.0) and the Widgets sheet's opening section.
+    // Date widget tap target (v1.15.0): in-app Calendar, or the system Calendar app.
     val dateOpensSystem by viewModel.dateOpensSystem.collectAsState()
-    val widgetsSection by viewModel.widgetsSection.collectAsState()
     val context = LocalContext.current
 
     val currentTheme = LauncherTheme.fromKey(themeKey)
@@ -153,8 +156,8 @@ fun MainScreen(
     BackHandler(
         enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager ||
             showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar ||
-            showGoals || showSupport || showSearch || showHiddenApps || showPractice ||
-            showAutoAnimations || showAppLock
+            showGoals || showAlertsScreen || showTasksScreen || showSupport || showSearch ||
+            showHiddenApps || showPractice || showAutoAnimations || showAppLock
     ) {
         when {
             showAutoAnimations -> viewModel.setShowAutoAnimations(false)
@@ -164,6 +167,8 @@ fun MainScreen(
             showCards -> viewModel.setShowCards(false)
             showCalendar -> viewModel.setShowCalendar(false)
             showGoals -> viewModel.setShowGoals(false)
+            showAlertsScreen -> viewModel.setShowAlertsScreen(false)
+            showTasksScreen -> viewModel.setShowTasksScreen(false)
             showSupport -> viewModel.setShowSupport(false)
             showSearch -> viewModel.setShowSearch(false)
             showStudyPopups -> viewModel.setShowStudyPopups(false)
@@ -203,8 +208,8 @@ fun MainScreen(
                             onOpenThemes = { viewModel.setShowThemesSheet(true) },
                             onOpenAutoAnimations = { viewModel.setShowAutoAnimations(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
-                            onOpenAlerts = { viewModel.openWidgetsDialog("alerts") },
-                            onOpenTasks = { viewModel.openWidgetsDialog("tasks") },
+                            onOpenAlerts = { viewModel.setShowAlertsScreen(true) },
+                            onOpenTasks = { viewModel.setShowTasksScreen(true) },
                             onOpenStudyPopups = { viewModel.setShowStudyPopups(true) },
                             onOpenGoals = { viewModel.setShowGoals(true) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
@@ -242,7 +247,8 @@ fun MainScreen(
                             onEditFavorites = { viewModel.setShowAddFavoritesScreen(true) },
                             onToggleTask = { id -> viewModel.toggleTask(id) },
                             onAddTask = { text -> viewModel.addTask(text) },
-                            onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
+                            onOpenAlerts = { viewModel.setShowAlertsScreen(true) },
+                            onOpenTasks = { viewModel.setShowTasksScreen(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             // Date tap (v1.15.0): the in-app Calendar, or the system
                             // Calendar app when the user picked that under Widgets.
@@ -353,6 +359,33 @@ fun MainScreen(
                 )
             }
 
+            // Fullscreen Alerts (reminders with optional notifications)
+            if (showAlertsScreen) {
+                AlertsScreen(
+                    alerts = alerts,
+                    onAddAlert = { viewModel.addAlert(it) },
+                    onEditAlert = { viewModel.updateAlert(it) },
+                    onRemoveAlert = { viewModel.removeAlert(it) },
+                    onMoveAlert = { id, dir -> viewModel.moveAlert(id, dir) },
+                    onPinAlert = { id, pinned -> viewModel.setAlertPinned(id, pinned) },
+                    onArchiveAlert = { id, archived -> viewModel.setAlertArchived(id, archived) },
+                    onBack = { viewModel.setShowAlertsScreen(false) }
+                )
+            }
+
+            // Fullscreen Tasks (things to do, with due dates and reminders)
+            if (showTasksScreen) {
+                TasksScreen(
+                    tasks = tasks,
+                    onAddTask = { viewModel.addTask(it) },
+                    onRemoveTask = { viewModel.removeTask(it) },
+                    onEditTaskItem = { task -> viewModel.updateTaskItem(task) },
+                    onMoveTask = { id, dir -> viewModel.moveTask(id, dir) },
+                    onToggleTask = { id -> viewModel.toggleTask(id) },
+                    onBack = { viewModel.setShowTasksScreen(false) }
+                )
+            }
+
             // Fullscreen Universal Search (its menu is the door to the vault and to App Lock)
             if (showSearch) {
                 SearchScreen(
@@ -445,7 +478,8 @@ fun MainScreen(
         )
     }
 
-    // Widgets Management Bottom Sheet
+    // Widgets Management Bottom Sheet (widget settings only, since v1.16.0 —
+    // Alerts and Tasks live on their own screens now)
     if (showWidgetsDialog) {
         WidgetsManagementSheet(
             showTime = showTime,
@@ -453,8 +487,6 @@ fun MainScreen(
             showAlerts = showAlerts,
             showTasks = showTasks,
             showStudyDue = showStudyDue,
-            alerts = alerts,
-            tasks = tasks,
             onToggleShowTime = { viewModel.setShowTime(it) },
             onToggleShowDate = { viewModel.setShowDate(it) },
             onToggleShowAlerts = { viewModel.setShowAlerts(it) },
@@ -466,20 +498,7 @@ fun MainScreen(
                 viewModel.setShowWidgetsDialog(false)
                 viewModel.setShowGoals(true)
             },
-            onAddAlert = { viewModel.addAlert(it) },
-            onEditAlert = { viewModel.updateAlert(it) },
-            onRemoveAlert = { viewModel.removeAlert(it) },
-            onMoveAlert = { id, dir -> viewModel.moveAlert(id, dir) },
-            onPinAlert = { id, pinned -> viewModel.setAlertPinned(id, pinned) },
-            onArchiveAlert = { id, archived -> viewModel.setAlertArchived(id, archived) },
-            onAddTask = { viewModel.addTask(it) },
-            onRemoveTask = { viewModel.removeTask(it) },
-            onEditTaskItem = { task -> viewModel.updateTaskItem(task) },
-            onMoveTask = { id, dir -> viewModel.moveTask(id, dir) },
-            undoMessage = undoMessage,
-            onUndo = { viewModel.performUndo() },
             onDismiss = { viewModel.setShowWidgetsDialog(false) },
-            initialSection = widgetsSection,
             dateOpensSystem = dateOpensSystem,
             onSetDateOpensSystem = { viewModel.setDateOpensSystem(it) }
         )
