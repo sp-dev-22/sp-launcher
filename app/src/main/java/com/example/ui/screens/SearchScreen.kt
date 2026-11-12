@@ -14,28 +14,38 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OndemandVideo
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +66,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,9 +87,9 @@ import java.util.Locale
  * The SP Assistant (v1.12): one search box over apps, contacts, files, tasks, notes,
  * study classes and cards, with a calculator on top, Call / SMS / WhatsApp actions on
  * people and numbers, Google and YouTube shortcuts at the bottom, and voice input
- * from the mic. Which sources take part is set in Search Settings (the three-dot
- * menu); the Contacts and Files permissions are asked only when a search first
- * needs them — never up front.
+ * from the mic. The three-dot menu holds Search Settings (which sources take part),
+ * Hidden Apps (behind the vault PIN) and Locked Apps; the Contacts and Files
+ * permissions are asked only when a search first needs them — never up front.
  */
 @Composable
 fun SearchScreen(
@@ -101,6 +114,8 @@ fun SearchScreen(
 
     var query by remember { mutableStateOf("") }
     var showSettings by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    var showVaultPin by remember { mutableStateOf(false) }
     var contactsGranted by remember { mutableStateOf(viewModel.hasContactsPermission()) }
     var filesGranted by remember { mutableStateOf(viewModel.hasFilesPermission()) }
     var allFilesAccess by remember { mutableStateOf(viewModel.hasAllFilesAccess()) }
@@ -183,15 +198,6 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    // Vault commands: `vault <pin>` and `apps <pin>`. Checked on every keystroke, so the screen
-    // opens the moment the fourth PIN digit is typed.
-    LaunchedEffect(query) {
-        if (query.isNotBlank()) viewModel.runSearchCommand(query)
-    }
-
-    val looksLikeCommand = query.trim().lowercase().startsWith("vault ") ||
-        query.trim().lowercase().startsWith("apps ")
-
     val calcResult = remember(query, calcOn) {
         if (calcOn) CalcEngine.evaluate(query) else null
     }
@@ -248,27 +254,57 @@ fun SearchScreen(
                     .focusRequester(focusRequester)
                     .testTag("search_input")
             )
-            IconButton(
-                onClick = { showSettings = true },
-                modifier = Modifier.testTag("search_settings_btn")
-            ) {
-                Icon(Icons.Default.MoreVert, contentDescription = "Search Settings")
+            // Three-dot menu (v1.15.0): Search Settings, Hidden Apps (PIN first)
+            // and Locked Apps. The old `vault <pin>` / `apps <pin>` commands are gone.
+            Box {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.testTag("search_settings_btn")
+                ) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Search Settings") },
+                        leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            showSettings = true
+                        },
+                        modifier = Modifier.testTag("search_menu_settings")
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Hidden Apps") },
+                        leadingIcon = { Icon(Icons.Default.VisibilityOff, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            showVaultPin = true
+                        },
+                        modifier = Modifier.testTag("search_menu_hidden_apps")
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Locked Apps") },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            closeSearch()
+                            viewModel.setShowAppLock(true)
+                        },
+                        modifier = Modifier.testTag("search_menu_locked_apps")
+                    )
+                }
             }
         }
 
         when {
             query.isBlank() -> Hint(
                 "Type or speak to search apps, contacts, files, tasks, notes, study classes and cards.\n\n" +
-                    "Try:   45*12   -   5 km in m   -   a phone number\n\n" +
-                    "Commands:  vault 1234  -  apps 1234"
+                    "Try:   45*12   -   5 km in m   -   a phone number"
             )
-            !hasContent -> Hint(
-                if (looksLikeCommand) {
-                    "Wrong PIN, or no results for \"$query\""
-                } else {
-                    "No results for \"$query\""
-                }
-            )
+            !hasContent -> Hint("No results for \"$query\"")
             else -> LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -341,11 +377,7 @@ fun SearchScreen(
                 if (nothingFound) {
                     item(key = "empty") {
                         Text(
-                            text = if (looksLikeCommand) {
-                                "Wrong PIN, or no results for \"${query.trim()}\""
-                            } else {
-                                "No results for \"${query.trim()}\""
-                            },
+                            text = "No results for \"${query.trim()}\"",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f),
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 14.dp)
@@ -509,6 +541,70 @@ fun SearchScreen(
     if (showSettings) {
         SearchSettingsSheet(viewModel) { showSettings = false }
     }
+
+    if (showVaultPin) {
+        VaultPinDialog(
+            onDismiss = { showVaultPin = false },
+            onUnlock = {
+                showVaultPin = false
+                closeSearch()
+                viewModel.setShowHiddenApps(true)
+            },
+            checkPin = { viewModel.checkVaultPin(it) }
+        )
+    }
+}
+
+/**
+ * The vault door (v1.15.0): the old `vault <pin>` / `apps <pin>` search commands are
+ * gone, so Hidden Apps now asks for the four-digit PIN here. The PIN itself is the
+ * same one the vault always used (default 1234, changeable inside Hidden Apps).
+ */
+@Composable
+private fun VaultPinDialog(
+    onDismiss: () -> Unit,
+    onUnlock: () -> Unit,
+    checkPin: (String) -> Boolean
+) {
+    var pin by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Hidden Apps", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text("Enter the four-digit PIN.", fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = pin,
+                    onValueChange = {
+                        pin = it.filter { c -> c.isDigit() }.take(4)
+                        error = null
+                    },
+                    label = { Text("PIN") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    modifier = Modifier.fillMaxWidth().testTag("vault_pin_input")
+                )
+                error?.let {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (checkPin(pin)) onUnlock()
+                    else error = "Wrong PIN — try again."
+                },
+                modifier = Modifier.testTag("vault_pin_unlock_btn")
+            ) { Text("Unlock") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable

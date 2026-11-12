@@ -1,10 +1,10 @@
 package com.example.ui
 
-/** How the hidden-apps screen was opened. */
+/** Which tab of the hidden-apps screen is showing. */
 enum class HiddenAppsMode {
-    /** `vault <pin>`: hide, unhide and change the PIN. */
+    /** Manage tab: hide, unhide and change the PIN. */
     MANAGE,
 
-    /** `apps <pin>`: launch a hidden app without unhiding it first. */
+    /** Launch tab: launch a hidden app without unhiding it first. */
     LAUNCH
 }

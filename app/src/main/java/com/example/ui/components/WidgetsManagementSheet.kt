@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -43,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -95,11 +97,29 @@ fun WidgetsManagementSheet(
     onMoveTask: (String, Int) -> Unit,
     undoMessage: String?,
     onUndo: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    // Which section to open on: "alerts" (the top), "tasks", or null (the top).
+    initialSection: String? = null,
+    // Date widget tap target (v1.15.0): false = in-app Calendar, true = system Calendar.
+    dateOpensSystem: Boolean = false,
+    onSetDateOpensSystem: (Boolean) -> Unit = {}
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
     val stepPx = with(LocalDensity.current) { 56.dp.toPx() }
+    val listState = rememberLazyListState()
+
+    // The Apps tab opens this sheet on a section. Alerts is the top; Tasks sits
+    // past the header item, the alerts, the archived block (when there is one)
+    // and the add-alert form — land on its first row (or the add-task row when
+    // there are no tasks yet).
+    val activeAlertCount = alerts.count { !it.archived }
+    val archivedAlertCount = alerts.count { it.archived }
+    val tasksFirstIndex = 2 + activeAlertCount +
+        (if (archivedAlertCount > 0) 1 + archivedAlertCount else 0)
+    LaunchedEffect(initialSection) {
+        if (initialSection == "tasks") listState.scrollToItem(tasksFirstIndex)
+    }
 
     var newAlertTitle by remember { mutableStateOf("") }
     var newAlertContent by remember { mutableStateOf("") }
@@ -130,6 +150,7 @@ fun WidgetsManagementSheet(
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
@@ -156,8 +177,27 @@ fun WidgetsManagementSheet(
 
                 ToggleRow("Show Clock (Time)", showTime, onToggleShowTime)
                 ToggleRow("Show Date", showDate, onToggleShowDate)
+                // Date widget tap target (v1.15.0): the in-app Calendar, or the
+                // system Calendar app. Only shown while the Date widget is on —
+                // the choice means nothing when the widget is hidden.
+                if (showDate) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Date opens",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.testTag("date_opens_row")
+                    ) {
+                        ChoiceChip("In-app Calendar", !dateOpensSystem) { onSetDateOpensSystem(false) }
+                        ChoiceChip("System Calendar", dateOpensSystem) { onSetDateOpensSystem(true) }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
                 ToggleRow("Show Alerts Widget", showAlerts, onToggleShowAlerts)
-                ToggleRow("Show Tasks Checklist", showTasks, onToggleShowTasks)
+                ToggleRow("Show Tasks Widget", showTasks, onToggleShowTasks)
                 ToggleRow("Show Study Manager Status", showStudyDue, onToggleShowStudyDue)
                 ToggleRow("Show Goals Widget", showGoals, onToggleShowGoals)
 

@@ -92,12 +92,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val groups = preferences.groups
     val autoThemeMode = preferences.autoThemeMode
 
-    // Theme animations (v1.14.0): lighter Diwali / Winter effects, both OFF by default.
+    // Theme animations (v1.14.0): lighter Diwali effects, OFF by default.
+    // (The Winter effects left with the Winter theme in v1.15.0.)
     val diwaliAnimationsEnabled = preferences.diwaliAnimations
-    val winterAnimationsEnabled = preferences.winterAnimations
 
     fun setDiwaliAnimationsEnabled(enabled: Boolean) = preferences.setDiwaliAnimations(enabled)
-    fun setWinterAnimationsEnabled(enabled: Boolean) = preferences.setWinterAnimations(enabled)
 
     // App Lock (v1.14.0): the locked apps, and whether a PIN exists yet.
     val lockedApps = preferences.lockedApps
@@ -565,6 +564,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         preferences.setShowDate(enabled)
     }
 
+    /** Date widget tap target (v1.15.0): false = in-app Calendar, true = system Calendar. */
+    val dateOpensSystem = preferences.dateOpensSystem
+
+    fun setDateOpensSystem(system: Boolean) {
+        preferences.setDateOpensSystem(system)
+    }
+
     fun setShowAlerts(enabled: Boolean) {
         preferences.setShowAlerts(enabled)
     }
@@ -631,8 +637,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     /**
      * Steps the palette forward once an hour or once a day, depending on the chosen mode.
-     * Does nothing when rotation is off. Every palette takes part, Rainbow and Winter
-     * included (v1.14.0 — Rainbow used to be left out).
+     * Does nothing when rotation is off. Every palette takes part, Rainbow included
+     * (v1.14.0 — Rainbow used to be left out; Winter merged into Ocean in v1.15.0).
      *
      * The step is measured from the last actual change, not read off the clock: the
      * pre-v1.11.5 version picked palette[hour % size] / palette[day-of-year % size], so
@@ -733,7 +739,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _showAddFavoritesScreen.value = show
     }
 
+    /**
+     * Which section the Widgets sheet opens on ("alerts" / "tasks" / null for the top).
+     * Set by [openWidgetsDialog]; cleared again when the sheet closes.
+     */
+    private val _widgetsSection = MutableStateFlow<String?>(null)
+    val widgetsSection: StateFlow<String?> = _widgetsSection.asStateFlow()
+
+    /** Opens the Widgets sheet, scrolled to [section] ("alerts" / "tasks") when given. */
+    fun openWidgetsDialog(section: String? = null) {
+        _widgetsSection.value = section
+        _showWidgetsDialog.value = true
+    }
+
     fun setShowWidgetsDialog(show: Boolean) {
+        if (!show) _widgetsSection.value = null
         _showWidgetsDialog.value = show
     }
 
@@ -911,8 +931,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
-     * Stores the vault PIN. It is always kept as exactly four digits, so a PIN such as 0078 can
-     * be typed in the search bar as `vault 0078` and still match.
+     * Stores the vault PIN. It is always kept as exactly four digits, so a PIN such as 0078
+     * still matches when it is typed back in.
      */
     fun setVaultPin(pin: String) {
         val digits = pin.filter { it.isDigit() }.take(4)
@@ -926,27 +946,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         return digits.isNotEmpty() && digits == preferences.vaultPin.value.filter { it.isDigit() }
     }
 
-    /**
-     * Runs a typed search-bar command. Returns true when the query was a command and should not
-     * be treated as a normal search.
-     *
-     * `vault <pin>` opens the hidden-apps screen (hide / unhide / change PIN).
-     * `apps <pin>`  opens the same screen in launch mode, so a hidden app can be started without
-     *               unhiding it first.
-     */
-    fun runSearchCommand(query: String): Boolean {
-        val parts = query.trim().split(Regex("\\s+"))
-        if (parts.size != 2) return false
-        val command = parts[0].lowercase()
-        if (command != "vault" && command != "apps") return false
-        if (!checkVaultPin(parts[1])) return false
-        _showSearch.value = false
-        _hiddenAppsMode.value = if (command == "vault") HiddenAppsMode.MANAGE else HiddenAppsMode.LAUNCH
-        _showHiddenApps.value = true
-        return true
-    }
-
-    /** Hidden apps, resolved to full [AppInfo]s (used by the `apps <pin>` launch mode). */
+    /** Hidden apps, resolved to full [AppInfo]s (used by the LAUNCH tab). */
     val hiddenAppInfos: StateFlow<List<AppInfo>> =
         combine(_installedApps, preferences.hiddenApps) { apps, hidden ->
             apps.filter { it.packageName in hidden }
@@ -1424,11 +1424,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         /**
          * The palettes auto-rotation walks through, in order. Every palette takes part:
          * Rainbow joined in v1.14.0 (it used to be left out as a hand-picked choice),
-         * and the new Winter palette joins with it.
+         * and Winter left again in v1.15.0 (merged into Ocean).
          */
         private val ROTATING_THEMES = listOf(
             "default", "pink", "green", "saffron", "seattle", "ocean", "lavender",
-            "diwali", "winter"
+            "diwali"
         )
     }
 }

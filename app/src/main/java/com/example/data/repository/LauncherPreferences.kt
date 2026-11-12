@@ -60,13 +60,11 @@ class LauncherPreferences(context: Context) {
     private val _lockedApps = MutableStateFlow(prefs.getStringSet(KEY_LOCKED_APPS, emptySet()) ?: emptySet())
     val lockedApps: StateFlow<Set<String>> = _lockedApps.asStateFlow()
 
-    // Theme animations (v1.14.0): lighter Diwali / Winter effects, both OFF by default.
-    // Each one shows only while its own theme is active, on the Home screen only.
+    // Theme animations (v1.14.0): lighter Diwali effects, OFF by default.
+    // They show only while the Rainbow theme is active, on the Home screen only.
+    // (The Winter effects left with the Winter theme in v1.15.0.)
     private val _diwaliAnimations = MutableStateFlow(prefs.getBoolean(KEY_ANIMATIONS_DIWALI, false))
     val diwaliAnimations: StateFlow<Boolean> = _diwaliAnimations.asStateFlow()
-
-    private val _winterAnimations = MutableStateFlow(prefs.getBoolean(KEY_ANIMATIONS_WINTER, false))
-    val winterAnimations: StateFlow<Boolean> = _winterAnimations.asStateFlow()
 
     // Auto-backup (a daily JSON written into a folder the user picks, via SAF).
     private val _autoBackupEnabled = MutableStateFlow(prefs.getBoolean(KEY_AUTO_BACKUP, false))
@@ -79,7 +77,8 @@ class LauncherPreferences(context: Context) {
     val lastBackupMillis: StateFlow<Long> = _lastBackupMillis.asStateFlow()
 
     // Selected colour theme key (see LauncherTheme): default / pink / green / saffron /
-    // seattle / ocean / lavender / diwali (Rainbow) / winter
+    // seattle / ocean / lavender / diwali (Rainbow). A saved "winter" key still resolves
+    // to Ocean (see LauncherTheme.fromKey) — Winter was merged into Ocean in v1.15.0.
     private val _themeKey = MutableStateFlow(prefs.getString(KEY_THEME, "default") ?: "default")
     val themeKey: StateFlow<String> = _themeKey.asStateFlow()
 
@@ -123,6 +122,11 @@ class LauncherPreferences(context: Context) {
 
     private val _showDate = MutableStateFlow(prefs.getBoolean(KEY_SHOW_DATE, true))
     val showDate: StateFlow<Boolean> = _showDate.asStateFlow()
+
+    // Date widget tap target (v1.15.0): false = the in-app Calendar (the default, as
+    // before), true = the system Calendar app. Set under Widgets > "Date opens".
+    private val _dateOpensSystem = MutableStateFlow(prefs.getBoolean(KEY_DATE_OPENS_SYSTEM, false))
+    val dateOpensSystem: StateFlow<Boolean> = _dateOpensSystem.asStateFlow()
 
     private val _showAlerts = MutableStateFlow(prefs.getBoolean(KEY_SHOW_ALERTS, true))
     val showAlerts: StateFlow<Boolean> = _showAlerts.asStateFlow()
@@ -213,11 +217,6 @@ class LauncherPreferences(context: Context) {
         _diwaliAnimations.value = enabled
     }
 
-    fun setWinterAnimations(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_ANIMATIONS_WINTER, enabled).apply()
-        _winterAnimations.value = enabled
-    }
-
     fun setAutoBackupEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_AUTO_BACKUP, enabled).apply()
         _autoBackupEnabled.value = enabled
@@ -271,6 +270,11 @@ class LauncherPreferences(context: Context) {
     fun setShowDate(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_DATE, enabled).apply()
         _showDate.value = enabled
+    }
+
+    fun setDateOpensSystem(system: Boolean) {
+        prefs.edit().putBoolean(KEY_DATE_OPENS_SYSTEM, system).apply()
+        _dateOpensSystem.value = system
     }
 
     fun setShowAlerts(enabled: Boolean) {
@@ -1386,7 +1390,6 @@ class LauncherPreferences(context: Context) {
         _appLockPinHash.value = prefs.getString(KEY_APP_LOCK_PIN_HASH, "") ?: ""
         _lockedApps.value = prefs.getStringSet(KEY_LOCKED_APPS, emptySet()) ?: emptySet()
         _diwaliAnimations.value = prefs.getBoolean(KEY_ANIMATIONS_DIWALI, false)
-        _winterAnimations.value = prefs.getBoolean(KEY_ANIMATIONS_WINTER, false)
         _autoBackupEnabled.value = prefs.getBoolean(KEY_AUTO_BACKUP, false)
         _backupFolderUri.value = prefs.getString(KEY_BACKUP_URI, null)
         _lastBackupMillis.value = prefs.getLong(KEY_LAST_BACKUP, 0L)
@@ -1401,6 +1404,7 @@ class LauncherPreferences(context: Context) {
         _searchVoice.value = prefs.getBoolean(KEY_SEARCH_VOICE, true)
         _searchHomeBar.value = prefs.getBoolean(KEY_SEARCH_HOME_BAR, true)
         _showDate.value = prefs.getBoolean(KEY_SHOW_DATE, true)
+        _dateOpensSystem.value = prefs.getBoolean(KEY_DATE_OPENS_SYSTEM, false)
         _showAlerts.value = prefs.getBoolean(KEY_SHOW_ALERTS, true)
         _showTasks.value = prefs.getBoolean(KEY_SHOW_TASKS, true)
         _showStudyDue.value = prefs.getBoolean(KEY_SHOW_STUDY_DUE, true)
@@ -1427,7 +1431,7 @@ class LauncherPreferences(context: Context) {
         private const val KEY_APP_LOCK_PIN_HASH = "app_lock_pin_hash"
         private const val KEY_LOCKED_APPS = "locked_apps"
         private const val KEY_ANIMATIONS_DIWALI = "animations_diwali"
-        private const val KEY_ANIMATIONS_WINTER = "animations_winter"
+        private const val KEY_DATE_OPENS_SYSTEM = "date_opens_system"
         private const val KEY_AUTO_BACKUP = "auto_backup"
         private const val KEY_BACKUP_URI = "backup_folder_uri"
         private const val KEY_LAST_BACKUP = "last_backup_millis"

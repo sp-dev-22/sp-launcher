@@ -55,9 +55,7 @@ fun AutoAnimationsScreen(
     onSetNightWindow: (Int, Int) -> Unit,
     onSetAutoThemeMode: (String) -> Unit,
     diwaliAnimationsEnabled: Boolean = false,
-    winterAnimationsEnabled: Boolean = false,
     onToggleDiwaliAnimations: (Boolean) -> Unit = {},
-    onToggleWinterAnimations: (Boolean) -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -116,7 +114,7 @@ fun AutoAnimationsScreen(
             SectionTitle("AUTO CHANGE THEME")
 
             Text(
-                text = "Steps through every palette one at a time, Rainbow and Winter included.",
+                text = "Steps through every palette one at a time, Rainbow included.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
@@ -129,7 +127,7 @@ fun AutoAnimationsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp))
 
-            // ---- Theme animations (v1.14.0, lighter, both OFF by default) ----
+            // ---- Theme animations (v1.14.0, lighter, OFF by default) ----
             SectionTitle("THEME ANIMATIONS")
 
             Text(
@@ -146,14 +144,6 @@ fun AutoAnimationsScreen(
                 checked = diwaliAnimationsEnabled,
                 onCheckedChange = onToggleDiwaliAnimations,
                 testTag = "diwali_animations_switch"
-            )
-
-            SwitchRow(
-                title = "Winter animations",
-                subtitle = "Light snowfall — only with the Winter theme",
-                checked = winterAnimationsEnabled,
-                onCheckedChange = onToggleWinterAnimations,
-                testTag = "winter_animations_switch"
             )
 
             Spacer(modifier = Modifier.height(36.dp))

@@ -79,26 +79,27 @@ no account. Nothing you enter ever leaves your phone.
 - **App Lock** — lock any app behind a 4–6 digit PIN: long-press it in the drawer and
   tap "Lock app". A locked app asks for the PIN every time it opens, and unlocking
   it or changing the PIN needs the current PIN first. The PIN is stored only as a
-  secure hash, never in plain text. Locked apps are managed from
-  **Settings > App Lock**. Fully offline.
-- **Themes** — nine color palettes (Default, Pink, Green, Saffron Orange, Seattle Grey,
-  Ocean, Lavender, the Rainbow palette and the Winter palette) plus night mode.
+  secure hash, never in plain text. Locked apps are managed from the search screen's
+  menu (**Locked Apps**). Fully offline.
+- **Themes** — eight color palettes (Default, Pink, Green, Orange, Grey,
+  Ocean, Lavender and the Rainbow palette) plus night mode.
   Automatic schedules — auto night mode and automatic theme change every hour or every
   day — live under **Settings > Automatics**; the rotation steps through every palette,
-  Rainbow and Winter included. The Rainbow and Winter themes offer light animations
-  (lamps, rockets and stars; snowfall) that are off by default, show only on the Home
+  Rainbow included. The Rainbow theme offers light animations
+  (lamps, rockets and stars) that are off by default, show only on the Home
   screen, and pause automatically when Battery Saver is on.
 - **Widgets** — the Clock, Date, Alerts, Tasks, Study and Goals widgets can each be
-  switched on or off from the Widgets sheet.
+  switched on or off from the Widgets sheet. Tapping the Clock opens the system Clock
+  app; tapping the Date opens the in-app Calendar — or the system Calendar app, if
+  that is what "Date opens" is set to in the Widgets sheet.
 - **Backup & Restore** — export and import everything as a single JSON file, plus an
   optional daily automatic backup into a folder you pick. If auto-backup is on but its
   folder is missing or no longer accessible, Settings and the Backup screen say so
   clearly instead of letting backups fail silently.
 - **Hidden apps (the vault)** — keep selected apps out of the drawer, behind a four-digit
-  PIN typed as a command in the search bar:
-  - `vault 1234` opens the hidden-apps screen (hide, unhide, change PIN).
-  - `apps 1234` opens the same list in launch mode, so a hidden app can be started
-    **without unhiding it first**.
+  PIN. Open them from the search screen's menu (**Hidden Apps**), enter the PIN, and
+  switch between the **Manage** tab (hide, unhide, change PIN) and the **Launch** tab
+  (start a hidden app **without unhiding it first**).
 
   The default PIN is `1234`.
 
@@ -136,6 +137,23 @@ Each file is JSON — either a plain list, or an object with a `cards` list:
 
 `front` is required. Give `back` for the answer, or `options` + `correct` (1-based) for an
 MCQ and the back is filled in as `Answer: 1) Jupiter`. `q`/`a` are accepted as aliases.
+
+## What's new in 1.15.0
+
+- **Settings in two tabs**: **Settings** (Themes, Automatics, Widgets, Favorites,
+  Backup & Restore, Support, Set Default Launcher) and **Apps** (Study Manager,
+  Alerts, Tasks, Study Popups, Goals). Alerts and Tasks open the Widgets sheet on
+  their own section.
+- **Ocean and Winter merged into Ocean**: the two palettes looked all but identical,
+  so Winter is gone — anyone who had Winter saved now gets Ocean, and the frost wash
+  and snowfall left with it. The Rainbow wash and animations are untouched.
+- **Shorter theme names**: Saffron Orange is now Orange, Seattle Grey is now Grey.
+- **Date widget choice**: tapping the Date opens the in-app Calendar as before — or
+  the system Calendar app, if that is what "Date opens" is set to in the Widgets
+  sheet. Tapping the Clock now opens the system Clock app (it did nothing before).
+- **Vault without commands**: the `vault <pin>` / `apps <pin>` search commands are
+  gone. The search screen's three-dot menu now holds Search Settings, Hidden Apps
+  (PIN first, then Manage / Launch tabs) and Locked Apps.
 
 ## What's new in 1.14.0
 

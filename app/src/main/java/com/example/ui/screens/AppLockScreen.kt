@@ -32,7 +32,7 @@ import com.example.ui.LauncherViewModel
 import com.example.ui.components.RealAppIcon
 
 /**
- * App Lock management (v1.14.0), from Settings > App Lock.
+ * App Lock management (v1.14.0), from the search screen's menu (Locked Apps).
  *
  * Lists the locked apps — each one can be unlocked from here (the current PIN is
  * asked first) — and offers Change PIN. Locking itself happens from the drawer:

@@ -22,6 +22,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,12 +46,13 @@ import com.example.ui.LauncherViewModel
 import com.example.ui.components.RealAppIcon
 
 /**
- * The vault, reached only by typing a command in the search bar:
+ * The vault, reached from the search screen's menu (Hidden Apps, PIN first).
  *
- * - `vault <pin>` opens it in [HiddenAppsMode.MANAGE]: tick an app to hide it, untick to bring it
- *   back, and change the PIN from here.
- * - `apps <pin>` opens it in [HiddenAppsMode.LAUNCH]: tap a hidden app to start it, without
- *   unhiding it first.
+ * Two tabs switch [HiddenAppsMode]:
+ * - [HiddenAppsMode.MANAGE]: tick an app to hide it, untick to bring it back,
+ *   and change the PIN from here.
+ * - [HiddenAppsMode.LAUNCH]: tap a hidden app to start it, without unhiding it first.
+ * Closing the screen resets the tab to Manage.
  */
 @Composable
 fun HiddenAppsScreen(
@@ -79,7 +82,7 @@ fun HiddenAppsScreen(
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back")
             }
             Text(
-                text = if (isLaunchMode) "Hidden apps" else "Hidden apps",
+                text = "Hidden apps",
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.weight(1f)
             )
@@ -93,6 +96,29 @@ fun HiddenAppsScreen(
                 Text("Change PIN")
             }
         }
+
+        TabRow(
+            selectedTabIndex = if (isLaunchMode) 1 else 0,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .testTag("hidden_apps_tabs")
+        ) {
+            Tab(
+                selected = !isLaunchMode,
+                onClick = { viewModel.setHiddenAppsMode(HiddenAppsMode.MANAGE) },
+                text = { Text("Manage") },
+                modifier = Modifier.testTag("hidden_apps_tab_manage")
+            )
+            Tab(
+                selected = isLaunchMode,
+                onClick = { viewModel.setHiddenAppsMode(HiddenAppsMode.LAUNCH) },
+                text = { Text("Launch") },
+                modifier = Modifier.testTag("hidden_apps_tab_launch")
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = if (isLaunchMode) {
@@ -219,7 +245,7 @@ private fun ChangePinDialog(
         text = {
             Column {
                 Text(
-                    "Four digits. Open the vault by typing `vault 1234` in the app search bar.",
+                    "Four digits. Hidden Apps opens from the search screen menu.",
                     fontSize = 12.sp
                 )
                 Spacer(modifier = Modifier.height(10.dp))

@@ -1,5 +1,11 @@
 package com.example.ui
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.provider.AlarmClock
+import android.provider.CalendarContract
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,9 +20,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import com.example.ui.anim.RainbowBackground
-import com.example.ui.anim.WinterBackground
 import com.example.ui.components.AppActionBottomSheet
 import com.example.ui.components.AppLockPinDialog
 import com.example.ui.components.FavoritesScreen
@@ -41,7 +47,6 @@ import com.example.ui.screens.SupportScreen
 import com.example.ui.screens.TimeTableScreen
 import com.example.ui.theme.LauncherTheme
 import com.example.ui.theme.isRainbowTheme
-import com.example.ui.theme.isWinterTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -122,9 +127,8 @@ fun MainScreen(
     val nightStart by viewModel.nightStartMinutes.collectAsState()
     val nightEnd by viewModel.nightEndMinutes.collectAsState()
 
-    // Theme animations (v1.14.0): lighter Diwali / Winter effects, both OFF by default.
+    // Theme animations (v1.14.0): lighter Diwali effects, OFF by default.
     val diwaliAnimationsEnabled by viewModel.diwaliAnimationsEnabled.collectAsState()
-    val winterAnimationsEnabled by viewModel.winterAnimationsEnabled.collectAsState()
     val powerSaveMode by viewModel.isPowerSaveMode.collectAsState()
 
     // App Lock (v1.14.0)
@@ -132,15 +136,18 @@ fun MainScreen(
     val appLockDialog by viewModel.appLockDialog.collectAsState()
     val showAppLock by viewModel.showAppLock.collectAsState()
 
+    // Date widget tap target (v1.15.0) and the Widgets sheet's opening section.
+    val dateOpensSystem by viewModel.dateOpensSystem.collectAsState()
+    val widgetsSection by viewModel.widgetsSection.collectAsState()
+    val context = LocalContext.current
+
     val currentTheme = LauncherTheme.fromKey(themeKey)
     val rainbow = isRainbowTheme(currentTheme)
-    val winter = isWinterTheme(currentTheme)
 
     // An animation shows only on the Home page, only with its own theme active, only
     // when its toggle is on, and never while Battery Saver is on.
     val onHomePage = pagerState.currentPage == 1
     val showDiwaliAnimations = onHomePage && rainbow && diwaliAnimationsEnabled && !powerSaveMode
-    val showWinterAnimations = onHomePage && winter && winterAnimationsEnabled && !powerSaveMode
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
@@ -184,11 +191,6 @@ fun MainScreen(
                 RainbowBackground(dark = isDarkTheme)
             }
 
-            // Winter theme: a soft frost wash behind everything.
-            if (winter) {
-                WinterBackground(dark = isDarkTheme)
-            }
-
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
@@ -200,8 +202,9 @@ fun MainScreen(
                             isDarkTheme = isDarkTheme,
                             onOpenThemes = { viewModel.setShowThemesSheet(true) },
                             onOpenAutoAnimations = { viewModel.setShowAutoAnimations(true) },
-                            onOpenAppLock = { viewModel.setShowAppLock(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
+                            onOpenAlerts = { viewModel.openWidgetsDialog("alerts") },
+                            onOpenTasks = { viewModel.openWidgetsDialog("tasks") },
                             onOpenStudyPopups = { viewModel.setShowStudyPopups(true) },
                             onOpenGoals = { viewModel.setShowGoals(true) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
@@ -241,16 +244,20 @@ fun MainScreen(
                             onAddTask = { text -> viewModel.addTask(text) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
-                            onOpenCalendar = { viewModel.setShowCalendar(true) },
-                            // The clock is no longer a door to the vault: the search commands
-                            // (`vault <pin>` / `apps <pin>`) are the only way in now.
-                            onTimeClick = { },
+                            // Date tap (v1.15.0): the in-app Calendar, or the system
+                            // Calendar app when the user picked that under Widgets.
+                            onOpenCalendar = {
+                                if (dateOpensSystem) openSystemCalendar(context)
+                                else viewModel.setShowCalendar(true)
+                            },
+                            // Time tap (v1.15.0): the system Clock app. It did nothing
+                            // at all before, so this is pure gain.
+                            onTimeClick = { openSystemClock(context) },
                             clockOverrideMillis = clockOverride,
                             isLoadingApps = isLoadingApps,
                             showSearchBar = showHomeSearchBar,
                             onOpenSearch = { autoVoice -> viewModel.openSearch(autoVoice) },
                             showDiwaliAnimations = showDiwaliAnimations,
-                            showWinterAnimations = showWinterAnimations,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -346,7 +353,7 @@ fun MainScreen(
                 )
             }
 
-            // Fullscreen Universal Search (also the vault door: `vault <pin>` / `apps <pin>`)
+            // Fullscreen Universal Search (its menu is the door to the vault and to App Lock)
             if (showSearch) {
                 SearchScreen(
                     viewModel = viewModel,
@@ -355,7 +362,7 @@ fun MainScreen(
                 )
             }
 
-            // The vault, opened by a search command
+            // The vault, opened from the search menu (Hidden Apps, PIN first)
             if (showHiddenApps) {
                 HiddenAppsScreen(
                     viewModel = viewModel,
@@ -363,7 +370,7 @@ fun MainScreen(
                 )
             }
 
-            // App Lock management (locked apps + change PIN)
+            // App Lock management (locked apps + change PIN), from the search menu
             if (showAppLock) {
                 AppLockScreen(
                     viewModel = viewModel,
@@ -471,7 +478,10 @@ fun MainScreen(
             onMoveTask = { id, dir -> viewModel.moveTask(id, dir) },
             undoMessage = undoMessage,
             onUndo = { viewModel.performUndo() },
-            onDismiss = { viewModel.setShowWidgetsDialog(false) }
+            onDismiss = { viewModel.setShowWidgetsDialog(false) },
+            initialSection = widgetsSection,
+            dateOpensSystem = dateOpensSystem,
+            onSetDateOpensSystem = { viewModel.setDateOpensSystem(it) }
         )
     }
 
@@ -502,10 +512,35 @@ fun MainScreen(
             onSetNightWindow = { s, e -> viewModel.setNightWindow(s, e) },
             onSetAutoThemeMode = { viewModel.setAutoThemeMode(it) },
             diwaliAnimationsEnabled = diwaliAnimationsEnabled,
-            winterAnimationsEnabled = winterAnimationsEnabled,
             onToggleDiwaliAnimations = { viewModel.setDiwaliAnimationsEnabled(it) },
-            onToggleWinterAnimations = { viewModel.setWinterAnimationsEnabled(it) },
             onBack = { viewModel.setShowAutoAnimations(false) }
         )
+    }
+}
+
+/** Opens the system Clock app (alarms tab). No clock app -> a toast, never a crash. */
+private fun openSystemClock(context: Context) {
+    val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS)
+    try {
+        context.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, "No clock app found", Toast.LENGTH_SHORT).show()
+    }
+}
+
+/**
+ * Opens the system Calendar app at today. No calendar app -> a toast, never a crash.
+ * Needs no permission: viewing the calendar is a plain ACTION_VIEW.
+ */
+private fun openSystemCalendar(context: Context) {
+    val timeUri = CalendarContract.CONTENT_URI.buildUpon()
+        .appendPath("time")
+        .appendPath(System.currentTimeMillis().toString())
+        .build()
+    val intent = Intent(Intent.ACTION_VIEW, timeUri)
+    try {
+        context.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, "No calendar app found", Toast.LENGTH_SHORT).show()
     }
 }
