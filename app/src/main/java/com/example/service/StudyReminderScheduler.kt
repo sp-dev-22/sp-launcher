@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import com.example.data.model.StudyCourse
 import com.example.data.model.allClassRefs
+import com.example.util.ExactAlarms
 
 /**
  * Schedules the two levels of Study Manager reminders using [AlarmManager]:
@@ -18,8 +19,7 @@ import com.example.data.model.allClassRefs
  *  - DEADLINE — fired after the deadline passes without completion
  *               ("tum itne aalsi ho gaye ho").
  *
- * Uses [AlarmManager.setAndAllowWhileIdle] (inexact but works in Doze) so the app
- * needs no SCHEDULE_EXACT_ALARM permission.
+ * Exact when the system allows it (see [ExactAlarms]), inexact otherwise.
  */
 object StudyReminderScheduler {
 
@@ -100,7 +100,7 @@ object StudyReminderScheduler {
         if (triggerAt <= System.currentTimeMillis()) return
         val am = alarmManager(context) ?: return
         val pi = buildPendingIntent(context, uniqueKey, title, message, type, itemId, level)
-        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+        ExactAlarms.schedule(am, triggerAt, pi)
     }
 
     /** Cancels and re-schedules every pending study reminder from the current data. */

@@ -9,12 +9,14 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import com.example.data.model.AlertItem
+import com.example.util.ExactAlarms
 
 /**
  * Schedules the reminder notifications for the home-screen Alerts using [AlarmManager].
  *
- * Uses [AlarmManager.setAndAllowWhileIdle] (inexact but works in Doze) so the app
- * needs no SCHEDULE_EXACT_ALARM permission.
+ * Exact when the system allows it (see [ExactAlarms]), inexact otherwise — so
+ * reminders ring on time on a phone with exact alarms allowed, and still ring
+ * (a little late, in Doze) without the permission.
  */
 object AlertReminderScheduler {
 
@@ -78,7 +80,7 @@ object AlertReminderScheduler {
             val whenMillis = alert.reminderMillis ?: continue
             if (whenMillis <= System.currentTimeMillis()) continue
             val pi = buildPendingIntent(context, alert.id, alert.title, alert.content)
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, whenMillis, pi)
+            ExactAlarms.schedule(am, whenMillis, pi)
         }
     }
 }

@@ -141,6 +141,17 @@ class LauncherPreferences(context: Context) {
     private val _showGoalsWidget = MutableStateFlow(prefs.getBoolean(KEY_SHOW_GOALS, true))
     val showGoalsWidget: StateFlow<Boolean> = _showGoalsWidget.asStateFlow()
 
+    // Now/Next class strip (v1.17.0): today's current and next Time Table class on
+    // Home, below the clock. On by default; the strip hides itself when there is
+    // no timetable or no more classes today.
+    private val _showNowNextClass = MutableStateFlow(prefs.getBoolean(KEY_SHOW_NOW_NEXT, true))
+    val showNowNextClass: StateFlow<Boolean> = _showNowNextClass.asStateFlow()
+
+    // What's New popup (v1.17.0): the versionCode the popup was last shown for.
+    // 0 means "never shown" (fresh install: record the version silently, no popup).
+    private val _lastShownVersionCode = MutableStateFlow(prefs.getInt(KEY_LAST_SHOWN_VERSION, 0))
+    val lastShownVersionCode: StateFlow<Int> = _lastShownVersionCode.asStateFlow()
+
     private val _goals = MutableStateFlow(loadGoals())
     val goals: StateFlow<List<GoalItem>> = _goals.asStateFlow()
 
@@ -295,6 +306,16 @@ class LauncherPreferences(context: Context) {
     fun setShowGoalsWidget(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_GOALS, enabled).apply()
         _showGoalsWidget.value = enabled
+    }
+
+    fun setShowNowNextClass(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_NOW_NEXT, enabled).apply()
+        _showNowNextClass.value = enabled
+    }
+
+    fun setLastShownVersionCode(code: Int) {
+        prefs.edit().putInt(KEY_LAST_SHOWN_VERSION, code).apply()
+        _lastShownVersionCode.value = code
     }
 
     // ---- Goals ----
@@ -1409,6 +1430,8 @@ class LauncherPreferences(context: Context) {
         _showTasks.value = prefs.getBoolean(KEY_SHOW_TASKS, true)
         _showStudyDue.value = prefs.getBoolean(KEY_SHOW_STUDY_DUE, true)
         _showGoalsWidget.value = prefs.getBoolean(KEY_SHOW_GOALS, true)
+        _showNowNextClass.value = prefs.getBoolean(KEY_SHOW_NOW_NEXT, true)
+        _lastShownVersionCode.value = prefs.getInt(KEY_LAST_SHOWN_VERSION, 0)
         _goals.value = loadGoals()
         _clearedCalendarEvents.value =
             prefs.getStringSet(KEY_CLEARED_CALENDAR, emptySet()) ?: emptySet()
@@ -1452,6 +1475,8 @@ class LauncherPreferences(context: Context) {
         private const val KEY_THEME = "theme_key"
         private const val KEY_SHOW_STUDY_DUE = "show_study_due"
         private const val KEY_SHOW_GOALS = "show_goals_widget"
+        private const val KEY_SHOW_NOW_NEXT = "show_now_next_class"
+        private const val KEY_LAST_SHOWN_VERSION = "last_shown_version_code"
         private const val KEY_GOALS = "goals_data"
         private const val KEY_CLEARED_CALENDAR = "cleared_calendar_events"
         private const val KEY_TIMETABLE = "timetable_settings"

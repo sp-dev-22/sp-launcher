@@ -53,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.LauncherViewModel
+import com.example.ui.components.ExactAlarmHint
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -134,6 +135,9 @@ fun StudyPopupsScreen(
                 )
             }
         }
+        // Popups run on the same exact alarms as reminders: when the permission
+        // is missing they can fire late, so offer the one-tap enable here too.
+        ExactAlarmHint(reminderSet = settings.enabled)
 
         Spacer(modifier = Modifier.height(14.dp))
 

@@ -6,11 +6,13 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import com.example.data.model.StudyPopupSettings
+import com.example.util.ExactAlarms
 import java.util.Calendar
 
 /**
  * Fires the Study Popups at a fixed interval inside the user's start-stop window.
  * One alarm is chained at a time: each fire asks for the next slot.
+ * Exact when the system allows it (see [ExactAlarms]), inexact otherwise.
  */
 object StudyPopupScheduler {
 
@@ -43,7 +45,8 @@ object StudyPopupScheduler {
         cancel(context)
         if (!settings.enabled) return
         val trigger = nextTrigger(settings) ?: return
-        alarmManager(context)?.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent(context))
+        val am = alarmManager(context) ?: return
+        ExactAlarms.schedule(am, trigger, pendingIntent(context))
     }
 
     /**

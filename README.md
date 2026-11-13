@@ -138,6 +138,35 @@ Each file is JSON — either a plain list, or an object with a `cards` list:
 `front` is required. Give `back` for the answer, or `options` + `correct` (1-based) for an
 MCQ and the back is filled in as `Answer: 1) Jupiter`. `q`/`a` are accepted as aliases.
 
+## What's new in 1.17.0
+
+- **Transparent screens fixed**: the Alerts and Tasks screens had no background,
+  so Home/the Drawer showed through underneath. Both are solid now.
+- **Overlay taps stay on the overlay**: taps on an empty part of an open screen
+  used to fall through to the page below — a long-press could open a drawer
+  app's menu underneath. A touch shield between the pager and the overlays
+  swallows those taps now; buttons and scrolling inside the screens work as
+  before.
+- **Tasks widget opens the Tasks screen**: tapping the widget now opens the
+  Tasks screen, like every other widget opens its app. The per-task toggle and
+  the quick-add button work as before.
+- **Faster drawer**: the app list is cached on disk, so the drawer opens
+  instantly on a cold start and refreshes quietly underneath. Installing,
+  removing or changing an app drops the cache, so the list never goes stale.
+- **Reminders ring exactly on time**: study, alert, task and popup reminders
+  use exact alarms when the system allows them, with the old inexact alarm as
+  a fallback. When a reminder is set without the permission, a hint offers the
+  one-tap enable in Settings — reminders are never blocked.
+- **Fingerprint unlock**: Hidden Apps and App Lock can be opened with a
+  fingerprint instead of the PIN (when the device supports it). The PIN always
+  stays available, and setting the first App Lock PIN still needs typing.
+- **Now/Next class on Home**: the Time Table's current and next class show in
+  a strip below the clock (free periods shown honestly as free). Tapping it
+  opens the Time Table; it hides itself when there are no more classes today,
+  and the Widgets sheet can switch it off.
+- **What's New popup**: after an update, a short list of what changed shows
+  once — and never again for that version.
+
 ## What's new in 1.16.0
 
 - **Alerts and Tasks are proper screens now**: the Apps tab, the Home widgets,

@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -44,6 +45,7 @@ import com.example.data.model.RepeatRule
 import com.example.data.model.TaskItem
 import com.example.data.model.TaskPriority
 import com.example.ui.components.ChoiceChip
+import com.example.ui.components.ExactAlarmHint
 import com.example.ui.components.formatDateTime
 import com.example.ui.components.rememberDragStep
 import com.example.ui.components.showDateTimePicker
@@ -74,6 +76,9 @@ fun TasksScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            // The background was missing here (v1.16.0 bug 1): the screen was
+            // transparent and the Home/Drawer showed through underneath.
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 18.dp)
             .testTag("tasks_screen")
     ) {
@@ -301,6 +306,7 @@ private fun TaskEditDialog(
                         TextButton(onClick = { reminder = null }) { Text("Clear") }
                     }
                 }
+                ExactAlarmHint(reminderSet = reminder != null)
 
                 if (reminder != null) {
                     Spacer(modifier = Modifier.height(4.dp))

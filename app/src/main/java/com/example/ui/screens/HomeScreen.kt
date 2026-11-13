@@ -39,12 +39,14 @@ import com.example.data.model.GoalItem
 import com.example.data.model.StudyDueItem
 import com.example.data.model.StudyProgress
 import com.example.data.model.TaskItem
+import com.example.data.model.TimeTableEntry
 import com.example.ui.anim.DiwaliAnimationLayer
 import com.example.ui.components.AlertsWidget
 import com.example.ui.components.ClockWidget
 import com.example.ui.components.FavoritesBar
 import com.example.ui.components.GoalsWidget
 import com.example.ui.components.LoadingIndicator
+import com.example.ui.components.NowNextStrip
 import com.example.ui.components.StudyDueWidget
 import com.example.ui.components.TasksWidget
 
@@ -76,6 +78,9 @@ fun HomeScreen(
     onOpenAlerts: () -> Unit,
     onOpenTasks: () -> Unit,
     onOpenStudyManager: () -> Unit,
+    showNowNextClass: Boolean = true,
+    timeTableEntries: List<TimeTableEntry> = emptyList(),
+    onOpenTimeTable: () -> Unit = {},
     onOpenCalendar: () -> Unit,
     onTimeClick: () -> Unit,
     clockOverrideMillis: Long?,
@@ -119,6 +124,17 @@ fun HomeScreen(
                     overrideMillis = clockOverrideMillis,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                // Now/Next class strip (v1.17.0): today's current and next Time
+                // Table class. Hidden by its toggle, and hides itself when
+                // there is no timetable or no more classes today.
+                if (showNowNextClass) {
+                    NowNextStrip(
+                        entries = timeTableEntries,
+                        onOpenTimeTable = onOpenTimeTable,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
                 // Study Manager status — progress + tasks due, in one combined card
                 if (showStudyDue && (studyDueItems.isNotEmpty() || studyProgress.total > 0)) {

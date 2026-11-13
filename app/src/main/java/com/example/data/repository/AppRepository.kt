@@ -7,6 +7,9 @@ import android.provider.Settings
 import com.example.data.model.AppInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 import kotlin.math.absoluteValue
 
 class AppRepository(private val context: Context) {
@@ -49,6 +52,81 @@ class AppRepository(private val context: Context) {
         }
 
         appList.sortedBy { it.label.lowercase() }
+    }
+
+    // ---- App-list disk cache (v1.17.0, fast boot) ----
+    //
+    // The full package-manager scan takes a noticeable moment on a low-RAM phone,
+    // and the drawer used to wait for it on every cold start. The identity fields
+    // (package, activity, label, colour) are cached as JSON in a private file;
+    // icons are NOT cached — they still load on demand via RealAppIcon. The
+    // cache is regenerable, so it is deliberately NOT part of the user backup.
+    // PackageChangedReceiver deletes it whenever an app is installed, removed
+    // or changed, so a stale list can only survive until the next refresh.
+    // Every cache call is failure-proof: a corrupt or unreadable cache just
+    // behaves like no cache at all.
+
+    private val cacheFile: File
+        get() = File(context.filesDir, CACHE_FILE_NAME)
+
+    /** True when a cache file exists (a cheap stat call; safe on the main thread). */
+    fun hasCachedApps(): Boolean = try {
+        cacheFile.exists()
+    } catch (_: Exception) {
+        false
+    }
+
+    suspend fun loadCachedApps(): List<AppInfo> = withContext(Dispatchers.IO) {
+        try {
+            val raw = cacheFile.readText()
+            val array = JSONArray(raw)
+            val apps = mutableListOf<AppInfo>()
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val pkg = item.optString(KEY_PKG)
+                if (pkg.isBlank()) continue
+                apps.add(
+                    AppInfo(
+                        packageName = pkg,
+                        activityName = item.optString(KEY_ACTIVITY),
+                        label = item.optString(KEY_LABEL, pkg),
+                        colorIndex = item.optInt(KEY_COLOR, 0)
+                    )
+                )
+            }
+            apps.sortedBy { it.label.lowercase() }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun saveCachedApps(apps: List<AppInfo>) {
+        withContext(Dispatchers.IO) {
+            try {
+                val array = JSONArray()
+                for (app in apps) {
+                    array.put(
+                        JSONObject().apply {
+                            put(KEY_PKG, app.packageName)
+                            put(KEY_ACTIVITY, app.activityName)
+                            put(KEY_LABEL, app.label)
+                            put(KEY_COLOR, app.colorIndex)
+                        }
+                    )
+                }
+                cacheFile.writeText(array.toString())
+            } catch (_: Exception) {
+                // The cache is only a speedup; a failed write changes nothing.
+            }
+        }
+    }
+
+    /** Drops the cache (called by PackageChangedReceiver). Safe anywhere. */
+    fun clearCachedApps() {
+        try {
+            if (cacheFile.exists()) cacheFile.delete()
+        } catch (_: Exception) {
+        }
     }
 
     fun launchApp(packageName: String): Boolean {
@@ -101,5 +179,13 @@ class AppRepository(private val context: Context) {
             }
             context.startActivity(fallback)
         } catch (_: Exception) {}
+    }
+
+    companion object {
+        private const val CACHE_FILE_NAME = "app_list_cache.json"
+        private const val KEY_PKG = "pkg"
+        private const val KEY_ACTIVITY = "act"
+        private const val KEY_LABEL = "label"
+        private const val KEY_COLOR = "color"
     }
 }

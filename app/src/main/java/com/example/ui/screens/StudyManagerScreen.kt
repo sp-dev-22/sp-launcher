@@ -73,6 +73,7 @@ import com.example.data.model.status
 import com.example.data.model.totalCount
 import com.example.service.StudyReminderScheduler
 import com.example.ui.LauncherViewModel
+import com.example.ui.components.ExactAlarmHint
 import com.example.ui.components.rememberDragStep
 import com.example.util.FileIo
 import com.example.util.StudyExport
@@ -708,6 +709,7 @@ private fun ScheduleDialog(
                         TextButton(onClick = { deadline = null }) { Text("Clear") }
                     }
                 }
+                ExactAlarmHint(reminderSet = alert != null || deadline != null)
             }
         },
         confirmButton = { TextButton(onClick = { onSave(deadline, alert) }) { Text("Save") } },

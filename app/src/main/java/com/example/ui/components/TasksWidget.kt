@@ -77,6 +77,11 @@ fun TasksWidget(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
+            // Tapping the widget opens the Tasks screen (v1.17.0): the
+            // onManageTasks callback was passed in but never used. The inner
+            // per-task toggle and the + button keep working — inner clickables
+            // consume their taps first, so only taps elsewhere reach this one.
+            .clickable { onManageTasks() }
             .testTag("tasks_widget_card"),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),

@@ -7,6 +7,8 @@ import android.provider.AlarmClock
 import android.provider.CalendarContract
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,16 +20,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import com.example.BuildConfig
 import com.example.ui.anim.RainbowBackground
 import com.example.ui.components.AppActionBottomSheet
 import com.example.ui.components.AppLockPinDialog
 import com.example.ui.components.FavoritesScreen
 import com.example.ui.components.ThemesSheet
 import com.example.ui.components.UndoBar
+import com.example.ui.components.WhatsNewDialog
 import com.example.ui.components.WidgetsManagementSheet
 import com.example.ui.screens.AlertsScreen
 import com.example.ui.screens.AppLockScreen
@@ -144,6 +149,18 @@ fun MainScreen(
     val dateOpensSystem by viewModel.dateOpensSystem.collectAsState()
     val context = LocalContext.current
 
+    // Now/Next class strip (v1.17.0) + What's New popup (v1.17.0).
+    val showNowNextClass by viewModel.showNowNextClass.collectAsState()
+    val timeTable by viewModel.timeTable.collectAsState()
+    val showWhatsNew by viewModel.showWhatsNew.collectAsState()
+
+    // True while any fullscreen overlay is up (all 16 of them, including
+    // Automatics, which is drawn after the Scaffold). Drives the touch shield.
+    val anyOverlay = showAddFavoritesScreen || showStudyManager || showBackupRestore ||
+        showTimeTable || showStudyPopups || showCards || showCalendar || showGoals ||
+        showAlertsScreen || showTasksScreen || showSupport || showSearch ||
+        showHiddenApps || showPractice || showAppLock || showAutoAnimations
+
     val currentTheme = LauncherTheme.fromKey(themeKey)
     val rainbow = isRainbowTheme(currentTheme)
 
@@ -250,6 +267,11 @@ fun MainScreen(
                             onOpenAlerts = { viewModel.setShowAlertsScreen(true) },
                             onOpenTasks = { viewModel.setShowTasksScreen(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
+                            // Now/Next class strip (v1.17.0): today's Time Table
+                            // entries; tapping the strip opens the Time Table.
+                            showNowNextClass = showNowNextClass,
+                            timeTableEntries = timeTable.entries,
+                            onOpenTimeTable = { viewModel.setShowTimeTable(true) },
                             // Date tap (v1.15.0): the in-app Calendar, or the system
                             // Calendar app when the user picked that under Widgets.
                             onOpenCalendar = {
@@ -281,6 +303,30 @@ fun MainScreen(
                         )
                     }
                 }
+            }
+
+            // Overlay touch shield (v1.17.0, bug 2): every fullscreen screen
+            // above is drawn over the pager, and a tap on an empty part of one
+            // used to fall through to the page below — a long-press on the
+            // Hidden Apps title gap opened the drawer app's menu underneath.
+            // This shield sits between the pager and the overlays and swallows
+            // those taps with a no-op clickable (no ripple). Taps on real
+            // controls and scrolls inside the screens still work: inner
+            // clickables and scrollables consume their gestures first, and a
+            // clickable only claims the press, never a drag. It only exists
+            // while an overlay is up, so Home/Drawer taps are untouched. The
+            // dialogs and bottom sheets need no shield — their Popup windows
+            // already consume outside touches with their scrims.
+            if (anyOverlay) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { /* swallow: nothing beneath an overlay may be tapped */ }
+                        .testTag("overlay_touch_shield")
+                )
             }
 
             // Fullscreen Favorites (pick apps + groups, drag to reorder)
@@ -474,6 +520,7 @@ fun MainScreen(
             },
             onVerifyPin = { pin -> viewModel.verifyAppLockPin(pin) },
             onSubmitVerify = { pin -> viewModel.submitAppLockPin(pin) },
+            onSubmitBiometric = { viewModel.submitAppLockBiometric() },
             onChangePin = { pin -> viewModel.changeAppLockPin(pin) }
         )
     }
@@ -494,6 +541,8 @@ fun MainScreen(
             onToggleShowStudyDue = { viewModel.setShowStudyDue(it) },
             showGoals = showGoalsWidget,
             onToggleShowGoals = { viewModel.setShowGoalsWidget(it) },
+            showNowNextClass = showNowNextClass,
+            onToggleShowNowNextClass = { viewModel.setShowNowNextClass(it) },
             onOpenGoals = {
                 viewModel.setShowWidgetsDialog(false)
                 viewModel.setShowGoals(true)
@@ -517,6 +566,15 @@ fun MainScreen(
                 viewModel.setShowAutoAnimations(true)
             },
             onDismiss = { viewModel.setShowThemesSheet(false) }
+        )
+    }
+
+    // What's New (v1.17.0): once after an update. Dismissing by any means
+    // records the version, so it never shows again for this version.
+    if (showWhatsNew) {
+        WhatsNewDialog(
+            versionName = BuildConfig.VERSION_NAME,
+            onDismiss = { viewModel.dismissWhatsNew() }
         )
     }
 

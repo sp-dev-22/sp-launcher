@@ -12,6 +12,7 @@ import android.provider.OpenableColumns
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.BuildConfig
 import com.example.data.model.AlertItem
 import com.example.data.model.AppGroup
 import com.example.data.model.AppInfo
@@ -359,6 +360,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showTasksScreen = MutableStateFlow(false)
     val showTasksScreen: StateFlow<Boolean> = _showTasksScreen.asStateFlow()
 
+    // What's New popup (v1.17.0): true when the app was updated since the popup
+    // was last shown. Decided once in init; dismissing records the version.
+    private val _showWhatsNew = MutableStateFlow(false)
+    val showWhatsNew: StateFlow<Boolean> = _showWhatsNew.asStateFlow()
+
     private val _showSupport = MutableStateFlow(false)
     val showSupport: StateFlow<Boolean> = _showSupport.asStateFlow()
 
@@ -474,6 +480,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         rescheduleAlertReminders()
         rescheduleStudyReminders()
         rescheduleTaskReminders()
+        // What's New popup (v1.17.0): show it once when the app was updated.
+        checkWhatsNew()
         StudyPopupScheduler.reschedule(application, preferences.popupSettings.value)
         refreshAutoNightMode()
         // Watch Battery Saver so the theme animations can pause while it is on.
@@ -492,20 +500,34 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
      */
     fun refreshApps() {
         val now = System.currentTimeMillis()
-        if (_installedApps.value.isNotEmpty() && now - lastAppsLoadMillis < 5_000L) return
+        // A missing cache file means PackageChangedReceiver invalidated it after
+        // an install / removal / change — refresh even inside the throttle window.
+        if (_installedApps.value.isNotEmpty() && now - lastAppsLoadMillis < 5_000L &&
+            appRepository.hasCachedApps()
+        ) return
         loadApps()
     }
 
     fun loadApps() {
         lastAppsLoadMillis = System.currentTimeMillis()
         viewModelScope.launch {
-            _isLoadingApps.value = true
+            // Fast boot (v1.17.0): when this process has no list yet, show the
+            // cached list instantly and refresh quietly underneath.
+            if (_installedApps.value.isEmpty()) {
+                val cached = appRepository.loadCachedApps()
+                if (cached.isNotEmpty()) _installedApps.value = cached
+            }
+            // Only spin while there is nothing to show (first launch, or an
+            // empty cache): a background refresh over a shown list stays silent.
+            val needsSpinner = _installedApps.value.isEmpty()
+            if (needsSpinner) _isLoadingApps.value = true
             val apps = try {
                 appRepository.getInstalledApps()
             } finally {
                 _isLoadingApps.value = false
             }
             _installedApps.value = apps
+            appRepository.saveCachedApps(apps)
 
             if (favorites.value.isEmpty() && apps.isNotEmpty()) {
                 val preferredKeywords = listOf("phone", "message", "camera", "gallery", "chrome", "browser", "whatsapp", "music", "contact", "file")
@@ -590,6 +612,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowStudyDue(enabled: Boolean) {
         preferences.setShowStudyDue(enabled)
+    }
+
+    /** Now/Next class strip (v1.17.0) visibility toggle (Widgets sheet). */
+    val showNowNextClass = preferences.showNowNextClass
+
+    fun setShowNowNextClass(enabled: Boolean) {
+        preferences.setShowNowNextClass(enabled)
     }
 
     fun setTheme(key: String) {
@@ -778,6 +807,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowAlertsScreen(show: Boolean) {
         _showAlertsScreen.value = show
+    }
+
+    /**
+     * What's New (v1.17.0), decided once at launch. Fresh install (never shown,
+     * stored 0): record the version silently, no popup. Updated since the popup
+     * was last shown: show it once. Same or newer version already shown (or a
+     * downgrade): nothing.
+     */
+    private fun checkWhatsNew() {
+        val lastShown = preferences.lastShownVersionCode.value
+        val current = BuildConfig.VERSION_CODE
+        when {
+            lastShown == 0 -> preferences.setLastShownVersionCode(current)
+            lastShown < current -> _showWhatsNew.value = true
+        }
+    }
+
+    /** Dismissing the What's New popup records the version, so it never re-shows. */
+    fun dismissWhatsNew() {
+        preferences.setLastShownVersionCode(BuildConfig.VERSION_CODE)
+        _showWhatsNew.value = false
     }
 
     fun setShowTasksScreen(show: Boolean) {
@@ -1050,6 +1100,25 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
             is AppLockDialog.VerifyToUnlock -> {
                 if (!verifyAppLockPin(pin)) return false
+                unlockAppAfterPin(d.packageName)
+                true
+            }
+            else -> false
+        }
+    }
+
+    /**
+     * Fingerprint success (v1.17.0): runs the pending verify action exactly as a
+     * correct PIN would — launch the locked app, or unlock it. Only valid while
+     * a verify dialog is up; anything else returns false.
+     */
+    fun submitAppLockBiometric(): Boolean {
+        return when (val d = _appLockDialog.value) {
+            is AppLockDialog.VerifyToLaunch -> {
+                launchLockedApp(d.app)
+                true
+            }
+            is AppLockDialog.VerifyToUnlock -> {
                 unlockAppAfterPin(d.packageName)
                 true
             }

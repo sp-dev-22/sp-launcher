@@ -9,12 +9,13 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import com.example.data.model.TaskItem
+import com.example.util.ExactAlarms
 
 /**
  * Schedules reminder notifications for tasks using [AlarmManager].
  *
- * Uses [AlarmManager.setAndAllowWhileIdle] (inexact but works in Doze), so the app needs no
- * SCHEDULE_EXACT_ALARM permission. Completed tasks and past reminders are skipped.
+ * Exact when the system allows it (see [ExactAlarms]), inexact otherwise.
+ * Completed tasks and past reminders are skipped.
  */
 object TaskReminderScheduler {
 
@@ -71,8 +72,8 @@ object TaskReminderScheduler {
             if (task.isCompleted) continue
             val whenMillis = task.reminderMillis ?: continue
             if (whenMillis <= System.currentTimeMillis()) continue
-            am.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
+            ExactAlarms.schedule(
+                am,
                 whenMillis,
                 buildPendingIntent(context, task.id, task.text)
             )

@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.Manifest
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -76,6 +77,7 @@ import com.example.data.model.ContactEntry
 import com.example.data.model.DeviceFile
 import com.example.ui.LauncherViewModel
 import com.example.ui.components.SearchSettingsSheet
+import com.example.util.BiometricHelper
 import com.example.util.CalcEngine
 import com.example.util.GlobalSearch
 import com.example.util.PhoneNumbers
@@ -572,6 +574,11 @@ private fun VaultPinDialog(
 ) {
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val activity = context as? Activity
+    // Fingerprint (v1.17.0): offered only when the device can do a biometric
+    // prompt right now. The PIN below always stays available.
+    val fingerprintAvailable = BiometricHelper.isAvailable(context)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -592,6 +599,21 @@ private fun VaultPinDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     modifier = Modifier.fillMaxWidth().testTag("vault_pin_input")
                 )
+                if (fingerprintAvailable) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    TextButton(
+                        onClick = {
+                            BiometricHelper.authenticate(
+                                activity = activity,
+                                title = "Hidden Apps",
+                                subtitle = "Unlock with your fingerprint",
+                                onSuccess = onUnlock,
+                                onError = { error = it }
+                            )
+                        },
+                        modifier = Modifier.testTag("vault_fingerprint_btn")
+                    ) { Text("Use fingerprint") }
+                }
                 error?.let {
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
