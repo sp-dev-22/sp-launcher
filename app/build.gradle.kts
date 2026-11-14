@@ -11,8 +11,8 @@ android {
     applicationId = "com.SomdattPrajapat.SpLauncher"
     minSdk = 24
     targetSdk = 36
-    versionCode = 30
-    versionName = "1.18.0"
+    versionCode = 31
+    versionName = "1.19.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

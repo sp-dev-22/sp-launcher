@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         requestNotificationPermissionIfNeeded()
+        handleDigiBrainIntent(intent)
 
         setContent {
             val isDarkTheme by viewModel.isNightMode.collectAsState()
@@ -48,9 +49,29 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDigiBrainIntent(intent)
+    }
+
     override fun onResume() {
         super.onResume()
         viewModel.refreshApps()
+    }
+
+    /**
+     * Digi Brain deep link (v1.19.0): the capture activity's duplicate warning
+     * opens the launcher on the item that already exists. SingleTask, so this
+     * runs for both a cold start (onCreate) and a warm one (onNewIntent).
+     */
+    private fun handleDigiBrainIntent(intent: Intent?) {
+        val focusId = intent?.getStringExtra(DigiBrainCaptureActivity.EXTRA_DIGI_BRAIN_FOCUS_ID)
+        if (!focusId.isNullOrBlank()) {
+            viewModel.openDigiBrainScreen(
+                com.example.ui.DigiBrainScreenArgs(focusItemId = focusId)
+            )
+        }
     }
 
     /**

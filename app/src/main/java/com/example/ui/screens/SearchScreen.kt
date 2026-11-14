@@ -106,6 +106,9 @@ fun SearchScreen(
     val courses by viewModel.studyCourses.collectAsState()
     val cards by viewModel.flashcardBank.collectAsState()
     val contacts by viewModel.contacts.collectAsState()
+    // Digi Brain (v1.19.0): GlobalSearch shows PUBLIC items only — the filter
+    // lives there, so this list can pass through unfiltered.
+    val digiBrain by viewModel.digiBrainItems.collectAsState()
     val fileHits by viewModel.fileHits.collectAsState()
     val searchingFiles by viewModel.isSearchingFiles.collectAsState()
     val contactsOn by viewModel.searchContactsEnabled.collectAsState()
@@ -190,10 +193,11 @@ fun SearchScreen(
         if (filesOn && (filesGranted || allFilesAccess)) viewModel.searchFiles(query)
     }
 
-    val hits = remember(query, apps, tasks, alerts, courses, cards, contacts, contactsOn, contactsGranted) {
+    val hits = remember(query, apps, tasks, alerts, courses, cards, contacts, digiBrain, contactsOn, contactsGranted) {
         GlobalSearch.search(
             query, apps, tasks, alerts, courses, cards,
-            contacts = if (contactsOn && contactsGranted) contacts else emptyList()
+            contacts = if (contactsOn && contactsGranted) contacts else emptyList(),
+            digiBrain = digiBrain
         )
     }
 
@@ -303,7 +307,7 @@ fun SearchScreen(
 
         when {
             query.isBlank() -> Hint(
-                "Type or speak to search apps, contacts, files, tasks, notes, study classes and cards.\n\n" +
+                "Type or speak to search apps, contacts, files, tasks, notes, study classes, cards and Digi Brain.\n\n" +
                     "Try:   45*12   -   5 km in m   -   a phone number"
             )
             !hasContent -> Hint("No results for \"$query\"")
@@ -415,6 +419,12 @@ fun SearchScreen(
                                 SearchKind.CARD -> {
                                     closeSearch()
                                     viewModel.setShowCards(true)
+                                }
+                                SearchKind.BRAIN -> {
+                                    closeSearch()
+                                    viewModel.openDigiBrainScreen(
+                                        com.example.ui.DigiBrainScreenArgs(focusItemId = hit.refId)
+                                    )
                                 }
                                 SearchKind.CONTACT -> Unit
                             }

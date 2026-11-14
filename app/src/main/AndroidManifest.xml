@@ -74,6 +74,28 @@
             </intent-filter>
         </activity>
 
+        <!-- Digi Brain capture (v1.19.0): the one-tap save door. It answers the
+             share sheet (ACTION_SEND) and the text-selection menu (PROCESS_TEXT —
+             this activity's label is what the menu shows). No new permission. -->
+        <activity
+            android:name=".DigiBrainCaptureActivity"
+            android:exported="true"
+            android:label="Save to Digi Brain"
+            android:theme="@style/Theme.MyApplication"
+            android:windowSoftInputMode="adjustResize"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
         <!-- Fires Study Manager alert / missed-deadline notifications -->
         <receiver
             android:name=".service.StudyReminderReceiver"

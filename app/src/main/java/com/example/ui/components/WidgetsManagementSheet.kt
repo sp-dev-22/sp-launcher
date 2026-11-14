@@ -42,12 +42,14 @@ fun WidgetsManagementSheet(
     showDate: Boolean,
     showAlerts: Boolean,
     showTasks: Boolean,
+    showDigiBrain: Boolean,
     showStudyDue: Boolean,
     showGoals: Boolean,
     onToggleShowTime: (Boolean) -> Unit,
     onToggleShowDate: (Boolean) -> Unit,
     onToggleShowAlerts: (Boolean) -> Unit,
     onToggleShowTasks: (Boolean) -> Unit,
+    onToggleShowDigiBrain: (Boolean) -> Unit,
     onToggleShowStudyDue: (Boolean) -> Unit,
     onToggleShowGoals: (Boolean) -> Unit,
     onOpenGoals: () -> Unit,
@@ -122,6 +124,7 @@ fun WidgetsManagementSheet(
             }
             ToggleRow("Show Alerts Widget", showAlerts, onToggleShowAlerts)
             ToggleRow("Show Tasks Widget", showTasks, onToggleShowTasks)
+            ToggleRow("Show Digi Brain Widget", showDigiBrain, onToggleShowDigiBrain)
             ToggleRow("Show Study Manager Status", showStudyDue, onToggleShowStudyDue)
             ToggleRow("Show Goals Widget", showGoals, onToggleShowGoals)
 
