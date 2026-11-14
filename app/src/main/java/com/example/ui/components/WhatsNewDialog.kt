@@ -41,7 +41,7 @@ fun WhatsNewDialog(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                WHAT_S_NEW_1_18_0.forEach { line ->
+                WHAT_S_NEW_1_19_0.forEach { line ->
                     Text("- $line", fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                 }
@@ -56,13 +56,12 @@ fun WhatsNewDialog(
     )
 }
 
-private val WHAT_S_NEW_1_18_0 = listOf(
-    "Fixed: this What's New note now appears after updates too.",
-    "Fixed: completed classes no longer linger in the Time Table.",
-    "Fixed: fingerprint unlock works on this phone now.",
-    "Fixed: uninstalled apps no longer leave ghost entries in favorite groups.",
-    "Long-press an app to see its shortcuts, right at the top.",
-    "Long-press an app to share its APK with a friend.",
-    "Notification badges: unread counts on drawer and favorites icons (turn on in Settings).",
-    "The Now/Next class strip is gone - Study Manager already shows your classes."
+private val WHAT_S_NEW_1_19_0 = listOf(
+    "New: Digi Brain - save notes and links from any app (select text and tap 'Save to Digi Brain', or share it here). Find it in Settings > Apps.",
+    "Tick 'Show on widget' and a save appears on the Home widget, swipeable, with pinned items first.",
+    "Trash with a conscience: deleted saves warn at 25 days (the widget's trash icon turns red) and auto-delete at 30.",
+    "The Digi Brain face turns sad if you stay away - 3 days, then sadder at 7.",
+    "'From your saves' resurfaces one old public save a day, so saved things get read again.",
+    "SP Assistant search finds your public saves too. Private ones stay inside Digi Brain.",
+    "Saving a link twice now warns you and opens the one you already saved."
 )

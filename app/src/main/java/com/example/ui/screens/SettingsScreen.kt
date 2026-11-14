@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
@@ -49,9 +50,9 @@ import com.example.BuildConfig
 
 /**
  * Settings, in two tabs (v1.15.0): "Settings" holds the launcher's own settings,
- * "Apps" holds the launcher's apps (Study Manager, Alerts, Tasks, Study Popups,
- * Goals). Hidden Apps and Locked Apps deliberately live nowhere here — they open
- * from the search screen's menu instead.
+ * "Apps" holds the launcher's apps (Study Manager, Alerts, Tasks, Digi Brain,
+ * Study Popups, Goals). Hidden Apps and Locked Apps deliberately live nowhere
+ * here — they open from the search screen's menu instead.
  */
 @Composable
 fun SettingsScreen(
@@ -61,6 +62,7 @@ fun SettingsScreen(
     onOpenStudyManager: () -> Unit,
     onOpenAlerts: () -> Unit,
     onOpenTasks: () -> Unit,
+    onOpenDigiBrain: () -> Unit,
     onOpenStudyPopups: () -> Unit,
     onOpenGoals: () -> Unit,
     onOpenWidgetsManagement: () -> Unit,
@@ -170,10 +172,10 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Widgets (Clock, Date, Alerts, Tasks, Study Due)
+                // Widgets (Clock, Date, Alerts, Tasks, Digi Brain, Study Due)
                 SettingsItemRow(
                     title = "Widgets",
-                    subtitle = "Manage the Clock, Date, Alerts, Tasks, Study & Goals widgets",
+                    subtitle = "Manage the Clock, Date, Alerts, Tasks, Digi Brain, Study & Goals widgets",
                     icon = {
                         Icon(
                             imageVector = Icons.Default.Checklist,
@@ -346,6 +348,24 @@ fun SettingsScreen(
                     },
                     onClick = onOpenTasks,
                     testTag = "settings_tasks"
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Digi Brain (v1.19.0): saved notes and links, with Trash
+                SettingsItemRow(
+                    title = "Digi Brain",
+                    subtitle = "Notes and links, saved from anywhere",
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Psychology,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    onClick = onOpenDigiBrain,
+                    testTag = "settings_digi_brain"
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

@@ -19,6 +19,9 @@ import com.example.data.model.AppGroup
 import com.example.data.model.AppInfo
 import com.example.data.model.ContactEntry
 import com.example.data.model.DeviceFile
+import com.example.data.model.DigiBrainItem
+import com.example.data.model.DigiBrainKind
+import com.example.util.DigiBrain
 import com.example.data.model.FavoriteSlots
 import com.example.data.model.CardStats
 import com.example.data.model.FlashcardItem
@@ -76,6 +79,25 @@ sealed interface AppLockDialog {
     /** Change the PIN — current PIN first, then the new one twice. */
     data object ChangePin : AppLockDialog
 }
+
+/** The outcome of saving to Digi Brain (v1.19.0). */
+sealed interface DigiBrainSaveResult {
+    /** A new item was saved. */
+    data class Saved(val item: DigiBrainItem) : DigiBrainSaveResult
+
+    /** This link was already saved — [existing] is the item that holds it. */
+    data class Duplicate(val existing: DigiBrainItem) : DigiBrainSaveResult
+}
+
+/** Where the Digi Brain screen should land when it opens (v1.19.0). */
+data class DigiBrainScreenArgs(
+    /** Open on the Trash tab instead of Saved. */
+    val startInTrash: Boolean = false,
+    /** In the Trash tab, show only items expiring soon (25-29 days). */
+    val expiringOnly: Boolean = false,
+    /** Open this item's detail straight away (from a search hit or a duplicate). */
+    val focusItemId: String? = null
+)
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -263,6 +285,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val showAlerts = preferences.showAlerts
     val showTasks = preferences.showTasks
     val showStudyDue = preferences.showStudyDue
+
+    // Digi Brain (v1.19.0)
+    val digiBrainItems = preferences.digiBrainItems
+    val showDigiBrain = preferences.showDigiBrain
+    val digiBrainLastUse = preferences.digiBrainLastUse
+
+    fun setShowDigiBrainWidget(enabled: Boolean) = preferences.setShowDigiBrain(enabled)
     val themeKey = preferences.themeKey
     val alerts = preferences.alerts
     val tasks = preferences.tasks
@@ -363,6 +392,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _showTasksScreen = MutableStateFlow(false)
     val showTasksScreen: StateFlow<Boolean> = _showTasksScreen.asStateFlow()
+
+    // Digi Brain screen (v1.19.0): same standalone pattern. The args say where
+    // the screen should land: the widget's red trash icon opens the Trash tab
+    // with the expiring-soon filter, a search hit opens one item's detail.
+    private val _showDigiBrainScreen = MutableStateFlow(false)
+    val showDigiBrainScreen: StateFlow<Boolean> = _showDigiBrainScreen.asStateFlow()
+
+    private val _digiBrainArgs = MutableStateFlow(DigiBrainScreenArgs())
+    val digiBrainArgs: StateFlow<DigiBrainScreenArgs> = _digiBrainArgs.asStateFlow()
 
     // What's New popup (v1.17.0): true when the app was updated since the popup
     // was last shown. Decided once in init; dismissing records the version.
@@ -503,6 +541,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         rescheduleTaskReminders()
         // What's New popup (v1.17.0): show it once when the app was updated.
         checkWhatsNew()
+        // Digi Brain (v1.19.0): drop Trash items past 30 days. No worker — this
+        // runs on app open, and again on every resume via refreshApps().
+        preferences.purgeExpiredDigiBrainTrash()
         // Notification badges (v1.18.0): is the listener granted?
         refreshBadgeListenerState()
         StudyPopupScheduler.reschedule(application, preferences.popupSettings.value)
@@ -526,6 +567,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         // the system Notification-access screen — re-read the grant every
         // resume, outside the app-list throttle below.
         refreshBadgeListenerState()
+        // Digi Brain (v1.19.0): Trash expiry is checked on app open, never by
+        // a background worker — onResume is the app-open signal.
+        preferences.purgeExpiredDigiBrainTrash()
         val now = System.currentTimeMillis()
         // A missing cache file means PackageChangedReceiver invalidated it after
         // an install / removal / change — refresh even inside the throttle window.
@@ -794,6 +838,88 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun setAlertArchived(id: String, archived: Boolean) {
         preferences.setAlertArchived(id, archived)
     }
+
+    // ---- Digi Brain (v1.19.0) ----
+
+    /**
+     * Opens the Digi Brain screen, landing where [args] says: the Trash tab
+     * with the expiring-soon filter (widget trash icon), or one item's detail
+     * (search hit / duplicate). Opening counts as a use for the mood face, and
+     * Trash expiry is checked here too — the screen is a second app-open signal.
+     */
+    fun openDigiBrainScreen(args: DigiBrainScreenArgs = DigiBrainScreenArgs()) {
+        preferences.purgeExpiredDigiBrainTrash()
+        preferences.markDigiBrainUsed()
+        _digiBrainArgs.value = args
+        _showDigiBrainScreen.value = true
+    }
+
+    fun setShowDigiBrainScreen(show: Boolean) {
+        _showDigiBrainScreen.value = show
+    }
+
+    /**
+     * Saves a note or a link from the in-app add row. A bare URL becomes a
+     * link; anything else becomes a note. A link saved before is not saved
+     * twice — the caller gets [DigiBrainSaveResult.Duplicate] and shows the
+     * warning with a way to the item that already exists.
+     */
+    fun saveDigiBrainText(rawText: String, isPublic: Boolean): DigiBrainSaveResult {
+        val text = rawText.trim()
+        val url = DigiBrain.extractUrl(text) ?: if (DigiBrain.looksLikeUrl(text)) text else null
+        if (url != null) return saveDigiBrainLink(url, null, isPublic)
+        val item = DigiBrainItem(
+            kind = DigiBrainKind.NOTE,
+            title = DigiBrain.titleFromText(text),
+            content = text,
+            isPublic = isPublic
+        )
+        preferences.addDigiBrainItem(item)
+        return DigiBrainSaveResult.Saved(item)
+    }
+
+    /** Saves a link with an explicit title (from the share sheet / text selection). */
+    fun saveDigiBrainLink(url: String, title: String?, isPublic: Boolean): DigiBrainSaveResult {
+        val existing = preferences.findDigiBrainByUrl(url)
+        if (existing != null) return DigiBrainSaveResult.Duplicate(existing)
+        val normalised = DigiBrain.normalizeUrl(url)
+        val item = DigiBrainItem(
+            kind = DigiBrainKind.LINK,
+            title = title?.trim().takeUnless { it.isNullOrBlank() } ?: DigiBrain.domainOf(normalised),
+            content = normalised,
+            isPublic = isPublic
+        )
+        preferences.addDigiBrainItem(item)
+        return DigiBrainSaveResult.Saved(item)
+    }
+
+    fun saveDigiBrainNote(title: String, text: String, isPublic: Boolean): DigiBrainItem {
+        val item = DigiBrainItem(
+            kind = DigiBrainKind.NOTE,
+            title = title.trim().ifBlank { DigiBrain.titleFromText(text) },
+            content = text.trim(),
+            isPublic = isPublic
+        )
+        preferences.addDigiBrainItem(item)
+        return item
+    }
+
+    fun updateDigiBrainItem(item: DigiBrainItem) = preferences.updateDigiBrainItem(item)
+
+    fun setDigiBrainPublic(id: String, isPublic: Boolean) = preferences.setDigiBrainPublic(id, isPublic)
+
+    fun setDigiBrainPinned(id: String, pinned: Boolean) = preferences.setDigiBrainPinned(id, pinned)
+
+    /** Opens an item (marks it opened, so the resurface clock restarts). */
+    fun openDigiBrainItem(id: String) = preferences.markDigiBrainOpened(id)
+
+    fun moveDigiBrainToTrash(id: String) = preferences.moveDigiBrainToTrash(id)
+
+    fun restoreDigiBrainFromTrash(id: String) = preferences.restoreDigiBrainFromTrash(id)
+
+    fun deleteDigiBrainPermanently(id: String) = preferences.deleteDigiBrainPermanently(id)
+
+    fun emptyDigiBrainTrash() = preferences.emptyDigiBrainTrash()
 
     fun selectAppForActions(app: AppInfo?) {
         _selectedAppForActions.value = app

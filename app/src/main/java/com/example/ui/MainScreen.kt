@@ -41,6 +41,7 @@ import com.example.ui.screens.AutoAnimationsScreen
 import com.example.ui.screens.BackupRestoreScreen
 import com.example.ui.screens.CalendarScreen
 import com.example.ui.screens.CardsScreen
+import com.example.ui.screens.DigiBrainScreen
 import com.example.ui.screens.DrawerScreen
 import com.example.ui.screens.GoalsScreen
 import com.example.ui.screens.HiddenAppsScreen
@@ -88,9 +89,12 @@ fun MainScreen(
     val showDate by viewModel.showDate.collectAsState()
     val showAlerts by viewModel.showAlerts.collectAsState()
     val showTasks by viewModel.showTasks.collectAsState()
+    val showDigiBrain by viewModel.showDigiBrain.collectAsState()
 
     val alerts by viewModel.alerts.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
+    val digiBrainItems by viewModel.digiBrainItems.collectAsState()
+    val digiBrainLastUse by viewModel.digiBrainLastUse.collectAsState()
 
     // Themes
     val themeKey by viewModel.themeKey.collectAsState()
@@ -110,6 +114,7 @@ fun MainScreen(
     val showGoals by viewModel.showGoals.collectAsState()
     val showAlertsScreen by viewModel.showAlertsScreen.collectAsState()
     val showTasksScreen by viewModel.showTasksScreen.collectAsState()
+    val showDigiBrainScreen by viewModel.showDigiBrainScreen.collectAsState()
     val showSupport by viewModel.showSupport.collectAsState()
     val goals by viewModel.goals.collectAsState()
     val showGoalsWidget by viewModel.showGoalsWidget.collectAsState()
@@ -159,11 +164,11 @@ fun MainScreen(
     val badgeCounts by viewModel.badgeCounts.collectAsState()
     val badgeListenerEnabled by viewModel.badgeListenerEnabled.collectAsState()
 
-    // True while any fullscreen overlay is up (all 16 of them, including
+    // True while any fullscreen overlay is up (all 17 of them, including
     // Automatics, which is drawn after the Scaffold). Drives the touch shield.
     val anyOverlay = showAddFavoritesScreen || showStudyManager || showBackupRestore ||
         showTimeTable || showStudyPopups || showCards || showCalendar || showGoals ||
-        showAlertsScreen || showTasksScreen || showSupport || showSearch ||
+        showAlertsScreen || showTasksScreen || showDigiBrainScreen || showSupport || showSearch ||
         showHiddenApps || showPractice || showAppLock || showAutoAnimations
 
     val currentTheme = LauncherTheme.fromKey(themeKey)
@@ -178,7 +183,7 @@ fun MainScreen(
     BackHandler(
         enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager ||
             showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar ||
-            showGoals || showAlertsScreen || showTasksScreen || showSupport || showSearch ||
+            showGoals || showAlertsScreen || showTasksScreen || showDigiBrainScreen || showSupport || showSearch ||
             showHiddenApps || showPractice || showAutoAnimations || showAppLock
     ) {
         when {
@@ -191,6 +196,7 @@ fun MainScreen(
             showGoals -> viewModel.setShowGoals(false)
             showAlertsScreen -> viewModel.setShowAlertsScreen(false)
             showTasksScreen -> viewModel.setShowTasksScreen(false)
+            showDigiBrainScreen -> viewModel.setShowDigiBrainScreen(false)
             showSupport -> viewModel.setShowSupport(false)
             showSearch -> viewModel.setShowSearch(false)
             showStudyPopups -> viewModel.setShowStudyPopups(false)
@@ -232,6 +238,7 @@ fun MainScreen(
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             onOpenAlerts = { viewModel.setShowAlertsScreen(true) },
                             onOpenTasks = { viewModel.setShowTasksScreen(true) },
+                            onOpenDigiBrain = { viewModel.openDigiBrainScreen() },
                             onOpenStudyPopups = { viewModel.setShowStudyPopups(true) },
                             onOpenGoals = { viewModel.setShowGoals(true) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
@@ -256,8 +263,11 @@ fun MainScreen(
                             showDate = showDate,
                             showAlerts = showAlerts,
                             showTasks = showTasks,
+                            showDigiBrain = showDigiBrain,
                             alerts = alerts,
                             tasks = tasks,
+                            digiBrainItems = digiBrainItems,
+                            digiBrainLastUse = digiBrainLastUse,
                             showStudyDue = showStudyDue,
                             studyDueItems = studyDueItems,
                             studyProgress = studyProgress,
@@ -273,6 +283,20 @@ fun MainScreen(
                             onAddTask = { text -> viewModel.addTask(text) },
                             onOpenAlerts = { viewModel.setShowAlertsScreen(true) },
                             onOpenTasks = { viewModel.setShowTasksScreen(true) },
+                            onOpenDigiBrain = { viewModel.openDigiBrainScreen() },
+                            onOpenDigiBrainTrash = { expiringOnly ->
+                                viewModel.openDigiBrainScreen(
+                                    DigiBrainScreenArgs(
+                                        startInTrash = true,
+                                        expiringOnly = expiringOnly
+                                    )
+                                )
+                            },
+                            onOpenDigiBrainItem = { id ->
+                                viewModel.openDigiBrainScreen(
+                                    DigiBrainScreenArgs(focusItemId = id)
+                                )
+                            },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
                             badgeCounts = badgeCounts,
                             // Date tap (v1.15.0): the in-app Calendar, or the system
@@ -436,6 +460,14 @@ fun MainScreen(
                 )
             }
 
+            // Fullscreen Digi Brain (saved notes and links, with Trash)
+            if (showDigiBrainScreen) {
+                DigiBrainScreen(
+                    viewModel = viewModel,
+                    onBack = { viewModel.setShowDigiBrainScreen(false) }
+                )
+            }
+
             // Fullscreen Universal Search (its menu is the door to the vault and to App Lock)
             if (showSearch) {
                 SearchScreen(
@@ -538,11 +570,13 @@ fun MainScreen(
             showDate = showDate,
             showAlerts = showAlerts,
             showTasks = showTasks,
+            showDigiBrain = showDigiBrain,
             showStudyDue = showStudyDue,
             onToggleShowTime = { viewModel.setShowTime(it) },
             onToggleShowDate = { viewModel.setShowDate(it) },
             onToggleShowAlerts = { viewModel.setShowAlerts(it) },
             onToggleShowTasks = { viewModel.setShowTasks(it) },
+            onToggleShowDigiBrain = { viewModel.setShowDigiBrainWidget(it) },
             onToggleShowStudyDue = { viewModel.setShowStudyDue(it) },
             showGoals = showGoalsWidget,
             onToggleShowGoals = { viewModel.setShowGoalsWidget(it) },
