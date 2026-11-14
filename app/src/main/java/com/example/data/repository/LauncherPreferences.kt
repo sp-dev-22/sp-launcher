@@ -30,6 +30,14 @@ class LauncherPreferences(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("focus_launcher_prefs", Context.MODE_PRIVATE)
 
+    init {
+        // The Now/Next strip left in v1.18.0: drop its stored toggle, so no dead
+        // pref lingers in the file (or travels in a backup) after the update.
+        if (prefs.contains(LEGACY_NOW_NEXT_KEY)) {
+            prefs.edit().remove(LEGACY_NOW_NEXT_KEY).apply()
+        }
+    }
+
     private val _isNightMode = MutableStateFlow(prefs.getBoolean(KEY_NIGHT_MODE, false))
     val isNightMode: StateFlow<Boolean> = _isNightMode.asStateFlow()
 
@@ -141,14 +149,9 @@ class LauncherPreferences(context: Context) {
     private val _showGoalsWidget = MutableStateFlow(prefs.getBoolean(KEY_SHOW_GOALS, true))
     val showGoalsWidget: StateFlow<Boolean> = _showGoalsWidget.asStateFlow()
 
-    // Now/Next class strip (v1.17.0): today's current and next Time Table class on
-    // Home, below the clock. On by default; the strip hides itself when there is
-    // no timetable or no more classes today.
-    private val _showNowNextClass = MutableStateFlow(prefs.getBoolean(KEY_SHOW_NOW_NEXT, true))
-    val showNowNextClass: StateFlow<Boolean> = _showNowNextClass.asStateFlow()
-
     // What's New popup (v1.17.0): the versionCode the popup was last shown for.
-    // 0 means "never shown" (fresh install: record the version silently, no popup).
+    // 0 means "never shown" — a fresh install, or an update from a version older
+    // than 1.17.0 (see hasPreExistingData: user data tells the two apart).
     private val _lastShownVersionCode = MutableStateFlow(prefs.getInt(KEY_LAST_SHOWN_VERSION, 0))
     val lastShownVersionCode: StateFlow<Int> = _lastShownVersionCode.asStateFlow()
 
@@ -308,9 +311,14 @@ class LauncherPreferences(context: Context) {
         _showGoalsWidget.value = enabled
     }
 
-    fun setShowNowNextClass(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_SHOW_NOW_NEXT, enabled).apply()
-        _showNowNextClass.value = enabled
+    /**
+     * True when this install already holds user data from an older version
+     * (v1.18.0). Only keys that user action writes are checked — the favourites
+     * seed and the auto-theme marker are written at startup, so they cannot
+     * tell a fresh install from an update and are deliberately left out.
+     */
+    fun hasPreExistingData(): Boolean {
+        return PRE_EXISTING_DATA_KEYS.any { prefs.contains(it) }
     }
 
     fun setLastShownVersionCode(code: Int) {
@@ -486,6 +494,61 @@ class LauncherPreferences(context: Context) {
                 }
             }
         )
+    }
+
+    /**
+     * Drops every uninstalled package from the groups and the favourites bar
+     * (v1.18.0). An uninstalled app used to linger in AppGroup.packages: the bar
+     * showed the group as "0 apps" while the editor counted the ghost ("1 / 4
+     * selected") with nothing ticked — and a full group locked every row, so
+     * nothing could be added until the group was deleted and rebuilt. A group
+     * left with no apps at all is removed together with its bar slot.
+     *
+     * Call only with a FRESH package-manager scan: pruning against the cached
+     * app list would drop apps that were installed after the cache was written.
+     */
+    fun pruneUninstalledPackages(installed: Set<String>) {
+        var groupsChanged = false
+        val keptGroups = mutableListOf<AppGroup>()
+        for (group in _groups.value) {
+            val kept = group.packages.filter { it in installed }
+            if (kept.size != group.packages.size) groupsChanged = true
+            if (kept.isEmpty()) {
+                // Empty group: drop it and its bar slot entirely.
+                removeFavorite(FavoriteSlots.forGroup(group.id))
+            } else {
+                keptGroups.add(group.copy(packages = kept))
+            }
+        }
+        if (groupsChanged) saveGroups(keptGroups)
+        val keptFavorites =
+            _favorites.value.filter { FavoriteSlots.isGroup(it) || it in installed }
+        if (keptFavorites.size != _favorites.value.size) saveFavorites(keptFavorites)
+    }
+
+    /**
+     * Same pruning for a single removed package (v1.18.0), for
+     * PackageChangedReceiver: a broadcast receiver must stay cheap, so it
+     * prunes just the package the system reports instead of re-scanning.
+     */
+    fun pruneUninstalledPackage(packageName: String) {
+        var groupsChanged = false
+        val keptGroups = mutableListOf<AppGroup>()
+        for (group in _groups.value) {
+            if (packageName !in group.packages) {
+                keptGroups.add(group)
+                continue
+            }
+            groupsChanged = true
+            val kept = group.packages.filterNot { it == packageName }
+            if (kept.isEmpty()) {
+                removeFavorite(FavoriteSlots.forGroup(group.id))
+            } else {
+                keptGroups.add(group.copy(packages = kept))
+            }
+        }
+        if (groupsChanged) saveGroups(keptGroups)
+        removeFavorite(packageName)
     }
 
     // ---- Theme rotation ----
@@ -796,12 +859,14 @@ class LauncherPreferences(context: Context) {
     }
 
     fun toggleStudyClass(courseId: String, subjectId: String, topicId: String, classId: String) {
+        var completedNow = false
         saveStudyCourses(_studyCourses.value.map { course ->
             if (course.id != courseId) course else course.copy(subjects = course.subjects.map { subject ->
                 if (subject.id != subjectId) subject else subject.copy(topics = subject.topics.map { topic ->
                     if (topic.id != topicId) topic else topic.copy(classes = topic.classes.map { clazz ->
                         if (clazz.id == classId) {
                             val completed = !clazz.isCompleted
+                            completedNow = completed
                             clazz.copy(
                                 isCompleted = completed,
                                 completedAtMillis = if (completed) System.currentTimeMillis() else null,
@@ -815,6 +880,9 @@ class LauncherPreferences(context: Context) {
                 })
             })
         })
+        // A completed class leaves the Time Table too (v1.18.0): its plan entry
+        // is stale the moment its Reminder and Deadline are cleared.
+        if (completedNow) pruneTimeTableEntries(setOf(classId))
     }
 
     /**
@@ -835,26 +903,47 @@ class LauncherPreferences(context: Context) {
                 })
             })
         })
+        // Every schedule is cleared, so the whole plan is stale (v1.18.0).
+        clearTimeTableEntries()
     }
 
     fun deleteStudyCourse(courseId: String) {
+        // The course's classes leave the Time Table with it (v1.18.0).
+        val classIds = _studyCourses.value
+            .firstOrNull { it.id == courseId }
+            ?.subjects?.flatMap { subject ->
+                subject.topics.flatMap { topic -> topic.classes.map { it.id } }
+            }?.toSet() ?: emptySet()
         saveStudyCourses(_studyCourses.value.filterNot { it.id == courseId })
+        pruneTimeTableEntries(classIds)
     }
 
     fun deleteStudySubject(courseId: String, subjectId: String) {
+        val classIds = _studyCourses.value
+            .firstOrNull { it.id == courseId }
+            ?.subjects?.firstOrNull { it.id == subjectId }
+            ?.topics?.flatMap { topic -> topic.classes.map { it.id } }
+            ?.toSet() ?: emptySet()
         saveStudyCourses(_studyCourses.value.map { course ->
             if (course.id == courseId) course.copy(subjects = course.subjects.filterNot { it.id == subjectId })
             else course
         })
+        pruneTimeTableEntries(classIds)
     }
 
     fun deleteStudyTopic(courseId: String, subjectId: String, topicId: String) {
+        val classIds = _studyCourses.value
+            .firstOrNull { it.id == courseId }
+            ?.subjects?.firstOrNull { it.id == subjectId }
+            ?.topics?.firstOrNull { it.id == topicId }
+            ?.classes?.map { it.id }?.toSet() ?: emptySet()
         saveStudyCourses(_studyCourses.value.map { course ->
             if (course.id != courseId) course else course.copy(subjects = course.subjects.map { subject ->
                 if (subject.id == subjectId) subject.copy(topics = subject.topics.filterNot { it.id == topicId })
                 else subject
             })
         })
+        pruneTimeTableEntries(classIds)
     }
 
     fun deleteStudyClass(courseId: String, subjectId: String, topicId: String, classId: String) {
@@ -866,6 +955,7 @@ class LauncherPreferences(context: Context) {
                 })
             })
         })
+        pruneTimeTableEntries(setOf(classId))
     }
 
     fun setStudyTopicSchedule(
@@ -896,6 +986,10 @@ class LauncherPreferences(context: Context) {
                 })
             })
         })
+        // Clearing the schedule clears the plan entry too (v1.18.0).
+        if (deadlineMillis == null && alertMillis == null) {
+            pruneTimeTableEntries(setOf(classId))
+        }
     }
 
     private fun studyCourseToJson(course: StudyCourse): JSONObject = JSONObject().apply {
@@ -1100,6 +1194,34 @@ class LauncherPreferences(context: Context) {
     fun saveTimeTable(settings: TimeTableSettings) {
         prefs.edit().putString(KEY_TIMETABLE, timeTableToJson(settings).toString()).apply()
         _timeTable.value = settings
+    }
+
+    /**
+     * Drops every plan entry (and generated-class mark) for [classIds] (v1.18.0).
+     * Completing a class clears its Reminder and Deadline in Study Manager, but
+     * the generated plan used to keep the stale entry — the class stayed in the
+     * Time Table as if it were still scheduled. The plan mirrors live class
+     * data now; regenerating rebuilds it.
+     */
+    private fun pruneTimeTableEntries(classIds: Set<String>) {
+        if (classIds.isEmpty()) return
+        val settings = _timeTable.value
+        if (settings.entries.none { it.classId in classIds } &&
+            settings.generatedClassIds.none { it in classIds }
+        ) return
+        saveTimeTable(
+            settings.copy(
+                entries = settings.entries.filterNot { it.classId in classIds },
+                generatedClassIds = settings.generatedClassIds.filterNot { it in classIds }
+            )
+        )
+    }
+
+    /** Drops the whole plan (entries + generated-class marks), keeping the settings (v1.18.0). */
+    private fun clearTimeTableEntries() {
+        val settings = _timeTable.value
+        if (settings.entries.isEmpty() && settings.generatedClassIds.isEmpty()) return
+        saveTimeTable(settings.copy(entries = emptyList(), generatedClassIds = emptyList()))
     }
 
     private fun timeTableToJson(s: TimeTableSettings): JSONObject = JSONObject().apply {
@@ -1378,6 +1500,8 @@ class LauncherPreferences(context: Context) {
             val keys = data.keys()
             while (keys.hasNext()) {
                 val key = keys.next()
+                // The Now/Next strip left in v1.18.0: never restore its dead toggle.
+                if (key == LEGACY_NOW_NEXT_KEY) continue
                 when (val value = data.get(key)) {
                     is Boolean -> editor.putBoolean(key, value)
                     is Int -> editor.putInt(key, value)
@@ -1430,7 +1554,6 @@ class LauncherPreferences(context: Context) {
         _showTasks.value = prefs.getBoolean(KEY_SHOW_TASKS, true)
         _showStudyDue.value = prefs.getBoolean(KEY_SHOW_STUDY_DUE, true)
         _showGoalsWidget.value = prefs.getBoolean(KEY_SHOW_GOALS, true)
-        _showNowNextClass.value = prefs.getBoolean(KEY_SHOW_NOW_NEXT, true)
         _lastShownVersionCode.value = prefs.getInt(KEY_LAST_SHOWN_VERSION, 0)
         _goals.value = loadGoals()
         _clearedCalendarEvents.value =
@@ -1475,8 +1598,30 @@ class LauncherPreferences(context: Context) {
         private const val KEY_THEME = "theme_key"
         private const val KEY_SHOW_STUDY_DUE = "show_study_due"
         private const val KEY_SHOW_GOALS = "show_goals_widget"
-        private const val KEY_SHOW_NOW_NEXT = "show_now_next_class"
         private const val KEY_LAST_SHOWN_VERSION = "last_shown_version_code"
+
+        // Removed with the Now/Next strip in v1.18.0: the key is only ever
+        // removed now (init + backup import), never read as a setting.
+        private const val LEGACY_NOW_NEXT_KEY = "show_now_next_class"
+
+        /**
+         * Keys only user action writes (v1.18.0, for [LauncherPreferences.hasPreExistingData]).
+         * The favourites seed and the auto-theme marker are written at startup,
+         * so they are deliberately not here — they cannot tell a fresh install
+         * from an update.
+         */
+        private val PRE_EXISTING_DATA_KEYS = listOf(
+            KEY_STUDY_DATA, KEY_ALERTS, KEY_TASKS, KEY_GOALS, KEY_GROUPS,
+            KEY_TIMETABLE, KEY_FLASHCARD_BANK, KEY_POPUP_SETTINGS,
+            KEY_HIDDEN_APPS, KEY_LOCKED_APPS, KEY_APP_LOCK_PIN_HASH, KEY_VAULT_PIN,
+            KEY_THEME, KEY_CLEARED_CALENDAR, KEY_AUTO_BACKUP, KEY_BACKUP_URI,
+            KEY_LAST_BACKUP, KEY_NIGHT_MODE, KEY_AUTO_NIGHT, KEY_NIGHT_START,
+            KEY_NIGHT_END, KEY_ANIMATIONS_DIWALI, KEY_DATE_OPENS_SYSTEM,
+            KEY_SHOW_TIME, KEY_SEARCH_CONTACTS, KEY_SEARCH_FILES, KEY_SEARCH_CALC,
+            KEY_SEARCH_WEB, KEY_SEARCH_VOICE, KEY_SEARCH_HOME_BAR, KEY_SHOW_DATE,
+            KEY_SHOW_ALERTS, KEY_SHOW_TASKS, KEY_SHOW_STUDY_DUE, KEY_SHOW_GOALS,
+            KEY_AUTO_THEME
+        )
         private const val KEY_GOALS = "goals_data"
         private const val KEY_CLEARED_CALENDAR = "cleared_calendar_events"
         private const val KEY_TIMETABLE = "timetable_settings"

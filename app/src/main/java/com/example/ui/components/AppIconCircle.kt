@@ -38,7 +38,8 @@ fun AppDrawerItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isLocked: Boolean = false
+    isLocked: Boolean = false,
+    badgeCount: Int = 0
 ) {
     val palette = AppColors.getPaletteFor(app.packageName + app.label)
     val circleColor = if (isDarkTheme) palette.iconCircleDark else palette.iconCircleLight
@@ -67,6 +68,12 @@ fun AppDrawerItem(
                 app = app,
                 size = 54.dp,
                 isDarkTheme = isDarkTheme
+            )
+            // Notification badge (v1.18.0): top end, so it never collides with
+            // the lock badge at the bottom end.
+            NotificationBadge(
+                count = badgeCount,
+                modifier = Modifier.align(Alignment.TopEnd)
             )
             // App Lock (v1.14.0): a small lock badge so a locked app is recognisable.
             if (isLocked) {

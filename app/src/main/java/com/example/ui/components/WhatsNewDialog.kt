@@ -41,7 +41,7 @@ fun WhatsNewDialog(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                WHAT_S_NEW_1_17_0.forEach { line ->
+                WHAT_S_NEW_1_18_0.forEach { line ->
                     Text("- $line", fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                 }
@@ -56,13 +56,13 @@ fun WhatsNewDialog(
     )
 }
 
-private val WHAT_S_NEW_1_17_0 = listOf(
-    "Alerts and Tasks screens now have a solid background.",
-    "Taps on an open screen no longer reach the drawer below.",
-    "Tapping the Tasks widget opens the Tasks screen.",
-    "The App Drawer opens instantly - the app list is cached.",
-    "Reminders ring exactly on time (allow exact alarms when asked).",
-    "Unlock Hidden Apps and App Lock with your fingerprint.",
-    "Home shows your current and next class from the Time Table.",
-    "This What's New note, shown once after each update."
+private val WHAT_S_NEW_1_18_0 = listOf(
+    "Fixed: this What's New note now appears after updates too.",
+    "Fixed: completed classes no longer linger in the Time Table.",
+    "Fixed: fingerprint unlock works on this phone now.",
+    "Fixed: uninstalled apps no longer leave ghost entries in favorite groups.",
+    "Long-press an app to see its shortcuts, right at the top.",
+    "Long-press an app to share its APK with a friend.",
+    "Notification badges: unread counts on drawer and favorites icons (turn on in Settings).",
+    "The Now/Next class strip is gone - Study Manager already shows your classes."
 )

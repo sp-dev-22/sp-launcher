@@ -409,9 +409,15 @@ private fun GroupEditorDialog(
     onSave: (List<String>) -> Unit,
     onDismiss: () -> Unit
 ) {
+    // Count installed apps only (v1.18.0): a stored package whose app was
+    // uninstalled is a ghost — it never appears in the picker, so it must not
+    // occupy one of the four slots or inflate the "N / 4 selected" count.
+    // (Pruning normally removes ghosts at uninstall time; this is the safety
+    // net for any that slip through, e.g. from a backup restore.)
     val selected = remember {
         mutableStateListOf<String>().apply {
-            addAll(existing?.packages ?: emptyList())
+            val installed = allApps.map { it.packageName }.toSet()
+            addAll((existing?.packages ?: emptyList()).filter { it in installed })
         }
     }
 

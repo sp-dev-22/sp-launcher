@@ -130,3 +130,29 @@ fun RealAppIcon(
 fun RealAppIconSmall(app: AppInfo, isDarkTheme: Boolean, modifier: Modifier = Modifier) {
     RealAppIcon(app = app, size = 26.dp, isDarkTheme = isDarkTheme, modifier = modifier)
 }
+
+/**
+ * Notification badge (v1.18.0): a small red count pill for an app icon.
+ * Drawn by the caller at the icon's top end; renders nothing when [count] is 0.
+ * Counts above 9 read "9+" — the exact number matters less than "unread".
+ */
+@Composable
+fun NotificationBadge(
+    count: Int,
+    modifier: Modifier = Modifier
+) {
+    if (count <= 0) return
+    Box(
+        modifier = modifier
+            .size(18.dp)
+            .background(color = Color(0xFFE53935), shape = CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = if (count > 9) "9+" else count.toString(),
+            color = Color.White,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}

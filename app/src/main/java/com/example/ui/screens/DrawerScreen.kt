@@ -47,6 +47,7 @@ fun DrawerScreen(
     onAppLongClick: (AppInfo) -> Unit,
     isLoadingApps: Boolean = false,
     lockedApps: Set<String> = emptySet(),
+    badgeCounts: Map<String, Int> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -90,7 +91,8 @@ fun DrawerScreen(
                             isDarkTheme = isDarkTheme,
                             onClick = { onAppClick(app) },
                             onLongClick = { onAppLongClick(app) },
-                            isLocked = app.packageName in lockedApps
+                            isLocked = app.packageName in lockedApps,
+                            badgeCount = badgeCounts[app.packageName] ?: 0
                         )
                     }
                 }

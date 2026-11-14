@@ -44,14 +44,12 @@ fun WidgetsManagementSheet(
     showTasks: Boolean,
     showStudyDue: Boolean,
     showGoals: Boolean,
-    showNowNextClass: Boolean = true,
     onToggleShowTime: (Boolean) -> Unit,
     onToggleShowDate: (Boolean) -> Unit,
     onToggleShowAlerts: (Boolean) -> Unit,
     onToggleShowTasks: (Boolean) -> Unit,
     onToggleShowStudyDue: (Boolean) -> Unit,
     onToggleShowGoals: (Boolean) -> Unit,
-    onToggleShowNowNextClass: (Boolean) -> Unit = {},
     onOpenGoals: () -> Unit,
     onDismiss: () -> Unit,
     // Date widget tap target (v1.15.0): false = in-app Calendar, true = system Calendar.
@@ -126,7 +124,6 @@ fun WidgetsManagementSheet(
             ToggleRow("Show Tasks Widget", showTasks, onToggleShowTasks)
             ToggleRow("Show Study Manager Status", showStudyDue, onToggleShowStudyDue)
             ToggleRow("Show Goals Widget", showGoals, onToggleShowGoals)
-            ToggleRow("Show Now/Next Class", showNowNextClass, onToggleShowNowNextClass)
 
             TextButton(onClick = onOpenGoals) {
                 Text(text = "Manage goals", fontSize = 13.sp)

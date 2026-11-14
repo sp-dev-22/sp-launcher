@@ -138,6 +138,36 @@ Each file is JSON — either a plain list, or an object with a `cards` list:
 `front` is required. Give `back` for the answer, or `options` + `correct` (1-based) for an
 MCQ and the back is filled in as `Answer: 1) Jupiter`. `q`/`a` are accepted as aliases.
 
+## What's new in 1.18.0
+
+- **What's New reaches updaters too**: the popup is brand-new in 1.17.0, so
+  anyone updating from an older version was mistaken for a fresh install and
+  never saw it. Existing user data now tells an update from a fresh install,
+  so updaters get the list once after updating.
+- **Time Table stays in step**: completing a class clears its Reminder and
+  Deadline in Study Manager, but the generated plan kept the stale entry.
+  Completing, clearing or deleting a class now drops its plan entries too.
+- **Fingerprint unlock fixed**: the button showed, but tapping it failed on
+  this phone — v1.17.0 reached the fingerprint prompt by reflection, and that
+  path threw. The prompt now uses the supported Builder API on every Android
+  11+ device, and failures name their cause instead of a generic message.
+- **No more ghost groups**: uninstalling an app left its package in the
+  favourite group — the bar said "0 apps" while the editor counted "1 / 4
+  selected" with nothing ticked, and a full group locked every row. Removed
+  apps are pruned from groups and favourites on uninstall, and a group left
+  empty leaves the bar entirely.
+- **App Shortcuts**: long-press an app to see its own shortcuts (WhatsApp's
+  Camera, for example) at the top of the sheet. Apps with no shortcuts show
+  no section at all.
+- **Share app**: long-press an app to send its APK to a friend through the
+  system share sheet.
+- **Notification badges**: unread counts on app icons, in the drawer and the
+  favourites bar (a group's badge is its apps' total). Counts only — the
+  launcher never reads notification content. Turned on from Settings >
+  Notification badges, which opens the system Notification-access screen.
+- **Now/Next class strip removed**: Study Manager already shows the classes,
+  so the Home strip (and its Widgets toggle) is gone.
+
 ## What's new in 1.17.0
 
 - **Transparent screens fixed**: the Alerts and Tasks screens had no background,

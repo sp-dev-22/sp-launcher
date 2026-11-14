@@ -135,6 +135,21 @@
             </intent-filter>
         </receiver>
 
+        <!-- Notification badges (v1.18.0): counts unread notifications per app
+             for the drawer and favourites-bar badges. Counts only — the service
+             never reads notification content. It runs only after the user grants
+             Notification access from Settings > Notification badges; the
+             BIND_NOTIFICATION_LISTENER_SERVICE permission means only the system
+             can bind to it. -->
+        <service
+            android:name=".service.BadgeListenerService"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
 
     </application>
 

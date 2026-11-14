@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import com.example.BuildConfig
+import com.example.service.openBadgeListenerSettings
 import com.example.ui.anim.RainbowBackground
 import com.example.ui.components.AppActionBottomSheet
 import com.example.ui.components.AppLockPinDialog
@@ -72,6 +73,7 @@ fun MainScreen(
         while (true) {
             viewModel.refreshAutoNightMode()
             viewModel.refreshAutoTheme()
+            viewModel.refreshBadgeListenerState()
             delay(60_000L)
         }
     }
@@ -149,10 +151,13 @@ fun MainScreen(
     val dateOpensSystem by viewModel.dateOpensSystem.collectAsState()
     val context = LocalContext.current
 
-    // Now/Next class strip (v1.17.0) + What's New popup (v1.17.0).
-    val showNowNextClass by viewModel.showNowNextClass.collectAsState()
-    val timeTable by viewModel.timeTable.collectAsState()
+    // What's New popup (v1.17.0).
     val showWhatsNew by viewModel.showWhatsNew.collectAsState()
+
+    // Notification badges (v1.18.0): unread counts per package, plus whether
+    // the user has granted Notification access at all.
+    val badgeCounts by viewModel.badgeCounts.collectAsState()
+    val badgeListenerEnabled by viewModel.badgeListenerEnabled.collectAsState()
 
     // True while any fullscreen overlay is up (all 16 of them, including
     // Automatics, which is drawn after the Scaffold). Drives the touch shield.
@@ -235,6 +240,8 @@ fun MainScreen(
                             onOpenSupport = { viewModel.setShowSupport(true) },
                             onSetDefaultLauncher = onSetDefaultLauncher,
                             backupWarning = backupWarning,
+                            badgesEnabled = badgeListenerEnabled,
+                            onOpenBadgeSettings = { openBadgeListenerSettings(context) },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -267,11 +274,7 @@ fun MainScreen(
                             onOpenAlerts = { viewModel.setShowAlertsScreen(true) },
                             onOpenTasks = { viewModel.setShowTasksScreen(true) },
                             onOpenStudyManager = { viewModel.setShowStudyManager(true) },
-                            // Now/Next class strip (v1.17.0): today's Time Table
-                            // entries; tapping the strip opens the Time Table.
-                            showNowNextClass = showNowNextClass,
-                            timeTableEntries = timeTable.entries,
-                            onOpenTimeTable = { viewModel.setShowTimeTable(true) },
+                            badgeCounts = badgeCounts,
                             // Date tap (v1.15.0): the in-app Calendar, or the system
                             // Calendar app when the user picked that under Widgets.
                             onOpenCalendar = {
@@ -299,6 +302,7 @@ fun MainScreen(
                             onAppLongClick = { app -> viewModel.selectAppForActions(app) },
                             isLoadingApps = isLoadingApps,
                             lockedApps = lockedApps,
+                            badgeCounts = badgeCounts,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -494,7 +498,8 @@ fun MainScreen(
             onToggleLock = {
                 if (isLocked) viewModel.requestUnlockApp(app.packageName)
                 else viewModel.requestLockApp(app.packageName)
-            }
+            },
+            onShare = { viewModel.shareApp(app.packageName, app.label) }
         )
     }
 
@@ -541,8 +546,6 @@ fun MainScreen(
             onToggleShowStudyDue = { viewModel.setShowStudyDue(it) },
             showGoals = showGoalsWidget,
             onToggleShowGoals = { viewModel.setShowGoalsWidget(it) },
-            showNowNextClass = showNowNextClass,
-            onToggleShowNowNextClass = { viewModel.setShowNowNextClass(it) },
             onOpenGoals = {
                 viewModel.setShowWidgetsDialog(false)
                 viewModel.setShowGoals(true)

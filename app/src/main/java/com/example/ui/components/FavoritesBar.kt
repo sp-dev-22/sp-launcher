@@ -68,6 +68,7 @@ fun FavoritesBar(
     isDarkTheme: Boolean,
     onLaunchApp: (AppInfo) -> Unit,
     onEdit: () -> Unit,
+    badgeCounts: Map<String, Int> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val appMap = remember(apps) { apps.associateBy { it.packageName } }
@@ -113,12 +114,14 @@ fun FavoritesBar(
                     GroupSlot(
                         slot = slot,
                         isDarkTheme = isDarkTheme,
+                        badgeCount = slot.groupApps.sumOf { badgeCounts[it.packageName] ?: 0 },
                         onClick = { openGroup = slot }
                     )
                 } else {
                     AppSlot(
                         app = slot.app!!,
                         isDarkTheme = isDarkTheme,
+                        badgeCount = badgeCounts[slot.app.packageName] ?: 0,
                         onClick = { onLaunchApp(slot.app) },
                         onLongClick = onEdit
                     )
@@ -136,6 +139,7 @@ fun FavoritesBar(
         GroupSheet(
             slot = sheetGroup,
             isDarkTheme = isDarkTheme,
+            badgeCounts = badgeCounts,
             onLaunchApp = { app ->
                 openGroup = null
                 onLaunchApp(app)
@@ -154,7 +158,8 @@ private fun AppSlot(
     app: AppInfo,
     isDarkTheme: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    badgeCount: Int = 0
 ) {
     Column(
         modifier = Modifier
@@ -165,7 +170,13 @@ private fun AppSlot(
             .testTag("favorite_slot_${app.packageName}"),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        RealAppIcon(app = app, size = 34.dp, isDarkTheme = isDarkTheme)
+        Box(contentAlignment = Alignment.Center) {
+            RealAppIcon(app = app, size = 34.dp, isDarkTheme = isDarkTheme)
+            NotificationBadge(
+                count = badgeCount,
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
+        }
         Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = app.label,
@@ -181,7 +192,8 @@ private fun AppSlot(
 private fun GroupSlot(
     slot: BarSlot,
     isDarkTheme: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    badgeCount: Int = 0
 ) {
     Column(
         modifier = Modifier
@@ -193,37 +205,46 @@ private fun GroupSlot(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // A 2x2 mini-grid of the first four icons reads as "a bundle of apps".
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(9.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
-        ) {
-            val preview = slot.groupApps.take(4)
-            if (preview.isEmpty()) {
-                Icon(
-                    imageVector = Icons.Default.Apps,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            } else {
-                Column {
-                    preview.chunked(2).forEach { rowApps ->
-                        Row {
-                            rowApps.forEach { app ->
-                                RealAppIcon(
-                                    app = app,
-                                    size = 15.dp,
-                                    isDarkTheme = isDarkTheme,
-                                    modifier = Modifier.padding(0.5.dp)
-                                )
+        // The outer Box holds the badge: the inner box is clipped to a rounded
+        // rect, which would cut the badge's corner off.
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                val preview = slot.groupApps.take(4)
+                if (preview.isEmpty()) {
+                    Icon(
+                        imageVector = Icons.Default.Apps,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    Column {
+                        preview.chunked(2).forEach { rowApps ->
+                            Row {
+                                rowApps.forEach { app ->
+                                    RealAppIcon(
+                                        app = app,
+                                        size = 15.dp,
+                                        isDarkTheme = isDarkTheme,
+                                        modifier = Modifier.padding(0.5.dp)
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
+            // Notification badge (v1.18.0): the unread total across the group.
+            NotificationBadge(
+                count = badgeCount,
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
         }
         Spacer(modifier = Modifier.height(3.dp))
         // Groups are unnamed: the icons say it all.
@@ -279,7 +300,8 @@ private fun GroupSheet(
     isDarkTheme: Boolean,
     onLaunchApp: (AppInfo) -> Unit,
     onEdit: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    badgeCounts: Map<String, Int> = emptyMap()
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -326,7 +348,13 @@ private fun GroupSheet(
                                 .testTag("group_app_${app.packageName}"),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            RealAppIcon(app = app, size = 42.dp, isDarkTheme = isDarkTheme)
+                            Box(contentAlignment = Alignment.Center) {
+                                RealAppIcon(app = app, size = 42.dp, isDarkTheme = isDarkTheme)
+                                NotificationBadge(
+                                    count = badgeCounts[app.packageName] ?: 0,
+                                    modifier = Modifier.align(Alignment.TopEnd)
+                                )
+                            }
                             Spacer(modifier = Modifier.height(5.dp))
                             Text(
                                 text = app.label,

@@ -69,6 +69,8 @@ fun SettingsScreen(
     onOpenSupport: () -> Unit,
     onSetDefaultLauncher: () -> Unit,
     backupWarning: String? = null,
+    badgesEnabled: Boolean = false,
+    onOpenBadgeSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -182,6 +184,29 @@ fun SettingsScreen(
                     },
                     onClick = onOpenWidgetsManagement,
                     testTag = "settings_widgets"
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Notification badges (v1.18.0): unread counts on drawer and
+                // favorites icons. Needs Notification access, granted in
+                // system settings — tapping opens that screen.
+                SettingsItemRow(
+                    title = "Notification badges",
+                    subtitle = if (badgesEnabled)
+                        "On - unread counts on app icons"
+                    else
+                        "Off - tap to allow notification access",
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.NotificationsActive,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    onClick = onOpenBadgeSettings,
+                    testTag = "settings_notification_badges"
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

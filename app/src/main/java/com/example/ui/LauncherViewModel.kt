@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -35,7 +36,9 @@ import com.example.data.model.TimeTableSettings
 import com.example.data.model.StudyPopupSettings
 import com.example.service.AlertReminderScheduler
 import com.example.service.AutoBackupScheduler
+import com.example.service.BadgeListenerService
 import com.example.service.TaskReminderScheduler
+import com.example.service.isBadgeListenerEnabled
 import com.example.service.StudyPopupScheduler
 import com.example.service.StudyReminderScheduler
 import com.example.util.AppLock
@@ -43,6 +46,7 @@ import com.example.util.AutoBackup
 import com.example.util.BackupSupport
 import com.example.util.CardFileParser
 import com.example.util.GoalProgress
+import com.example.util.ShareApp
 import com.example.util.TimeTablePlanner
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -465,6 +469,23 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             favPkgs.mapNotNull { appMap[it] }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // Notification badges (v1.18.0): unread counts per package, from the
+    // listener service. Gated on the user having granted Notification access
+    // in system settings — until then (and if it is ever revoked) the map is
+    // empty, so no badge can show.
+    private val _badgeListenerEnabled = MutableStateFlow(false)
+    val badgeListenerEnabled: StateFlow<Boolean> = _badgeListenerEnabled.asStateFlow()
+
+    val badgeCounts: StateFlow<Map<String, Int>> =
+        combine(BadgeListenerService.counts, _badgeListenerEnabled) { counts, enabled ->
+            if (enabled) counts else emptyMap()
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /** Re-reads whether Notification access is granted (cheap Secure read). */
+    fun refreshBadgeListenerState() {
+        _badgeListenerEnabled.value = isBadgeListenerEnabled(getApplication())
+    }
+
     init {
         loadApps()
         // Keep the backup-folder validity in step with the stored folder (the
@@ -482,6 +503,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         rescheduleTaskReminders()
         // What's New popup (v1.17.0): show it once when the app was updated.
         checkWhatsNew()
+        // Notification badges (v1.18.0): is the listener granted?
+        refreshBadgeListenerState()
         StudyPopupScheduler.reschedule(application, preferences.popupSettings.value)
         refreshAutoNightMode()
         // Watch Battery Saver so the theme animations can pause while it is on.
@@ -499,6 +522,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
      * time is wasteful and can make the launcher feel sluggish.
      */
     fun refreshApps() {
+        // Notification badges (v1.18.0): the user may have just come back from
+        // the system Notification-access screen — re-read the grant every
+        // resume, outside the app-list throttle below.
+        refreshBadgeListenerState()
         val now = System.currentTimeMillis()
         // A missing cache file means PackageChangedReceiver invalidated it after
         // an install / removal / change — refresh even inside the throttle window.
@@ -528,6 +555,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
             _installedApps.value = apps
             appRepository.saveCachedApps(apps)
+
+            // Prune groups and favourites against the FRESH scan (v1.18.0): an
+            // app uninstalled while the launcher was running leaves ghost
+            // entries otherwise. Never prune against the cached list — it can
+            // lag behind installs.
+            preferences.pruneUninstalledPackages(apps.map { it.packageName }.toSet())
 
             if (favorites.value.isEmpty() && apps.isNotEmpty()) {
                 val preferredKeywords = listOf("phone", "message", "camera", "gallery", "chrome", "browser", "whatsapp", "music", "contact", "file")
@@ -612,13 +645,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShowStudyDue(enabled: Boolean) {
         preferences.setShowStudyDue(enabled)
-    }
-
-    /** Now/Next class strip (v1.17.0) visibility toggle (Widgets sheet). */
-    val showNowNextClass = preferences.showNowNextClass
-
-    fun setShowNowNextClass(enabled: Boolean) {
-        preferences.setShowNowNextClass(enabled)
     }
 
     fun setTheme(key: String) {
@@ -811,14 +837,20 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     /**
      * What's New (v1.17.0), decided once at launch. Fresh install (never shown,
-     * stored 0): record the version silently, no popup. Updated since the popup
-     * was last shown: show it once. Same or newer version already shown (or a
-     * downgrade): nothing.
+     * stored 0, no user data yet): record the version silently, no popup.
+     * Updated since the popup was last shown: show it once. Same or newer
+     * version already shown (or a downgrade): nothing.
+     *
+     * v1.18.0 fix: the popup pref did not exist before 1.17.0, so every install
+     * updated from an older version also reads "never shown" — and v1.17.0
+     * treated that as a fresh install. Existing user data now tells the two
+     * apart: data present means an update, so the popup shows.
      */
     private fun checkWhatsNew() {
         val lastShown = preferences.lastShownVersionCode.value
         val current = BuildConfig.VERSION_CODE
         when {
+            lastShown == 0 && preferences.hasPreExistingData() -> _showWhatsNew.value = true
             lastShown == 0 -> preferences.setLastShownVersionCode(current)
             lastShown < current -> _showWhatsNew.value = true
         }
@@ -1148,6 +1180,22 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun uninstallApp(packageName: String) {
         appRepository.uninstallApp(packageName)
+    }
+
+    /** Shares an app's APK via the system share sheet (v1.18.0). */
+    fun shareApp(packageName: String, appLabel: String) {
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                ShareApp.share(getApplication(), packageName, appLabel)
+            }
+            if (!ok) {
+                Toast.makeText(
+                    getApplication(),
+                    "Could not share this app",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
     }
 
     // ---------------------------------------------------------------------
