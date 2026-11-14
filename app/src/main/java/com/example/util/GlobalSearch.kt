@@ -3,13 +3,12 @@ package com.example.util
 import com.example.data.model.AlertItem
 import com.example.data.model.AppInfo
 import com.example.data.model.ContactEntry
-import com.example.data.model.DigiBrainItem
 import com.example.data.model.FlashcardItem
 import com.example.data.model.StudyCourse
 import com.example.data.model.TaskItem
 import com.example.data.model.allClassRefs
 
-enum class SearchKind { APP, TASK, NOTE, CLASS, CARD, CONTACT, BRAIN }
+enum class SearchKind { APP, TASK, NOTE, CLASS, CARD, CONTACT }
 
 data class SearchHit(
     val kind: SearchKind,
@@ -29,7 +28,6 @@ object GlobalSearch {
         courses: List<StudyCourse>,
         cards: List<FlashcardItem>,
         contacts: List<ContactEntry> = emptyList(),
-        digiBrain: List<DigiBrainItem> = emptyList(),
         perKind: Int = 25,
     ): List<SearchHit> {
         val q = query.trim()
@@ -61,24 +59,6 @@ object GlobalSearch {
 
         cards.filter { it.front.contains(q, true) || it.back.contains(q, true) }.take(perKind)
             .forEach { out.add(SearchHit(SearchKind.CARD, it.front, if (it.deck.isBlank()) "Card" else "Card - ${it.deck}", it.id)) }
-
-        // Digi Brain (v1.19.0): PUBLIC items only, and never anything in the
-        // Trash. Private items live only inside the Digi Brain screen — search
-        // must not leak them, so the filter lives here, at the one place every
-        // search passes through.
-        digiBrain.filter {
-            it.deletedAtMillis == null && it.isPublic &&
-                (it.title.contains(q, true) || it.content.contains(q, true))
-        }.take(perKind).forEach {
-            out.add(
-                SearchHit(
-                    SearchKind.BRAIN,
-                    it.title.ifBlank { it.content },
-                    if (it.kind == com.example.data.model.DigiBrainKind.LINK) "Digi Brain - Link" else "Digi Brain - Note",
-                    it.id
-                )
-            )
-        }
 
         return out
     }

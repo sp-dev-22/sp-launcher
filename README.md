@@ -44,8 +44,7 @@ no account. Nothing you enter ever leaves your phone.
   looks like an empty phone.
 - **SP Assistant** — one search over everything: apps, contacts (with Call / SMS /
   WhatsApp buttons right on the result, and the same buttons for a bare phone number
-  typed with or without country code), files, tasks, notes, study classes, cards and
-  Digi Brain saves (public ones only) —
+  typed with or without country code), files, tasks, notes, study classes and cards —
   plus a built-in calculator with unit conversion (`45*12`, `5 km in m`), voice input,
   and Google / YouTube shortcuts. Which sources take part is up to you, in
   **Search Settings** (the three-dot menu in the search box); permissions are asked
@@ -97,17 +96,6 @@ no account. Nothing you enter ever leaves your phone.
   optional daily automatic backup into a folder you pick. If auto-backup is on but its
   folder is missing or no longer accessible, Settings and the Backup screen say so
   clearly instead of letting backups fail silently.
-- **Digi Brain** — a small second brain for notes and links. Save from anywhere: select
-  text in any app and tap **Save to Digi Brain**, share text or a link to it, or type in
-  the screen itself (a bare URL becomes a link on its own). Tick **Show on widget** and
-  a save appears on the Home widget as a swipeable card, pinned items first; unticked
-  saves stay private — they never appear on the widget or in SP Assistant search, which
-  finds public saves only. Deleted saves sit in the **Trash** for 30 days: at 25 days
-  the widget's trash icon turns neon red, and tapping it lands on the expiring items.
-  The Digi Brain face turns sad after 3 days away, sadder after 7, and **From your
-  saves** resurfaces one old public save a day so saved things get read again. Saving
-  a link twice warns you and opens the one already saved. Fully offline, and included
-  in Backup & Restore.
 - **Hidden apps (the vault)** — keep selected apps out of the drawer, behind a four-digit
   PIN. Open them from the search screen's menu (**Hidden Apps**), enter the PIN, and
   switch between the **Manage** tab (hide, unhide, change PIN) and the **Launch** tab
@@ -149,29 +137,6 @@ Each file is JSON — either a plain list, or an object with a `cards` list:
 
 `front` is required. Give `back` for the answer, or `options` + `correct` (1-based) for an
 MCQ and the back is filled in as `Answer: 1) Jupiter`. `q`/`a` are accepted as aliases.
-
-## What's new in 1.19.0
-
-- **Digi Brain**: a small second brain for notes and links, in Settings > Apps.
-  Save from anywhere — select text in any app and tap "Save to Digi Brain", or
-  share text and links to it — and tick "Show on widget" to see a save on the
-  Home widget, swipeable, pinned items first. Private saves never leave the
-  screen: the widget and SP Assistant search show public saves only.
-- **Trash with a conscience**: deleted saves warn at 25 days — the widget's
-  trash icon turns neon red, and tapping it lands on the expiring items — and
-  auto-delete at 30 days. Restore, delete forever or empty the Trash from the
-  Trash tab. Expiry is checked when the app opens, never by a background
-  service.
-- **A mood face of its own**: drawn on canvas, never an emoji. Happy when used
-  today, sad after 3 days away, sadder after 7. It shows in the widget header
-  and at the top of the screen.
-- **From your saves**: one old public save a day, unopened for 7+ days, is
-  resurfaced on the widget and in the screen, so saved things get read again
-  instead of piling up.
-- **Duplicate warning**: saving a link twice stops and opens the one already
-  saved, in the screen and in the share flow.
-- **Backup included**: Digi Brain saves travel with Backup & Restore like
-  everything else.
 
 ## What's new in 1.18.0
 

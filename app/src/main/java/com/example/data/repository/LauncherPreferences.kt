@@ -19,9 +19,6 @@ import com.example.data.model.TaskItem
 import com.example.data.model.GoalItem
 import com.example.data.model.GoalType
 import com.example.data.model.TaskPriority
-import com.example.data.model.DigiBrainItem
-import com.example.data.model.DigiBrainKind
-import com.example.util.DigiBrain
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -188,20 +185,6 @@ class LauncherPreferences(context: Context) {
     private val _popupSettings = MutableStateFlow(loadPopupSettings())
     val popupSettings: StateFlow<StudyPopupSettings> = _popupSettings.asStateFlow()
 
-    // Digi Brain (v1.19.0): saved notes and links. One list holds live items and
-    // Trash items alike — deletedAtMillis tells them apart. The widget toggle
-    // defaults ON (like the Home search bar and the old Now/Next strip did).
-    private val _digiBrainItems = MutableStateFlow(loadDigiBrain())
-    val digiBrainItems: StateFlow<List<DigiBrainItem>> = _digiBrainItems.asStateFlow()
-
-    private val _showDigiBrain = MutableStateFlow(prefs.getBoolean(KEY_SHOW_DIGI_BRAIN, true))
-    val showDigiBrain: StateFlow<Boolean> = _showDigiBrain.asStateFlow()
-
-    // Last time Digi Brain was used (screen opened, item saved or opened).
-    // Drives the mood face; 0 means never used yet.
-    private val _digiBrainLastUse = MutableStateFlow(prefs.getLong(KEY_DIGI_BRAIN_LAST_USE, 0L))
-    val digiBrainLastUse: StateFlow<Long> = _digiBrainLastUse.asStateFlow()
-
     fun setNightMode(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_NIGHT_MODE, enabled).apply()
         _isNightMode.value = enabled
@@ -326,144 +309,6 @@ class LauncherPreferences(context: Context) {
     fun setShowGoalsWidget(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_GOALS, enabled).apply()
         _showGoalsWidget.value = enabled
-    }
-
-    fun setShowDigiBrain(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_SHOW_DIGI_BRAIN, enabled).apply()
-        _showDigiBrain.value = enabled
-    }
-
-    /** Records a Digi Brain use (screen opened, item saved or opened) for the mood face. */
-    fun markDigiBrainUsed() {
-        val now = System.currentTimeMillis()
-        prefs.edit().putLong(KEY_DIGI_BRAIN_LAST_USE, now).apply()
-        _digiBrainLastUse.value = now
-    }
-
-    // ---- Digi Brain ----
-
-    fun saveDigiBrain(list: List<DigiBrainItem>) {
-        val array = JSONArray()
-        for (item in list) {
-            val obj = JSONObject().apply {
-                put("id", item.id)
-                put("kind", item.kind.name)
-                put("title", item.title)
-                put("content", item.content)
-                put("isPublic", item.isPublic)
-                put("pinned", item.pinned)
-                put("createdAtMillis", item.createdAtMillis)
-                item.lastOpenedMillis?.let { put("lastOpenedMillis", it) }
-                item.deletedAtMillis?.let { put("deletedAtMillis", it) }
-            }
-            array.put(obj)
-        }
-        prefs.edit().putString(KEY_DIGI_BRAIN, array.toString()).apply()
-        _digiBrainItems.value = list
-    }
-
-    fun addDigiBrainItem(item: DigiBrainItem) {
-        val current = _digiBrainItems.value.toMutableList()
-        current.add(0, item)
-        saveDigiBrain(current)
-        markDigiBrainUsed()
-    }
-
-    fun updateDigiBrainItem(item: DigiBrainItem) {
-        saveDigiBrain(_digiBrainItems.value.map { if (it.id == item.id) item else it })
-    }
-
-    fun setDigiBrainPublic(id: String, isPublic: Boolean) {
-        saveDigiBrain(_digiBrainItems.value.map { if (it.id == id) it.copy(isPublic = isPublic) else it })
-    }
-
-    fun setDigiBrainPinned(id: String, pinned: Boolean) {
-        saveDigiBrain(_digiBrainItems.value.map { if (it.id == id) it.copy(pinned = pinned) else it })
-    }
-
-    /** A live link with the same normalised URL, if one is already saved (duplicate warning). */
-    fun findDigiBrainByUrl(url: String): DigiBrainItem? {
-        val normalised = DigiBrain.normalizeUrl(url)
-        return _digiBrainItems.value.firstOrNull {
-            it.deletedAtMillis == null && it.kind == DigiBrainKind.LINK &&
-                DigiBrain.normalizeUrl(it.content) == normalised
-        }
-    }
-
-    /** Marks an item as opened (resurface clock) and records a Digi Brain use. */
-    fun markDigiBrainOpened(id: String) {
-        val now = System.currentTimeMillis()
-        saveDigiBrain(
-            _digiBrainItems.value.map {
-                if (it.id == id) it.copy(lastOpenedMillis = now) else it
-            }
-        )
-        markDigiBrainUsed()
-    }
-
-    /** Moves an item to the Trash (deleted today; warns at 25 days, auto-deletes at 30). */
-    fun moveDigiBrainToTrash(id: String) {
-        saveDigiBrain(
-            _digiBrainItems.value.map {
-                if (it.id == id) it.copy(deletedAtMillis = System.currentTimeMillis()) else it
-            }
-        )
-    }
-
-    fun restoreDigiBrainFromTrash(id: String) {
-        saveDigiBrain(
-            _digiBrainItems.value.map {
-                if (it.id == id) it.copy(deletedAtMillis = null) else it
-            }
-        )
-    }
-
-    fun deleteDigiBrainPermanently(id: String) {
-        saveDigiBrain(_digiBrainItems.value.filter { it.id != id })
-    }
-
-    fun emptyDigiBrainTrash() {
-        saveDigiBrain(_digiBrainItems.value.filter { it.deletedAtMillis == null })
-    }
-
-    /**
-     * Deletes Trash items that have sat there 30+ days. Called on app open and
-     * when the Digi Brain screen opens — never by a background worker, so there
-     * is no service to keep alive.
-     */
-    fun purgeExpiredDigiBrainTrash() {
-        val now = System.currentTimeMillis()
-        val current = _digiBrainItems.value
-        if (current.none { DigiBrain.isExpired(it, now) }) return
-        saveDigiBrain(current.filter { !DigiBrain.isExpired(it, now) })
-    }
-
-    private fun loadDigiBrain(): List<DigiBrainItem> {
-        val raw = prefs.getString(KEY_DIGI_BRAIN, null) ?: return emptyList()
-        return try {
-            val array = JSONArray(raw)
-            val list = mutableListOf<DigiBrainItem>()
-            for (i in 0 until array.length()) {
-                val obj = array.getJSONObject(i)
-                list.add(
-                    DigiBrainItem(
-                        id = obj.optString("id", java.util.UUID.randomUUID().toString()),
-                        kind = runCatching { DigiBrainKind.valueOf(obj.optString("kind", "NOTE")) }
-                            .getOrDefault(DigiBrainKind.NOTE),
-                        title = obj.optString("title", ""),
-                        content = obj.optString("content", ""),
-                        isPublic = obj.optBoolean("isPublic", false),
-                        pinned = obj.optBoolean("pinned", false),
-                        createdAtMillis = obj.optLong("createdAtMillis", System.currentTimeMillis()),
-                        lastOpenedMillis = if (obj.has("lastOpenedMillis")) obj.optLong("lastOpenedMillis") else null,
-                        deletedAtMillis = if (obj.has("deletedAtMillis")) obj.optLong("deletedAtMillis") else null
-                    )
-                )
-            }
-            list
-        } catch (_: Exception) {
-            emptyList()
-        }
     }
 
     /**
@@ -1720,9 +1565,6 @@ class LauncherPreferences(context: Context) {
         _timeTable.value = loadTimeTable()
         _flashcardBank.value = loadFlashcardBank()
         _popupSettings.value = loadPopupSettings()
-        _digiBrainItems.value = loadDigiBrain()
-        _showDigiBrain.value = prefs.getBoolean(KEY_SHOW_DIGI_BRAIN, true)
-        _digiBrainLastUse.value = prefs.getLong(KEY_DIGI_BRAIN_LAST_USE, 0L)
     }
 
     companion object {
@@ -1757,9 +1599,6 @@ class LauncherPreferences(context: Context) {
         private const val KEY_SHOW_STUDY_DUE = "show_study_due"
         private const val KEY_SHOW_GOALS = "show_goals_widget"
         private const val KEY_LAST_SHOWN_VERSION = "last_shown_version_code"
-        private const val KEY_DIGI_BRAIN = "digi_brain_data"
-        private const val KEY_SHOW_DIGI_BRAIN = "show_digi_brain_widget"
-        private const val KEY_DIGI_BRAIN_LAST_USE = "digi_brain_last_use"
 
         // Removed with the Now/Next strip in v1.18.0: the key is only ever
         // removed now (init + backup import), never read as a setting.
@@ -1781,7 +1620,6 @@ class LauncherPreferences(context: Context) {
             KEY_SHOW_TIME, KEY_SEARCH_CONTACTS, KEY_SEARCH_FILES, KEY_SEARCH_CALC,
             KEY_SEARCH_WEB, KEY_SEARCH_VOICE, KEY_SEARCH_HOME_BAR, KEY_SHOW_DATE,
             KEY_SHOW_ALERTS, KEY_SHOW_TASKS, KEY_SHOW_STUDY_DUE, KEY_SHOW_GOALS,
-            KEY_DIGI_BRAIN, KEY_SHOW_DIGI_BRAIN, KEY_DIGI_BRAIN_LAST_USE,
             KEY_AUTO_THEME
         )
         private const val KEY_GOALS = "goals_data"

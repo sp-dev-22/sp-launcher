@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.AlertItem
 import com.example.data.model.AppGroup
 import com.example.data.model.AppInfo
-import com.example.data.model.DigiBrainItem
 import com.example.data.model.GoalItem
 import com.example.data.model.StudyDueItem
 import com.example.data.model.StudyProgress
@@ -43,7 +42,6 @@ import com.example.data.model.TaskItem
 import com.example.ui.anim.DiwaliAnimationLayer
 import com.example.ui.components.AlertsWidget
 import com.example.ui.components.ClockWidget
-import com.example.ui.components.DigiBrainWidget
 import com.example.ui.components.FavoritesBar
 import com.example.ui.components.GoalsWidget
 import com.example.ui.components.LoadingIndicator
@@ -60,11 +58,8 @@ fun HomeScreen(
     showDate: Boolean,
     showAlerts: Boolean,
     showTasks: Boolean,
-    showDigiBrain: Boolean,
     alerts: List<AlertItem>,
     tasks: List<TaskItem>,
-    digiBrainItems: List<DigiBrainItem>,
-    digiBrainLastUse: Long,
     showStudyDue: Boolean,
     studyDueItems: List<StudyDueItem>,
     studyProgress: StudyProgress,
@@ -80,9 +75,6 @@ fun HomeScreen(
     onAddTask: (String) -> Unit,
     onOpenAlerts: () -> Unit,
     onOpenTasks: () -> Unit,
-    onOpenDigiBrain: () -> Unit,
-    onOpenDigiBrainTrash: (Boolean) -> Unit,
-    onOpenDigiBrainItem: (String) -> Unit,
     onOpenStudyManager: () -> Unit,
     badgeCounts: Map<String, Int> = emptyMap(),
     onOpenCalendar: () -> Unit,
@@ -174,23 +166,6 @@ fun HomeScreen(
                         onToggleTask = onToggleTask,
                         onAddTask = onAddTask,
                         onManageTasks = onOpenTasks,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-                }
-
-                // Digi Brain widget (v1.19.0): the mood face, the Trash signal
-                // and the public saves, swipeable. Shown whenever its toggle is
-                // on — even empty, so the feature is discoverable: the empty
-                // state says how to save into it.
-                if (showDigiBrain) {
-                    DigiBrainWidget(
-                        items = digiBrainItems,
-                        lastUseMillis = digiBrainLastUse,
-                        isDarkTheme = isDarkTheme,
-                        onOpenDigiBrain = onOpenDigiBrain,
-                        onOpenTrash = onOpenDigiBrainTrash,
-                        onOpenItem = onOpenDigiBrainItem,
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(14.dp))
