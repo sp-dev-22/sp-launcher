@@ -49,6 +49,14 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
+      # Unit tests run before the build. They are informative for now, not a
+      # gate: a red test must never stop the APK from being published, or a
+      # phone test cannot happen at all. Flip continue-on-error to false once
+      # the suite is trusted.
+      - name: Run unit tests
+        continue-on-error: true
+        run: gradle test --no-daemon --stacktrace
+
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
 

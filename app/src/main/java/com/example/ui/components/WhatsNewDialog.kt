@@ -41,7 +41,7 @@ fun WhatsNewDialog(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                WHAT_S_NEW_1_18_0.forEach { line ->
+                WHAT_S_NEW_1_20_0.forEach { line ->
                     Text("- $line", fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                 }
@@ -56,13 +56,11 @@ fun WhatsNewDialog(
     )
 }
 
-private val WHAT_S_NEW_1_18_0 = listOf(
-    "Fixed: this What's New note now appears after updates too.",
-    "Fixed: completed classes no longer linger in the Time Table.",
-    "Fixed: fingerprint unlock works on this phone now.",
-    "Fixed: uninstalled apps no longer leave ghost entries in favorite groups.",
-    "Long-press an app to see its shortcuts, right at the top.",
-    "Long-press an app to share its APK with a friend.",
-    "Notification badges: unread counts on drawer and favorites icons (turn on in Settings).",
-    "The Now/Next class strip is gone - Study Manager already shows your classes."
+private val WHAT_S_NEW_1_20_0 = listOf(
+    "New layout: Settings on the left, Home in the middle, Apps & Widgets on the right.",
+    "The app drawer slides up from the bottom of Home now - swipe up to open it.",
+    "Swipe the drawer's header down, or press Back, to close it.",
+    "The widget switches moved to the right page, one tap from Home.",
+    "Hidden apps open from the right page too, still behind your PIN.",
+    "The Apps tab inside Settings is gone - nothing was removed, it all moved right."
 )

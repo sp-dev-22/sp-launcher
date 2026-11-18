@@ -7,11 +7,18 @@ import android.provider.AlarmClock
 import android.provider.CalendarContract
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
@@ -20,28 +27,36 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import com.example.BuildConfig
 import com.example.service.openBadgeListenerSettings
 import com.example.ui.anim.RainbowBackground
 import com.example.ui.components.AppActionBottomSheet
+import com.example.ui.components.AppDrawerOverlay
 import com.example.ui.components.AppLockPinDialog
 import com.example.ui.components.FavoritesScreen
 import com.example.ui.components.ThemesSheet
 import com.example.ui.components.UndoBar
+import com.example.ui.components.VaultPinDialog
 import com.example.ui.components.WhatsNewDialog
 import com.example.ui.components.WidgetsManagementSheet
 import com.example.ui.screens.AlertsScreen
+import com.example.ui.screens.AppsWidgetsScreen
 import com.example.ui.screens.AppLockScreen
 import com.example.ui.screens.AutoAnimationsScreen
 import com.example.ui.screens.BackupRestoreScreen
 import com.example.ui.screens.CalendarScreen
 import com.example.ui.screens.CardsScreen
-import com.example.ui.screens.DrawerScreen
 import com.example.ui.screens.GoalsScreen
 import com.example.ui.screens.HiddenAppsScreen
 import com.example.ui.screens.HomeScreen
@@ -67,6 +82,14 @@ fun MainScreen(
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
     val undoMessage by viewModel.undoMessage.collectAsState()
+
+    // App drawer (v1.20.0): it slides up over Home instead of being the right
+    // page. The right page is now "Apps & Widgets".
+    var drawerOpen by remember { mutableStateOf(false) }
+
+    // The vault door: the "Hidden apps" row on the right page asks for the vault
+    // PIN here, the same dialog the search menu uses.
+    var vaultGateOpen by remember { mutableStateOf(false) }
 
     // Keep auto night mode and the per-hour / per-day theme rotation in step with the clock.
     LaunchedEffect(Unit) {
@@ -176,12 +199,13 @@ fun MainScreen(
 
     // Back handling: when not on Center Home page (page 1), pressing Back scrolls back to Home page
     BackHandler(
-        enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager ||
+        enabled = drawerOpen || pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager ||
             showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar ||
             showGoals || showAlertsScreen || showTasksScreen || showSupport || showSearch ||
             showHiddenApps || showPractice || showAutoAnimations || showAppLock
     ) {
         when {
+            drawerOpen -> drawerOpen = false
             showAutoAnimations -> viewModel.setShowAutoAnimations(false)
             showAppLock -> viewModel.setShowAppLock(false)
             showPractice -> viewModel.setShowPractice(false)
@@ -220,7 +244,37 @@ fun MainScreen(
 
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Swipe up from the bottom of Home to open the app drawer
+                    // (v1.20.0). Only a press in the bottom quarter starts this
+                    // gesture, so scrolling the Home widgets can never open the
+                    // drawer by accident. Nothing here is consumed, so taps and
+                    // scrolls underneath behave exactly as before.
+                    .pointerInput(pagerState.currentPage, anyOverlay, drawerOpen) {
+                        if (pagerState.currentPage != 1 || anyOverlay || drawerOpen) {
+                            return@pointerInput
+                        }
+                        val bottomZone = size.height * 0.72f
+                        val openAfter = 72.dp.toPx()
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            if (down.position.y < bottomZone) {
+                                return@awaitEachGesture
+                            }
+                            var dragged = 0f
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Main)
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) break
+                                dragged += change.positionChange().y
+                                if (dragged < -openAfter) {
+                                    drawerOpen = true
+                                    break
+                                }
+                            }
+                        }
+                    }
             ) { page ->
                 when (page) {
                     0 -> {
@@ -229,11 +283,6 @@ fun MainScreen(
                             isDarkTheme = isDarkTheme,
                             onOpenThemes = { viewModel.setShowThemesSheet(true) },
                             onOpenAutoAnimations = { viewModel.setShowAutoAnimations(true) },
-                            onOpenStudyManager = { viewModel.setShowStudyManager(true) },
-                            onOpenAlerts = { viewModel.setShowAlertsScreen(true) },
-                            onOpenTasks = { viewModel.setShowTasksScreen(true) },
-                            onOpenStudyPopups = { viewModel.setShowStudyPopups(true) },
-                            onOpenGoals = { viewModel.setShowGoals(true) },
                             onOpenWidgetsManagement = { viewModel.setShowWidgetsDialog(true) },
                             onOpenFavorites = { viewModel.setShowAddFavoritesScreen(true) },
                             onOpenBackupRestore = { viewModel.setShowBackupRestore(true) },
@@ -293,20 +342,71 @@ fun MainScreen(
                         )
                     }
                     2 -> {
-                        // Right Page: App Drawer
-                        DrawerScreen(
-                            apps = drawerApps,
-                            onOpenSearch = { viewModel.openSearch(false) },
+                        // Right Page: Apps & Widgets (v1.20.0). This page holds the
+                        // launcher's apps, its Home widgets and the phone's apps;
+                        // the drawer itself lives on a swipe-up over Home.
+                        AppsWidgetsScreen(
+                            appCount = drawerApps.size,
                             isDarkTheme = isDarkTheme,
-                            onAppClick = { app -> viewModel.launchApp(app) },
-                            onAppLongClick = { app -> viewModel.selectAppForActions(app) },
-                            isLoadingApps = isLoadingApps,
-                            lockedApps = lockedApps,
-                            badgeCounts = badgeCounts,
+                            showTime = showTime,
+                            showDate = showDate,
+                            showAlerts = showAlerts,
+                            showTasks = showTasks,
+                            showStudyDue = showStudyDue,
+                            showGoalsWidget = showGoalsWidget,
+                            badgesEnabled = badgeListenerEnabled,
+                            onToggleShowTime = { viewModel.setShowTime(it) },
+                            onToggleShowDate = { viewModel.setShowDate(it) },
+                            onToggleShowAlerts = { viewModel.setShowAlerts(it) },
+                            onToggleShowTasks = { viewModel.setShowTasks(it) },
+                            onToggleShowStudyDue = { viewModel.setShowStudyDue(it) },
+                            onToggleShowGoalsWidget = { viewModel.setShowGoalsWidget(it) },
+                            onOpenDrawer = { drawerOpen = true },
+                            onOpenSearch = { viewModel.openSearch(false) },
+                            onOpenStudyManager = { viewModel.setShowStudyManager(true) },
+                            onOpenAlerts = { viewModel.setShowAlertsScreen(true) },
+                            onOpenTasks = { viewModel.setShowTasksScreen(true) },
+                            onOpenStudyPopups = { viewModel.setShowStudyPopups(true) },
+                            onOpenGoals = { viewModel.setShowGoals(true) },
+                            onOpenFavorites = { viewModel.setShowAddFavoritesScreen(true) },
+                            onOpenHiddenApps = { vaultGateOpen = true },
+                            onOpenAppLock = { viewModel.setShowAppLock(true) },
+                            onOpenWidgetSettings = { viewModel.setShowWidgetsDialog(true) },
+                            onOpenThemes = { viewModel.setShowThemesSheet(true) },
+                            onOpenBadgeSettings = { openBadgeListenerSettings(context) },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
                 }
+            }
+
+            // The app drawer (v1.20.0): slides up over Home, drawn above the
+            // pager but below the fullscreen screens and the sheet windows.
+            AnimatedVisibility(
+                visible = drawerOpen,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag("drawer_overlay_host")
+            ) {
+                AppDrawerOverlay(
+                    apps = drawerApps,
+                    isDarkTheme = isDarkTheme,
+                    isLoadingApps = isLoadingApps,
+                    lockedApps = lockedApps,
+                    badgeCounts = badgeCounts,
+                    onAppClick = { app ->
+                        drawerOpen = false
+                        viewModel.launchApp(app)
+                    },
+                    onAppLongClick = { app -> viewModel.selectAppForActions(app) },
+                    onOpenSearch = {
+                        drawerOpen = false
+                        viewModel.openSearch(false)
+                    },
+                    onClose = { drawerOpen = false }
+                )
             }
 
             // Overlay touch shield (v1.17.0, bug 2): every fullscreen screen
@@ -500,6 +600,18 @@ fun MainScreen(
                 else viewModel.requestLockApp(app.packageName)
             },
             onShare = { viewModel.shareApp(app.packageName, app.label) }
+        )
+    }
+
+    // Vault PIN gate for the Hidden apps row on the Apps & Widgets page.
+    if (vaultGateOpen) {
+        VaultPinDialog(
+            onDismiss = { vaultGateOpen = false },
+            onUnlock = {
+                vaultGateOpen = false
+                viewModel.setShowHiddenApps(true)
+            },
+            checkPin = { viewModel.checkVaultPin(it) }
         )
     }
 

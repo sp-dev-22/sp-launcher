@@ -77,6 +77,7 @@ import com.example.data.model.ContactEntry
 import com.example.data.model.DeviceFile
 import com.example.ui.LauncherViewModel
 import com.example.ui.components.SearchSettingsSheet
+import com.example.ui.components.VaultPinDialog
 import com.example.util.BiometricHelper
 import com.example.util.CalcEngine
 import com.example.util.GlobalSearch
@@ -559,78 +560,6 @@ fun SearchScreen(
             checkPin = { viewModel.checkVaultPin(it) }
         )
     }
-}
-
-/**
- * The vault door (v1.15.0): the old `vault <pin>` / `apps <pin>` search commands are
- * gone, so Hidden Apps now asks for the four-digit PIN here. The PIN itself is the
- * same one the vault always used (default 1234, changeable inside Hidden Apps).
- */
-@Composable
-private fun VaultPinDialog(
-    onDismiss: () -> Unit,
-    onUnlock: () -> Unit,
-    checkPin: (String) -> Boolean
-) {
-    var pin by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-    val context = LocalContext.current
-    val activity = context as? Activity
-    // Fingerprint (v1.17.0): offered only when the device can do a biometric
-    // prompt right now. The PIN below always stays available.
-    val fingerprintAvailable = BiometricHelper.isAvailable(context)
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Hidden Apps", fontWeight = FontWeight.Bold) },
-        text = {
-            Column {
-                Text("Enter the four-digit PIN.", fontSize = 12.sp)
-                Spacer(modifier = Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = pin,
-                    onValueChange = {
-                        pin = it.filter { c -> c.isDigit() }.take(4)
-                        error = null
-                    },
-                    label = { Text("PIN") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    modifier = Modifier.fillMaxWidth().testTag("vault_pin_input")
-                )
-                if (fingerprintAvailable) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    TextButton(
-                        onClick = {
-                            BiometricHelper.authenticate(
-                                activity = activity,
-                                title = "Hidden Apps",
-                                subtitle = "Unlock with your fingerprint",
-                                onSuccess = onUnlock,
-                                onError = { error = it }
-                            )
-                        },
-                        modifier = Modifier.testTag("vault_fingerprint_btn")
-                    ) { Text("Use fingerprint") }
-                }
-                error?.let {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (checkPin(pin)) onUnlock()
-                    else error = "Wrong PIN — try again."
-                },
-                modifier = Modifier.testTag("vault_pin_unlock_btn")
-            ) { Text("Unlock") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
 }
 
 @Composable

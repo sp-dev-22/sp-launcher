@@ -2,10 +2,11 @@
 
 A lightweight, student-focused Android launcher built with Kotlin and Jetpack Compose.
 
-SP Launcher replaces your home screen with a simple three-page layout — Settings on the
-left, Home in the center, App Drawer on the right — and keeps study close at hand: a study
-planner, goals tracker, flashcard reminders and a fast built-in assistant, all designed to
-stay smooth on low-RAM phones.
+SP Launcher replaces your home screen with three surfaces — Settings on the left, Home in
+the centre, and **Apps & Widgets** on the right, with the app drawer on a **swipe up** from
+the bottom of Home — and keeps study close at hand: a study planner, goals tracker,
+flashcard reminders and a fast built-in assistant, all designed to stay smooth on
+low-RAM phones.
 
 **Private by design.** SP Launcher has no `INTERNET` permission, no analytics, no ads and
 no account. Nothing you enter ever leaves your phone.
@@ -39,9 +40,15 @@ no account. Nothing you enter ever leaves your phone.
   open them.
 - **Real app icons** — the drawer, the Favorites bar and the group sheet use the actual
   launcher icon of each installed app (cached, with a colored initial as fallback).
-- **App Drawer** — search, launch, and long-press actions (add to Favorites, app info,
-  uninstall). A loading indicator shows while the app list loads, so a first open never
-  looks like an empty phone.
+- **App Drawer** — swipe up from the bottom of Home and it slides up over it: search,
+  launch, and long-press actions (add to Favorites, app info, uninstall). Swipe its header
+  down, or press Back, to close it. A loading indicator shows while the app list loads, so
+  a first open never looks like an empty phone.
+- **Apps & Widgets (right page)** — the launcher's own apps (Study Manager, Alerts, Tasks,
+  Study Popups, Goals), every Home widget's on/off switch, and the phone's apps (Favorites
+  & groups, Hidden apps behind the vault PIN, Locked apps, notification badges), plus a
+  Themes shortcut. Settings on the left is how the launcher looks and behaves; this page is
+  what it gives you.
 - **SP Assistant** — one search over everything: apps, contacts (with Call / SMS /
   WhatsApp buttons right on the result, and the same buttons for a bare phone number
   typed with or without country code), files, tasks, notes, study classes and cards —
