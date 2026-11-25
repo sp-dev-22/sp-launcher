@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.OpenableColumns
+import android.provider.Settings
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
@@ -37,6 +38,7 @@ import com.example.data.model.StudyPopupSettings
 import com.example.service.AlertReminderScheduler
 import com.example.service.AutoBackupScheduler
 import com.example.service.BadgeListenerService
+import com.example.service.FloatingAvatarService
 import com.example.service.TaskReminderScheduler
 import com.example.service.isBadgeListenerEnabled
 import com.example.service.StudyPopupScheduler
@@ -486,6 +488,59 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _badgeListenerEnabled.value = isBadgeListenerEnabled(getApplication())
     }
 
+    // In-app browser (v1.19.1): fullscreen WebView overlay, like Cards.
+    private val _showBrowser = MutableStateFlow(false)
+    val showBrowser: StateFlow<Boolean> = _showBrowser.asStateFlow()
+
+    fun setShowBrowser(show: Boolean) {
+        _showBrowser.value = show
+    }
+
+    // Floating AI avatar (v1.19.1): the saved toggle, and whether the bubble
+    // is actually on screen right now (it can die without the toggle moving
+    // — reboot, swiped away, permission revoked).
+    val avatarEnabled = preferences.avatarEnabled
+
+    private val _avatarRunning = MutableStateFlow(false)
+    val avatarRunning: StateFlow<Boolean> = _avatarRunning.asStateFlow()
+
+    /**
+     * Turns the floating avatar on or off. Turning on without the overlay
+     * permission does nothing on purpose: the service silently refuses to
+     * start then, and the toggle would lie. The Settings row opens the
+     * system overlay screen first, and the user retries the toggle there.
+     */
+    fun setAvatarEnabled(enabled: Boolean) {
+        val app = getApplication<Application>()
+        if (enabled) {
+            if (!Settings.canDrawOverlays(app)) return
+            preferences.setAvatarEnabled(true)
+            FloatingAvatarService.start(app)
+        } else {
+            preferences.setAvatarEnabled(false)
+            FloatingAvatarService.stop(app)
+        }
+        refreshAvatarState()
+    }
+
+    /**
+     * Syncs the bubble with the saved toggle. Called on launch, on resume
+     * and every minute while the app is open (with the badge refresh): if
+     * the toggle is on, the permission is granted and the bubble died, bring
+     * it back. This only ever runs while the app is in the foreground, so
+     * starting the foreground service is allowed.
+     */
+    fun refreshAvatarState() {
+        val app = getApplication<Application>()
+        if (preferences.avatarEnabled.value &&
+            !FloatingAvatarService.isRunning(app) &&
+            Settings.canDrawOverlays(app)
+        ) {
+            FloatingAvatarService.start(app)
+        }
+        _avatarRunning.value = FloatingAvatarService.isRunning(app)
+    }
+
     init {
         loadApps()
         // Keep the backup-folder validity in step with the stored folder (the
@@ -505,6 +560,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         checkWhatsNew()
         // Notification badges (v1.18.0): is the listener granted?
         refreshBadgeListenerState()
+        // Floating AI avatar (v1.19.1): is the bubble up, if it should be?
+        refreshAvatarState()
         StudyPopupScheduler.reschedule(application, preferences.popupSettings.value)
         refreshAutoNightMode()
         // Watch Battery Saver so the theme animations can pause while it is on.
@@ -526,6 +583,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         // the system Notification-access screen — re-read the grant every
         // resume, outside the app-list throttle below.
         refreshBadgeListenerState()
+        // Floating AI avatar (v1.19.1): same idea for the overlay screen —
+        // the user may have just granted it and come back.
+        refreshAvatarState()
         val now = System.currentTimeMillis()
         // A missing cache file means PackageChangedReceiver invalidated it after
         // an install / removal / change — refresh even inside the throttle window.

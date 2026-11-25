@@ -18,9 +18,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.School
@@ -41,10 +43,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.provider.Settings
 import com.example.BuildConfig
 
 /**
@@ -71,10 +75,20 @@ fun SettingsScreen(
     backupWarning: String? = null,
     badgesEnabled: Boolean = false,
     onOpenBadgeSettings: () -> Unit = {},
+    // Floating AI avatar (v1.19.1): saved toggle + whether the bubble is
+    // actually on screen. Turning it on needs the overlay permission — the
+    // row opens the system screen when it is missing.
+    avatarEnabled: Boolean = false,
+    avatarRunning: Boolean = false,
+    onToggleAvatar: (Boolean) -> Unit = {},
+    onOpenAvatarOverlaySettings: () -> Unit = {},
+    // In-app browser (v1.19.1).
+    onOpenBrowser: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
     var selectedTab by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
 
     Column(
         modifier = modifier
@@ -207,6 +221,45 @@ fun SettingsScreen(
                     },
                     onClick = onOpenBadgeSettings,
                     testTag = "settings_notification_badges"
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // AI Avatar (v1.19.1): a small face that floats over any app.
+                // OFF by default; on needs the overlay permission, granted in
+                // system settings — tapping the row opens that screen when it
+                // is missing, and the toggle works once it is granted. The
+                // face only opens the AI chat, which is coming soon.
+                SettingsItemRow(
+                    title = "AI Avatar",
+                    subtitle = when {
+                        avatarEnabled && avatarRunning ->
+                            "On — chehra kisi bhi app ke upar tair raha hai"
+                        avatarEnabled ->
+                            "On hai, lekin bubble nahi dikh raha — permission check karo"
+                        else ->
+                            "Off — on karo to chehra kisi bhi app ke upar dikhega"
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Face,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    onClick = {
+                        if (!avatarEnabled) {
+                            if (Settings.canDrawOverlays(context)) {
+                                onToggleAvatar(true)
+                            } else {
+                                onOpenAvatarOverlaySettings()
+                            }
+                        } else {
+                            onToggleAvatar(false)
+                        }
+                    },
+                    testTag = "settings_ai_avatar"
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -382,6 +435,25 @@ fun SettingsScreen(
                     },
                     onClick = onOpenGoals,
                     testTag = "settings_goals"
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Browser (v1.19.1): the in-app WebView — web kholo, bina
+                // launcher chhode. "AI ko bhejo" jald aa raha hai.
+                SettingsItemRow(
+                    title = "Browser",
+                    subtitle = "App ke andar hi web kholo",
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    onClick = onOpenBrowser,
+                    testTag = "settings_browser"
                 )
             }
 

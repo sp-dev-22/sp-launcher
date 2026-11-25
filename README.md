@@ -7,8 +7,9 @@ left, Home in the center, App Drawer on the right — and keeps study close at h
 planner, goals tracker, flashcard reminders and a fast built-in assistant, all designed to
 stay smooth on low-RAM phones.
 
-**Private by design.** SP Launcher has no `INTERNET` permission, no analytics, no ads and
-no account. Nothing you enter ever leaves your phone.
+**Private by design.** SP Launcher has no analytics, no ads and no account.
+Internet is used only by the in-app browser (v1.19.1) when you browse — nothing
+you enter is ever sent anywhere on its own. The AI chat is coming soon.
 
 ## Screenshots
 
@@ -53,6 +54,16 @@ no account. Nothing you enter ever leaves your phone.
     Access** granted (a system setting, offered in place when it is missing), search
     also walks your storage on demand — no index — and finds files the media store
     never lists.
+- **In-app Browser** — open the web without leaving the launcher, from the
+  Home screen's Browser chip or **Settings > Apps > Browser**. Address bar,
+  back / forward / reload, and "Bahari browser me kholo" to jump to your
+  normal browser. The "AI ko bhejo" button reads the page text and shows it
+  to you — the AI chat is coming soon, so nothing is sent anywhere yet.
+- **AI Avatar** — a small face that floats over any app, draggable anywhere
+  on screen. Turn it on from **Settings > AI Avatar**; it needs the "Display
+  over other apps" permission, granted in system settings. Tapping the face
+  opens the AI chat — coming soon, so for now it just says so. The face also
+  sits on the Home screen, next to the Browser chip.
 - **Goals** — a regular-activity tracker. Each goal is either *limited* (a target, e.g.
   2 litres a day) or *unlimited* (no finish line, it just keeps counting). A goal carries
   a starting text and, for limited goals, an end text it switches to when the target is
@@ -137,6 +148,22 @@ Each file is JSON — either a plain list, or an object with a `cards` list:
 
 `front` is required. Give `back` for the answer, or `options` + `correct` (1-based) for an
 MCQ and the back is filled in as `Answer: 1) Jupiter`. `q`/`a` are accepted as aliases.
+
+## What's new in 1.19.1
+
+- **In-app Browser**: web kholo, bina launcher chhode — Home ke Browser chip
+  se ya Settings > Apps se. Address bar, back / forward / reload, aur bahari
+  browser me kholne ka button bhi hai.
+- **AI Avatar**: ek chhota chehra jo kisi bhi app ke upar tairta hai, kahin
+  bhi drag karo. Settings > AI Avatar se on karo — overlay permission system
+  settings me allow karni hogi.
+- **AI chat jald aa raha hai**: avatar dabane par abhi ek message dikhta hai,
+  chat baad me aayegi. Browser ka "AI ko bhejo" button page ka text dikhata
+  hai ("Poora dekho" se poora text), lekin kuch bhejta nahi — bhejna tabhi
+  shuru hoga jab chat aa jayegi.
+- **INTERNET permission**: browser ko internet chahiye, isliye ye permission
+  add hui. Internet sirf browser use karta hai — no analytics, no ads, no
+  account, jaise pehle tha.
 
 ## What's new in 1.18.0
 

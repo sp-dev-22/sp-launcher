@@ -149,6 +149,11 @@ class LauncherPreferences(context: Context) {
     private val _showGoalsWidget = MutableStateFlow(prefs.getBoolean(KEY_SHOW_GOALS, true))
     val showGoalsWidget: StateFlow<Boolean> = _showGoalsWidget.asStateFlow()
 
+    // Floating AI avatar (v1.19.1): the bubble over any app. OFF by default;
+    // turning it on needs the overlay permission (granted in system settings).
+    private val _avatarEnabled = MutableStateFlow(prefs.getBoolean(KEY_AVATAR_ENABLED, false))
+    val avatarEnabled: StateFlow<Boolean> = _avatarEnabled.asStateFlow()
+
     // What's New popup (v1.17.0): the versionCode the popup was last shown for.
     // 0 means "never shown" — a fresh install, or an update from a version older
     // than 1.17.0 (see hasPreExistingData: user data tells the two apart).
@@ -309,6 +314,11 @@ class LauncherPreferences(context: Context) {
     fun setShowGoalsWidget(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_GOALS, enabled).apply()
         _showGoalsWidget.value = enabled
+    }
+
+    fun setAvatarEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AVATAR_ENABLED, enabled).apply()
+        _avatarEnabled.value = enabled
     }
 
     /**
@@ -1554,6 +1564,7 @@ class LauncherPreferences(context: Context) {
         _showTasks.value = prefs.getBoolean(KEY_SHOW_TASKS, true)
         _showStudyDue.value = prefs.getBoolean(KEY_SHOW_STUDY_DUE, true)
         _showGoalsWidget.value = prefs.getBoolean(KEY_SHOW_GOALS, true)
+        _avatarEnabled.value = prefs.getBoolean(KEY_AVATAR_ENABLED, false)
         _lastShownVersionCode.value = prefs.getInt(KEY_LAST_SHOWN_VERSION, 0)
         _goals.value = loadGoals()
         _clearedCalendarEvents.value =
@@ -1598,6 +1609,7 @@ class LauncherPreferences(context: Context) {
         private const val KEY_THEME = "theme_key"
         private const val KEY_SHOW_STUDY_DUE = "show_study_due"
         private const val KEY_SHOW_GOALS = "show_goals_widget"
+        private const val KEY_AVATAR_ENABLED = "avatar_enabled"
         private const val KEY_LAST_SHOWN_VERSION = "last_shown_version_code"
 
         // Removed with the Now/Next strip in v1.18.0: the key is only ever
@@ -1620,7 +1632,7 @@ class LauncherPreferences(context: Context) {
             KEY_SHOW_TIME, KEY_SEARCH_CONTACTS, KEY_SEARCH_FILES, KEY_SEARCH_CALC,
             KEY_SEARCH_WEB, KEY_SEARCH_VOICE, KEY_SEARCH_HOME_BAR, KEY_SHOW_DATE,
             KEY_SHOW_ALERTS, KEY_SHOW_TASKS, KEY_SHOW_STUDY_DUE, KEY_SHOW_GOALS,
-            KEY_AUTO_THEME
+            KEY_AUTO_THEME, KEY_AVATAR_ENABLED
         )
         private const val KEY_GOALS = "goals_data"
         private const val KEY_CLEARED_CALENDAR = "cleared_calendar_events"

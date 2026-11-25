@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -15,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import com.example.service.FloatingAvatarService
 import com.example.ui.LauncherViewModel
 import com.example.ui.MainScreen
 import com.example.ui.theme.FocusLauncherTheme
@@ -34,6 +36,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         requestNotificationPermissionIfNeeded()
+        // The floating avatar's tap can also land here on a cold start.
+        handleAvatarIntent(intent)
 
         setContent {
             val isDarkTheme by viewModel.isNightMode.collectAsState()
@@ -51,6 +55,28 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshApps()
+        viewModel.refreshAvatarState()
+    }
+
+    /**
+     * The floating avatar's tap arrives as an intent with the "open_ai_chat"
+     * extra (singleTask, so this is [onNewIntent] while running, and the
+     * launch intent on a cold start).
+     *
+     * There is no AI chat screen yet (v1.19.1) — so this only says so,
+     * honestly, in a toast. It never opens a fake chat.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleAvatarIntent(intent)
+    }
+
+    private fun handleAvatarIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(FloatingAvatarService.EXTRA_OPEN_AI_CHAT, false) == true) {
+            intent.removeExtra(FloatingAvatarService.EXTRA_OPEN_AI_CHAT)
+            Toast.makeText(this, "AI chat jald aa raha hai", Toast.LENGTH_LONG).show()
+        }
     }
 
     /**

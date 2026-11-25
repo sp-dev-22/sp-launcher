@@ -47,6 +47,20 @@
          the fingerprint option, and the PIN always stays available. -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
+    <!-- In-app browser (v1.19.1): the browser loads web pages, so it needs network
+         access. Nothing else in the app uses the internet: no analytics, no ads,
+         no account — and the browser sends nothing anywhere on its own. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Floating AI avatar (v1.19.1): draw the bubble over any app. Granted by
+         the user in system settings only (never a runtime prompt); the avatar
+         stays off without it. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- The avatar bubble is a foreground service (Android 14+ needs a type). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -148,6 +162,19 @@
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
+        </service>
+
+        <!-- Floating AI avatar bubble (v1.19.1): a draggable face over any app.
+             foregroundServiceType="specialUse" is the documented Android 14 path
+             for a service that does not fit the other types; SP Launcher is
+             distributed via GitHub Releases, not Play. -->
+        <service
+            android:name=".service.FloatingAvatarService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="ai_avatar_bubble" />
         </service>
 
 

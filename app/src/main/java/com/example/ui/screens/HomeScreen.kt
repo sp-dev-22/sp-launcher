@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -41,6 +42,8 @@ import com.example.data.model.StudyProgress
 import com.example.data.model.TaskItem
 import com.example.ui.anim.DiwaliAnimationLayer
 import com.example.ui.components.AlertsWidget
+import com.example.ui.components.AvatarFace
+import com.example.ui.components.AvatarMood
 import com.example.ui.components.ClockWidget
 import com.example.ui.components.FavoritesBar
 import com.example.ui.components.GoalsWidget
@@ -84,6 +87,10 @@ fun HomeScreen(
     showSearchBar: Boolean = true,
     onOpenSearch: (autoVoice: Boolean) -> Unit = {},
     showDiwaliAnimations: Boolean = false,
+    // In-app browser (v1.19.1) + AI avatar face (v1.19.1): the face is
+    // decoration for now — tapping it says the AI chat is coming soon.
+    onOpenBrowser: () -> Unit = {},
+    onAvatarClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -118,6 +125,18 @@ fun HomeScreen(
                     onDateClick = onOpenCalendar,
                     onTimeClick = onTimeClick,
                     overrideMillis = clockOverrideMillis,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Browser chip + AI avatar face (v1.19.1): the browser opens
+                // the in-app WebView; the face is decoration until the AI
+                // chat lands, and tapping it says so.
+                HomeQuickRow(
+                    isDarkTheme = isDarkTheme,
+                    onOpenBrowser = onOpenBrowser,
+                    onAvatarClick = onAvatarClick,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -224,6 +243,67 @@ fun HomeScreen(
         // The canvas takes no pointer input, so nothing here blocks a tap.
         if (showDiwaliAnimations) {
             DiwaliAnimationLayer(modifier = Modifier.fillMaxSize())
+        }
+    }
+}
+
+/**
+ * Browser chip + AI avatar face (v1.19.1), right under the clock. Same bar
+ * colour as the Home search bar below, so it reads as part of Home.
+ */
+@Composable
+private fun HomeQuickRow(
+    isDarkTheme: Boolean,
+    onOpenBrowser: () -> Unit,
+    onAvatarClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val barColor = if (isDarkTheme) Color(0xFF26262A) else Color(0xFFF7EBE5)
+    val placeholderColor = if (isDarkTheme) Color(0xFF9E9E9E) else Color(0xFF7D726D)
+
+    Row(
+        modifier = modifier.padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .height(54.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(barColor)
+                .clickable { onOpenBrowser() }
+                .padding(start = 16.dp, end = 16.dp)
+                .testTag("home_browser_chip"),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Language,
+                contentDescription = "Browser",
+                tint = placeholderColor,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "Browser",
+                color = placeholderColor,
+                fontSize = 15.sp,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Box(
+            modifier = Modifier
+                .size(54.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(barColor)
+                .clickable { onAvatarClick() }
+                .testTag("home_avatar_face"),
+            contentAlignment = Alignment.Center
+        ) {
+            AvatarFace(
+                mood = AvatarMood.IDLE,
+                modifier = Modifier.size(48.dp)
+            )
         }
     }
 }

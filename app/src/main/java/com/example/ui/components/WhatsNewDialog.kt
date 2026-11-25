@@ -41,7 +41,7 @@ fun WhatsNewDialog(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                WHAT_S_NEW_1_18_0.forEach { line ->
+                WHAT_S_NEW_1_19_1.forEach { line ->
                     Text("- $line", fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                 }
@@ -56,13 +56,9 @@ fun WhatsNewDialog(
     )
 }
 
-private val WHAT_S_NEW_1_18_0 = listOf(
-    "Fixed: this What's New note now appears after updates too.",
-    "Fixed: completed classes no longer linger in the Time Table.",
-    "Fixed: fingerprint unlock works on this phone now.",
-    "Fixed: uninstalled apps no longer leave ghost entries in favorite groups.",
-    "Long-press an app to see its shortcuts, right at the top.",
-    "Long-press an app to share its APK with a friend.",
-    "Notification badges: unread counts on drawer and favorites icons (turn on in Settings).",
-    "The Now/Next class strip is gone - Study Manager already shows your classes."
+private val WHAT_S_NEW_1_19_1 = listOf(
+    "In-app Browser: web kholo, bina launcher chhode — Home ke Browser chip se ya Settings > Apps se.",
+    "AI Avatar: ek chhota chehra jo kisi bhi app ke upar tairta hai. Settings > AI Avatar se on karo (overlay permission chahiye).",
+    "AI chat jald aa raha hai — avatar dabane par abhi ek message dikhta hai, chat baad me aayegi. Browser ka \"AI ko bhejo\" bhi tabhi kaam karega.",
+    "Browser ko internet chahiye, isliye INTERNET permission add hui — internet sirf browser use karta hai, aur kuch nahi."
 )

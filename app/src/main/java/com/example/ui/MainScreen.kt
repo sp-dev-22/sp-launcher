@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.provider.AlarmClock
 import android.provider.CalendarContract
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -36,6 +37,7 @@ import com.example.ui.components.UndoBar
 import com.example.ui.components.WhatsNewDialog
 import com.example.ui.components.WidgetsManagementSheet
 import com.example.ui.screens.AlertsScreen
+import com.example.ui.screens.AiBrowserScreen
 import com.example.ui.screens.AppLockScreen
 import com.example.ui.screens.AutoAnimationsScreen
 import com.example.ui.screens.BackupRestoreScreen
@@ -74,6 +76,7 @@ fun MainScreen(
             viewModel.refreshAutoNightMode()
             viewModel.refreshAutoTheme()
             viewModel.refreshBadgeListenerState()
+            viewModel.refreshAvatarState()
             delay(60_000L)
         }
     }
@@ -159,12 +162,17 @@ fun MainScreen(
     val badgeCounts by viewModel.badgeCounts.collectAsState()
     val badgeListenerEnabled by viewModel.badgeListenerEnabled.collectAsState()
 
-    // True while any fullscreen overlay is up (all 16 of them, including
+    // In-app browser (v1.19.1) and floating AI avatar (v1.19.1).
+    val showBrowser by viewModel.showBrowser.collectAsState()
+    val avatarEnabled by viewModel.avatarEnabled.collectAsState()
+    val avatarRunning by viewModel.avatarRunning.collectAsState()
+
+    // True while any fullscreen overlay is up (all 17 of them, including
     // Automatics, which is drawn after the Scaffold). Drives the touch shield.
     val anyOverlay = showAddFavoritesScreen || showStudyManager || showBackupRestore ||
         showTimeTable || showStudyPopups || showCards || showCalendar || showGoals ||
         showAlertsScreen || showTasksScreen || showSupport || showSearch ||
-        showHiddenApps || showPractice || showAppLock || showAutoAnimations
+        showHiddenApps || showPractice || showAppLock || showAutoAnimations || showBrowser
 
     val currentTheme = LauncherTheme.fromKey(themeKey)
     val rainbow = isRainbowTheme(currentTheme)
@@ -179,9 +187,10 @@ fun MainScreen(
         enabled = pagerState.currentPage != 1 || showAddFavoritesScreen || showStudyManager ||
             showBackupRestore || showTimeTable || showStudyPopups || showCards || showCalendar ||
             showGoals || showAlertsScreen || showTasksScreen || showSupport || showSearch ||
-            showHiddenApps || showPractice || showAutoAnimations || showAppLock
+            showHiddenApps || showPractice || showAutoAnimations || showAppLock || showBrowser
     ) {
         when {
+            showBrowser -> viewModel.setShowBrowser(false)
             showAutoAnimations -> viewModel.setShowAutoAnimations(false)
             showAppLock -> viewModel.setShowAppLock(false)
             showPractice -> viewModel.setShowPractice(false)
@@ -242,6 +251,11 @@ fun MainScreen(
                             backupWarning = backupWarning,
                             badgesEnabled = badgeListenerEnabled,
                             onOpenBadgeSettings = { openBadgeListenerSettings(context) },
+                            avatarEnabled = avatarEnabled,
+                            avatarRunning = avatarRunning,
+                            onToggleAvatar = { viewModel.setAvatarEnabled(it) },
+                            onOpenAvatarOverlaySettings = { openAvatarOverlaySettings(context) },
+                            onOpenBrowser = { viewModel.setShowBrowser(true) },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -289,6 +303,14 @@ fun MainScreen(
                             showSearchBar = showHomeSearchBar,
                             onOpenSearch = { autoVoice -> viewModel.openSearch(autoVoice) },
                             showDiwaliAnimations = showDiwaliAnimations,
+                            onOpenBrowser = { viewModel.setShowBrowser(true) },
+                            onAvatarClick = {
+                                Toast.makeText(
+                                    context,
+                                    "AI chat jald aa raha hai",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -469,6 +491,16 @@ fun MainScreen(
                 )
             }
 
+            // Fullscreen in-app Browser (v1.19.1). The onSendToAi seam is
+            // reserved for the AI chat (coming soon) and is never invoked
+            // today — the browser sends nothing anywhere.
+            if (showBrowser) {
+                AiBrowserScreen(
+                    onSendToAi = { _, _ -> /* AI chat coming soon; see AiBrowserScreen */ },
+                    onBack = { viewModel.setShowBrowser(false) }
+                )
+            }
+
             // Fullscreen Support (tips + links)
             if (showSupport) {
                 SupportScreen(onBack = { viewModel.setShowSupport(false) })
@@ -595,6 +627,28 @@ fun MainScreen(
             onToggleDiwaliAnimations = { viewModel.setDiwaliAnimationsEnabled(it) },
             onBack = { viewModel.setShowAutoAnimations(false) }
         )
+    }
+}
+
+/**
+ * Opens the system "Display over other apps" screen for this app, so the
+ * user can grant the overlay permission the floating AI avatar needs
+ * (v1.19.1). No settings app -> a toast, never a crash.
+ */
+private fun openAvatarOverlaySettings(context: Context) {
+    val intent = Intent(
+        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+        android.net.Uri.parse("package:${context.packageName}")
+    )
+    try {
+        context.startActivity(intent)
+        Toast.makeText(
+            context,
+            "Overlay permission allow karo, phir wapas aakar AI Avatar on karo",
+            Toast.LENGTH_LONG
+        ).show()
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, "Overlay settings nahi khul payi", Toast.LENGTH_SHORT).show()
     }
 }
 
